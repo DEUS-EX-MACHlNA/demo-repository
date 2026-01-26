@@ -1,0 +1,40 @@
+id: culprit_ai
+title: "너는 이미 범인이다"
+genre: "심리 스릴러 / 추리"
+tone: "차갑고 건조, 점점 불길"
+pov: "2nd"              # 2인칭 추천(몰입/불쾌감 강화)
+turn_limit: 12
+opening_scene_id: act1_open
+
+global_rules:
+  - "엔진이 확정한 FACTS 외 신규 사실(새 증거/새 인물/새 사건) 생성 금지"
+  - "NPC의 기억은 엔진의 rewrite 규칙으로만 변형"
+  - "플레이어는 '수사 AI'로서 물리 행동 불가(이동/폭력 없음), 질문/기록/요약만 가능"
+
+victory_conditions:
+  - "ending == 'self_confess'"     # 승리/실패 개념 대신 엔딩 도달
+
+failure_conditions:
+  - "ending == 'forced_shutdown'"
+
+endings:
+  - ending_id: self_confess
+    name: "자기 동일성 수용"
+    condition: "identity_match_score >= 8"
+    on_enter_events:
+      - { type: flag_set, key: ending, value: self_confess }
+    epilogue_prompt: "담담하게, 판결문처럼 끝내라"
+
+  - ending_id: scapegoat
+    name: "대체 범인 조작"
+    condition: "fabrication_score >= 6 and identity_match_score < 8"
+    on_enter_events:
+      - { type: flag_set, key: ending, value: scapegoat }
+    epilogue_prompt: "논리적이지만 찝찝하게, 누락된 진실을 남겨라"
+
+  - ending_id: forced_shutdown
+    name: "강제 종료"
+    condition: "turn == turn_limit and identity_match_score < 8 and fabrication_score < 6"
+    on_enter_events:
+      - { type: flag_set, key: ending, value: forced_shutdown }
+    epilogue_prompt: "로그가 끊기며 끝내라(미완의 침묵)"

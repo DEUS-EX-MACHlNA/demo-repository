@@ -1,0 +1,48 @@
+npcs:
+  - npc_id: family
+    name: "피해자 가족"
+    role: "증언자"
+    stats: { trust: 0, fear: 0, suspicion: 0 }
+    persona:
+      values: ["명확한 책임", "감정의 정당화"]
+      fears: ["사건이 흐려지는 것"]
+      taboos: ["피해자 탓"]
+      triggers:
+        trust_up: ["공감 요약", "명확한 다음 질문"]
+        suspicion_up: ["논리로만 몰아붙임", "가설을 단정"]
+    knowledge_locks:
+      - knowledge_id: last_call_detail
+        unlock_condition: "trust >= 2"
+        reveal_text_key: family_last_call
+
+  - npc_id: partner
+    name: "동료 수사관"
+    role: "견제자"
+    stats: { trust: 0, suspicion: 1 }
+    persona:
+      values: ["절차", "재현성"]
+      fears: ["AI가 사건을 만든다"]
+      taboos: ["근거 없는 확신"]
+      triggers:
+        trust_up: ["증거 기반 요약", "자기검증 요청"]
+        suspicion_up: ["기억 수정 지시", "유도신문"]
+    knowledge_locks:
+      - knowledge_id: pattern_report
+        unlock_condition: "clue_count >= 3"
+        reveal_text_key: partner_pattern_report
+
+  - npc_id: witness
+    name: "목격자"
+    role: "불완전 기억"
+    stats: { trust: 0, fear: 2 }
+    persona:
+      values: ["자기보존"]
+      fears: ["자기 책임"]
+      taboos: ["추궁"]
+      triggers:
+        trust_up: ["선택지 질문", "자기 탓을 줄여줌"]
+        fear_up: ["압박", "모순 지적"]
+    knowledge_locks:
+      - knowledge_id: alley_sound
+        unlock_condition: "fear <= 3"
+        reveal_text_key: witness_alley_sound

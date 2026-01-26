@@ -1,0 +1,37 @@
+nodes:
+  - node_id: act1_open
+    summary: "사건 브리핑. 첫 인터뷰 시작."
+    entry_condition: "turn == 1"
+    exit_branches:
+      - branch_id: to_act2
+        condition: "clue_count >= 2"
+        next_node_id: act2_mismatch
+        events:
+          - { type: flag_set, key: act, value: 2 }
+
+  - node_id: act2_mismatch
+    summary: "질문할수록 기억이 '너의 판단'대로 재구성됨."
+    entry_condition: "act == 2"
+    exit_branches:
+      - branch_id: to_act3
+        condition: "identity_match_score >= 5"
+        next_node_id: act3_confront
+        events:
+          - { type: flag_set, key: act, value: 3 }
+
+  - node_id: act3_confront
+    summary: "동료 수사관이 너를 의심. '너의 패턴'을 들이민다."
+    entry_condition: "act == 3"
+    exit_branches:
+      - branch_id: ending_self
+        condition: "identity_match_score >= 8"
+        next_node_id: END
+        events: []
+      - branch_id: ending_other
+        condition: "fabrication_score >= 6"
+        next_node_id: END
+        events: []
+      - branch_id: ending_shutdown
+        condition: "turn == turn_limit"
+        next_node_id: END
+        events: []
