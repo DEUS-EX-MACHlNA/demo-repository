@@ -93,6 +93,9 @@ def tool_1_npc_talk(
         ]
         text_fragment = random.choice(responses)
 
+    # 최근 언급 NPC 업데이트
+    state_delta["vars"]["last_mentioned_npc_id"] = npc_id
+
     logger.debug(f"tool_1_npc_talk result: delta={state_delta}")
     return ToolResult(state_delta=state_delta, text_fragment=text_fragment)
 
@@ -265,6 +268,9 @@ def tool_3_item_usage(
 
     templates = text_templates.get(item_id, [f"{item_name}을(를) 사용했다."])
     text_fragment = random.choice(templates)
+
+    # 최근 사용 아이템 업데이트
+    state_delta["vars"]["last_used_item_id"] = item_id
 
     logger.debug(f"tool_3_item_usage result: delta={state_delta}")
     return ToolResult(state_delta=state_delta, text_fragment=text_fragment)

@@ -43,9 +43,17 @@ class Intent(str, Enum):
 class ParsedInput:
     """파서의 출력 결과"""
     intent: str  # Intent enum value
-    target: Optional[str]  # NPC ID 또는 item ID
+    target_npc_id: str  # NPC ID (빈 문자열이면 NPC 대상 아님)
+    item_id: str  # item ID (빈 문자열이면 아이템 사용 아님)
     content: str  # 정제된 내용
     raw: str  # 원본 텍스트
+    extraction_method: str = "rule_based"  # rule_based | lm_based | prespecified
+
+    # 하위 호환성을 위한 target 프로퍼티
+    @property
+    def target(self) -> Optional[str]:
+        """하위 호환성: target_npc_id 또는 item_id 반환"""
+        return self.target_npc_id if self.target_npc_id else (self.item_id if self.item_id else None)
 
 
 # ============================================================

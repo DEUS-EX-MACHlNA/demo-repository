@@ -325,7 +325,7 @@ if __name__ == "__main__":
     print("-" * 60)
 
     for text, expected in test_cases:
-        parsed = parser.parse(text, assets, world)
+        parsed = parser.parse(text, "", "", assets, world)
         toolcall = controller.decide(parsed, world, assets)
 
         print(f"\n  입력: \"{text}\"")

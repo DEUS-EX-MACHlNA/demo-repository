@@ -170,7 +170,7 @@ async def execute_pipeline(
         # ============================================================
         step_start = time.time()
         parser = get_parser()
-        parsed = parser.parse(user_text, assets, world_before)
+        parsed = parser.parse(user_text, "", "", assets, world_before)
         debug["steps"].append({
             "step": "parse",
             "duration_ms": (time.time() - step_start) * 1000,
