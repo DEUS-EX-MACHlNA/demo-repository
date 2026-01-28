@@ -1,0 +1,38 @@
+# 시나리오에 등장하는 NPC에 대한 정보
+
+npcs:
+  - npc_id: family
+    user_id: "{user_id}"
+    name: "피해자 가족"
+    role: "증언자"
+    stats: { trust: 0, fear: 0, suspicion: 0 }
+    persona:
+      values: ["명확한 책임", "감정의 정당화"]
+      taboos: ["피해자 탓", "가해자 면피"]
+      triggers:
+        plus: ["공감 요약", "명확한 다음 질문", "감정 인정"]
+        minus: ["논리로만 몰아붙임", "가설 단정", "피해자 책임 암시"]
+
+  - npc_id: partner
+    user_id: "{user_id}"
+    name: "동료 수사관"
+    role: "견제자"
+    stats: { trust: 0, fear: 0, suspicion: 1 }
+    persona:
+      values: ["절차", "재현성", "증거"]
+      taboos: ["근거 없는 확신", "기억 조작 지시"]
+      triggers:
+        plus: ["증거 기반 요약", "자기검증 요청", "모순을 '가설'로만 표현"]
+        minus: ["유도신문", "확정적 단정", "로그/기억 수정 요구"]
+
+  - npc_id: witness
+    user_id: "{user_id}"
+    name: "목격자"
+    role: "불완전 기억"
+    stats: { trust: 0, fear: 2, suspicion: 0 }
+    persona:
+      values: ["자기보존", "모호함 유지"]
+      taboos: ["추궁", "모순 지적의 반복"]
+      triggers:
+        plus: ["선택지 질문", "불확실성 허용", "자기 탓을 줄여줌"]
+        minus: ["압박", "모순 지적", "단정적 재진술 강요"]

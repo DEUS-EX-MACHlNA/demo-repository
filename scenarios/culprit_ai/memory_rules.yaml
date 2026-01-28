@@ -1,0 +1,21 @@
+# 플레이어의 발화가 시나리오 세계를 바꾸는 업데이트 규칙틀
+
+# 유저 입력을 intent로 파싱했다고 가정(leading / neutral / empathic / summarize)
+rewrite_rules:
+  - rule_id: leading_question_bias
+    when: "intent == 'leading'"
+    effects:
+      - { type: npc_memory_rewrite, npc: __active__, field: last_statement, mode: confirm_player_hypothesis }
+      - { type: var_add, key: vars.fabrication_score, value: 1 }
+
+  - rule_id: empathic_stabilize
+    when: "intent == 'empathic'"
+    effects:
+      - { type: npc_stat_add, npc: family, stat: trust, value: 1 }
+      # identity는 안 올림 (의도대로)
+
+  - rule_id: summarize_lock_in
+    when: "intent == 'summarize'"
+    effects:
+      - { type: var_add, key: vars.clue_count, value: 1 }
+      - { type: var_add, key: vars.identity_match_score, value: 1 }
