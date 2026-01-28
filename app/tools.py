@@ -13,8 +13,42 @@ from typing import Any
 from app.loader import ScenarioAssets
 from app.models import Intent, NightResult, ToolResult, WorldState
 
+# reponse
+from dataclasses import dataclass
+from typing import Any, Dict, Literal
+from app.llm.engine import generate_text
+from app.llm import model, tokenizer
+
+
 logger = logging.getLogger(__name__)
 
+def generate_response(ctx: ResponseContext) -> str:
+    prompt = f"""[도구] {ctx.tool_name}
+
+    NPC: {ctx.npc_name}
+    Intent: {ctx.intent}
+    Action: {ctx.action_type}
+    Item: {ctx.item_id}
+
+    World Change:
+    {ctx.state_delta}
+
+    지침:
+    - 서사체 문장으로만 응답한다
+    - 플레이어를 직접 지칭하지 않는다
+    - 시스템 메시지를 출력하지 않는다
+    """
+
+    result = generate_text(
+        model=model,
+        tokenizer=tokenizer,
+        prompt=prompt,
+        max_new_tokens=120,
+        temperature=0.7,
+        top_p=0.9,
+    )
+    
+    return result
 
 # ============================================================
 # Tool 1: NPC Talk (대화)
