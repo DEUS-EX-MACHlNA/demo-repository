@@ -1,0 +1,27 @@
+# 시나리오의 각 분기점 설명
+
+nodes:
+  - node_id: act1_open   # 매 턴 끝마다 node_id로 노드 찾기
+    summary: "사건 브리핑. 첫 인터뷰 시작."
+    exit_branches:       # 이후 exit 조건 확인
+      - branch_id: to_act2
+        condition: "vars.clue_count >= 2"
+        next_node_id: act2_mismatch
+        events:          # exit 시 발생시킬 이벤트 형식
+          - { type: flag_set, key: act, value: 2 }
+
+  - node_id: act2_mismatch
+    summary: "질문할수록 기억이 '너의 판단'대로 재구성됨."
+    exit_branches:
+      - branch_id: to_act3
+        condition: "vars.identity_match_score >= 5"
+        next_node_id: act3_confront
+        events:
+          - { type: flag_set, key: act, value: 3 }
+
+  - node_id: act3_confront
+    summary: "동료 수사관이 너를 의심. '너의 패턴'을 들이민다."
+    exit_branches:
+      - branch_id: to_end
+        condition: "flags.ending != null or system.turn >= turn_limit"
+        next_node_id: END

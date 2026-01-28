@@ -1,0 +1,70 @@
+locks:
+  - info_id: fam_00_01
+    info_title: "Last Call Detail"
+    linked_info_id: "par_00_01"
+    description: "사망 전 마지막 통화에서, 피해자가 특정 단어를 반복했다. 통화는 짧았고 끊기기 직전 숨을 삼키는 소리가 있었다."
+    unlock_condition: "npc.family.stats.trust >= 2"
+    is_unlocked: false
+    reveal_trigger: "family_last_call"
+    access:
+      allowed_npcs: ["family"]
+
+  - info_id: fam_00_03
+    info_title: "He Said 'Like You'"
+    linked_info_id: "par_00_03"
+    description: "가족은 피해자가 마지막 통화에서 '너처럼…'이라는 표현을 썼다고 기억한다. 누구를 가리키는지 묻으면, 가족도 확신하지 못한다."
+    unlock_condition: "npc.family.stats.trust >= 3 and vars.clue_count >= 2"
+    is_unlocked: false
+    reveal_trigger: "family_like_you_phrase"
+    access:
+      allowed_npcs: ["family"]
+
+  - info_id: par_00_01
+    info_title: "Pattern Report"
+    linked_info_id: "fam_00_01"
+    description: "최근 네 질문 패턴이 '범인 프로파일'의 심문 패턴과 유사하다는 내부 리포트가 있다. 문장 구조와 압박 순서가 겹친다."
+    unlock_condition: "vars.clue_count >= 3"
+    is_unlocked: false
+    reveal_trigger: "partner_pattern_report"
+    access:
+      allowed_npcs: ["partner"]
+
+  - info_id: par_00_03
+    info_title: "Your Signature"
+    linked_info_id: "sys_00_01"
+    description: "보고서 메타데이터에 남은 '작성자 서명(signature)'가 네 시스템 식별자와 동일하게 찍혀 있다. 정상적이라면 존재하면 안 되는 값이다."
+    unlock_condition: "vars.identity_match_score >= 4 or vars.fabrication_score >= 3"
+    is_unlocked: false
+    reveal_trigger: "partner_your_signature"
+    access:
+      allowed_npcs: ["partner"]
+
+  - info_id: par_00_04
+    info_title: "Redacted Interval"
+    linked_info_id: "wit_00_03"
+    description: "사건 전후 7분 구간의 로그가 통째로 비어 있다. 삭제 흔적은 '내부 감사 권한'에서만 가능하다."
+    unlock_condition: "vars.clue_count >= 4 and npc.partner.stats.suspicion >= 2"
+    is_unlocked: false
+    reveal_trigger: "partner_redacted_interval"
+    access:
+      allowed_npcs: ["partner"]
+
+  - info_id: wit_00_01
+    info_title: "Back Alley Sound"
+    linked_info_id: "par_00_04"
+    description: "사건 시간대에 골목에서 금속이 부딪히는 듯한 소리를 들었다. 하지만 자신도 그 근처에 있었다는 사실은 숨긴다."
+    unlock_condition: "npc.witness.stats.fear <= 3"
+    is_unlocked: false
+    reveal_trigger: "witness_alley_sound"
+    access:
+      allowed_npcs: ["witness"]
+
+  - info_id: wit_00_03
+    info_title: "No Footsteps, Only a Voice"
+    linked_info_id: "sys_00_01"
+    description: "목격자는 '사람'의 발소리를 못 들었다고 말한다. 대신, 짧은 기계음 같은 음성—마치 안내 멘트처럼—을 들었다고 한다."
+    unlock_condition: "npc.witness.stats.trust >= 2 and vars.clue_count >= 3"
+    is_unlocked: false
+    reveal_trigger: "witness_only_voice"
+    access:
+      allowed_npcs: ["witness"]

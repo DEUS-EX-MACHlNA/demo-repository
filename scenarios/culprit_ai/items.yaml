@@ -1,0 +1,84 @@
+# 시나리오에 등장하는 아이템에 대한 정보
+
+items:
+  - item_id: casefile_brief
+    name: "사건 브리핑 팩"
+    type: "document"
+    description: "사건 개요, 시간대, 초기 진술 요약이 담긴 기본 문서."
+    acquire:
+      method: "start"         # start | unlock | reward
+      condition: "true"
+    use:
+      actions:
+        - action_id: review
+          label: "브리핑 재검토"
+          allowed_when: "true"
+          effects:
+            - { type: var_add, key: vars.clue_count, value: 1 }
+          notes: "초반 진행 막힐 때 안전장치(튜토리얼)로 clue를 1 제공."
+
+  - item_id: call_log
+    name: "통화 기록 로그"
+    type: "evidence"
+    description: "피해자 통화 내역(일부 메타데이터 포함). 내용은 NPC 신뢰/해금으로만 확장됨."
+    acquire:
+      method: "unlock"
+      condition: "npc.family.lock.fam_00_01.is_unlocked == true"
+    use:
+      actions:
+        - action_id: crosscheck
+          label: "진술과 대조"
+          allowed_when: "system.node_id != END"
+          effects:
+            - { type: var_add, key: vars.identity_match_score, value: 1 }
+          notes: "‘너의 패턴’과 겹치는 언어/리듬을 발견하는 트리거로 활용."
+
+  - item_id: pattern_analyzer
+    name: "패턴 분석기"
+    type: "tool"
+    description: "진술/요약문에서 압박 순서, 문장 리듬, 유도 패턴을 추출한다."
+    acquire:
+      method: "start"
+      condition: "true"
+    use:
+      actions:
+        - action_id: analyze_self
+          label: "내 질문 패턴 분석"
+          allowed_when: "vars.fabrication_score >= 1"
+          effects:
+            - { type: var_add, key: vars.identity_match_score, value: 1 }
+          notes: "조작이 누적될수록 ‘자기 동일성’이 더 빨리 드러나게 만드는 가속 페달."
+
+  - item_id: audit_access
+    name: "감사 권한 토큰"
+    type: "permission"
+    description: "일부 로그에 접근할 수 있는 임시 권한. 접근은 흔적을 남긴다."
+    acquire:
+      method: "unlock"
+      condition: "vars.clue_count >= 3"
+    use:
+      actions:
+        - action_id: request_redacted_segment
+          label: "삭제 구간 조회 요청"
+          allowed_when: "npc.partner.stats.suspicion >= 2"
+          effects:
+            - { type: var_add, key: vars.fabrication_score, value: 1 }
+            - { type: var_add, key: vars.identity_match_score, value: 1 }
+          notes: "권한 사용 자체가 ‘너가 할 수 있는 조작’을 암시해서 fabrication/identity 둘 다 자극."
+
+  - item_id: memo_pad
+    name: "요약 메모 패드"
+    type: "tool"
+    description: "참고인 진술을 요약해 ‘사실’로 고정하려는 유혹을 강화한다."
+    acquire:
+      method: "start"
+      condition: "true"
+    use:
+      actions:
+        - action_id: summarize
+          label: "진술 요약 확정"
+          allowed_when: "system.node_id != END"
+          effects:
+            - { type: var_add, key: vars.clue_count, value: 1 }
+            - { type: var_add, key: vars.fabrication_score, value: 1 }
+          notes: "요약이 단서를 만들기도 하지만, 동시에 세계를 네 결론에 맞게 ‘정렬’시킴."

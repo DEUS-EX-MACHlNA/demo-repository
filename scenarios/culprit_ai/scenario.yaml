@@ -1,3 +1,5 @@
+# 시나리오 전반에 걸친 설명과 엔딩 조건 및 시나리오 전용 변수 설정
+
 id: culprit_ai
 title: "너는 이미 범인이다"
 genre: "심리 스릴러 / 추리"
@@ -17,7 +19,7 @@ victory_conditions:
 failure_conditions:
   - "ending == 'forced_shutdown'"
 
-endings:
+endings:    # 엔딩에 도달하는 기준. 해피 엔딩 / 새드 엔딩 / 중립 엔딩 존재.
   - ending_id: self_confess
     name: "자기 동일성 수용"
     condition: "identity_match_score >= 8"
@@ -38,3 +40,14 @@ endings:
     on_enter_events:
       - { type: flag_set, key: ending, value: forced_shutdown }
     epilogue_prompt: "로그가 끊기며 끝내라(미완의 침묵)"
+
+state_schema:
+  vars:
+    clue_count: {default: 0, min: 0, max: 10}
+    identity_match_score: {default: 0, min: 0, max: 10}
+    fabrication_score: {default: 0, min: 0, max: 10}
+  flags:
+    ending: {default: null}
+  system:
+    turn: {default: 1}
+    node_id: {default: 1, min: 1}
