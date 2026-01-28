@@ -11,11 +11,11 @@ def clean_text(text: str) -> str:
     return text.strip()
 
 
-def parse_response(raw_text: str) -> LLMResponse:
+def parse_response(raw_text: str) -> LLM_Response:
     cleaned = clean_text(raw_text)
 
     # 나중에 JSON, DSL, 태그 기반 파싱이 여기 들어감
-    return LLMResponse(
+    return LLM_Response(
         raw_text=raw_text,
         cleaned_text=cleaned,
         confidence=None
