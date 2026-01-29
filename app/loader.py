@@ -326,3 +326,7 @@ if __name__ == "__main__":
     print("\n" + "=" * 60)
     print("✅ LOADER 테스트 완료")
     print("=" * 60)
+
+    # assets 데이터를 json타입으로 출력
+    print("\n[10] ScenarioAssets JSON 출력:")
+    print(json.dumps(assets.__dict__, indent=4, ensure_ascii=False))
