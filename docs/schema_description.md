@@ -375,10 +375,10 @@ execute_tool(
 }
 ```
 
-| 필드              | 타입       | 설명                 |
-| ----------------- | ---------- | -------------------- |
-| `state_delta`   | `object` | 상태 변경 델타       |
-| `text_fragment` | `str`    | 내러티브 텍스트 조각 |
+| 필드                  | 타입       | 설명           |
+| --------------------- | ---------- | -------------- |
+| `state_delta`       | `object` | 상태 변경 델타 |
+| `event_description` | `str`    | 생성 결과      |
 
 ---
 
@@ -549,8 +549,6 @@ world_after = wsm.apply_delta(
 dialogue = narrative.render(
     text_fragment="피해자 가족이 고개를 끄덕인다...",
     night_dialogue="밤이 깊어간다...",
-    world_before=world_before,
-    world_after=world_after,
     assets=scenario_assets
 )
 ```

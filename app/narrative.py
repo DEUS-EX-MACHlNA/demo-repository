@@ -296,24 +296,11 @@ if __name__ == "__main__":
     # 테스트 1: 일반 턴
     print(f"\n[2] 일반 턴 렌더링 테스트")
     print("-" * 40)
-
-    world_before = WorldState(
-        turn=3,
-        npcs={"family": NPCState(npc_id="family", trust=2, fear=0, suspicion=0)},
-        vars={"clue_count": 2, "identity_match_score": 2, "fabrication_score": 1}
-    )
-    world_after = WorldState(
-        turn=4,
-        npcs={"family": NPCState(npc_id="family", trust=3, fear=0, suspicion=0)},
-        vars={"clue_count": 3, "identity_match_score": 3, "fabrication_score": 2}
-    )
+    
+    print(event_description)
 
     dialogue = narrative.render(
-        text_fragment="피해자 가족이 고개를 끄덕인다. \"그랬어요...\"",
-        night_dialogue="밤이 깊어간다. 진실과 조작의 경계가 흐려진다.",
-        world_before=world_before,
-        world_after=world_after,
-        assets=assets
+        tool_context
     )
     print(dialogue)
 
