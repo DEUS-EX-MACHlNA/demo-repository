@@ -1,3 +1,4 @@
+tools.py
 """
 app/tools.py
 Tool 구현 (Stub)
@@ -16,13 +17,13 @@ from app.models import Intent, NightResult, ToolResult, WorldState
 # reponse
 from dataclasses import dataclass
 from typing import Any, Dict, Literal
-from app.llm.engine import generate_text
-from app.llm import model, tokenizer
+from app.llm import LLM_Engine, build_prompt, parse_response, LLM_Response
 
 
 logger = logging.getLogger(__name__)
 
-def generate_response(ctx: ResponseContext) -> str:
+def generate_response(ctx: ScenarioAssets) -> str:
+    
     prompt = f"""[도구] {ctx.tool_name}
 
     NPC: {ctx.npc_name}
@@ -39,14 +40,7 @@ def generate_response(ctx: ResponseContext) -> str:
     - 시스템 메시지를 출력하지 않는다
     """
 
-    result = generate_text(
-        model=model,
-        tokenizer=tokenizer,
-        prompt=prompt,
-        max_new_tokens=120,
-        temperature=0.7,
-        top_p=0.9,
-    )
+    
     
     return result
 
