@@ -3,11 +3,14 @@ app/models.py
 공통 데이터 모델 정의
 """
 from __future__ import annotations
+from sqlalchemy import Column, String, DateTime, Integer, func
+from sqlalchemy.dialects.postgresql import JSONB
+from app.database import Base
 
 from dataclasses import dataclass, field
 from typing import Any, Optional
 from enum import Enum
-
+from datetime import datetime
 
 # ============================================================
 # Request/Response Models

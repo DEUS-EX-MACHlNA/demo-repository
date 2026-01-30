@@ -1,0 +1,2 @@
+-- PostgreSQL 초기화 스크립트 (자동으로 실행됨)
+-- maratang_db는 POSTGRES_DB에서 자동으로 생성됨
