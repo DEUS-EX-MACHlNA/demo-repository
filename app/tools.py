@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import random
 from typing import Any, Dict
 
@@ -11,6 +12,89 @@ from app.models import Intent, NightResult, ToolResult, WorldState
 from app.llm import LLM_Engine, build_prompt, parse_response
 
 logger = logging.getLogger(__name__)
+
+_llm_instance: LLM_Engine | None = None
+
+
+def _get_llm() -> LLM_Engine:
+    """LLM 엔진 싱글턴"""
+    global _llm_instance
+    if _llm_instance is None:
+        model_name = os.environ.get("LLM_MODEL", "Qwen/Qwen3-8B")
+        _llm_instance = LLM_Engine(model_name=model_name)
+    return _llm_instance
+
+
+def execute_tool(
+    tool_name: str,
+    args: dict[str, Any],
+    world_snapshot: WorldState,
+    assets: ScenarioAssets,
+) -> ToolResult:
+    """
+    tool_name에 따라 적절한 tool 실행 후 ToolResult 반환.
+    npc_talk, action, item_usage 모두 tool_turn_resolution으로 위임.
+    """
+    user_input = args.get("content", args.get("raw", ""))
+    if not user_input and "npc_id" in args:
+        user_input = f"NPC {args.get('npc_id', '')}에게 대화"
+    llm = _get_llm()
+    return tool_turn_resolution(user_input, world_snapshot, assets, llm)
+
+
+def _final_values_to_delta(
+    state_delta: dict[str, Any], world_snapshot: WorldState
+) -> dict[str, Any]:
+    """
+    LLM이 출력한 최종값(state_delta)을 apply_delta용 델타로 변환.
+    변수명은 delta 유지, 값은 final - current로 계산.
+    """
+    result: dict[str, Any] = {
+        "npc_stats": {},
+        "flags": {},
+        "inventory_add": [],
+        "inventory_remove": [],
+        "locks": {},
+        "vars": {},
+        "turn_increment": 0,
+    }
+
+    # npc_stats: 최종값 -> 델타
+    for npc_id, stats in state_delta.get("npc_stats", {}).items():
+        if not isinstance(stats, dict):
+            continue
+        npc = world_snapshot.npcs.get(npc_id)
+        result["npc_stats"][npc_id] = {}
+        for stat_name, final_val in stats.items():
+            if not isinstance(final_val, (int, float)):
+                continue
+            current = 0
+            if npc and hasattr(npc, stat_name):
+                current = getattr(npc, stat_name, 0) or 0
+            delta_val = int(final_val) - int(current)
+            if delta_val != 0:
+                result["npc_stats"][npc_id][stat_name] = delta_val
+        if not result["npc_stats"][npc_id]:
+            del result["npc_stats"][npc_id]
+
+    # vars: 최종값 -> 델타
+    for key, final_val in state_delta.get("vars", {}).items():
+        if isinstance(final_val, (int, float)):
+            current = world_snapshot.vars.get(key, 0) or 0
+            delta_val = int(final_val) - int(current)
+            if delta_val != 0:
+                result["vars"][key] = delta_val
+        else:
+            result["vars"][key] = final_val
+
+    # flags, locks 등은 덮어쓰기
+    if state_delta.get("flags"):
+        result["flags"] = dict(state_delta["flags"])
+    if state_delta.get("locks"):
+        result["locks"] = dict(state_delta["locks"])
+
+    return result
+
 
 def tool_turn_resolution(
     user_input: str,
@@ -23,7 +107,7 @@ def tool_turn_resolution(
     - 행동 분류
     - NPC 반응
     - 아이템 효과
-    - 상태 변화 제안
+    - 상태 변화 제안 (최종값 출력 -> 내부에서 델타로 변환)
     """
 
     # 1. 프롬프트 구성
@@ -37,12 +121,15 @@ def tool_turn_resolution(
     # 2. LLM 호출
     raw_output = llm.generate(prompt)
 
-    # 3. 파싱 (text + state_delta)
+    # 3. 파싱 (event_description list + state_delta 최종값)
     llm_response = parse_response(raw_output)
+    event_description: list[str] = getattr(
+        llm_response, "event_description", []
+    ) or []
+    state_delta_raw = getattr(llm_response, "state_delta", None) or {}
 
-    # LLM_Response: cleaned_text 사용; state_delta는 추후 파싱 확장 시 사용
-    event_description = llm_response.cleaned_text
-    state_delta = getattr(llm_response, "state_delta", None) or {}
+    # 4. 최종값 -> 델타 변환 (merge_deltas/apply_delta 호환)
+    state_delta = _final_values_to_delta(state_delta_raw, world_snapshot)
 
     return ToolResult(
         event_description=event_description,
@@ -129,26 +216,24 @@ if __name__ == "__main__":
     )
     print(f"[2] WorldState: turn={world.turn}, npcs={list(world.npcs.keys())}")
 
-    # 3. Mock LLM (실제 모델 없이 프롬프트/파싱만 검증)
-    class MockLLM:
-        def generate(self, prompt: str, **kwargs: Any) -> str:
-            # 디버그: 받은 프롬프트 길이만 로깅
-            logger.debug("prompt length=%d", len(prompt))
-            return "가족은 눈물을 닦으며 말을 이어갔다. \"그날은 정말… 잊을 수가 없어요.\""
+    # 3. 실제 LLM 모델 로드 (llm/engine.py 참고)
+    import os
+    model_name = os.environ.get("LLM_MODEL", "Qwen/Qwen3-8B")
+    print(f"\n[3] LLM 로딩 중: {model_name} (환경변수 LLM_MODEL로 변경 가능)")
+    llm = LLM_Engine(model_name=model_name)
+    print("[3] LLM 로드 완료")
 
     user_input = "피해자 가족에게 그날 있었던 일을 물어본다"
-    llm = MockLLM()
 
-    # 4. build_prompt만 먼저 확인 (선택)
-    from app.llm import build_prompt
+    # 4. build_prompt 확인
     prompt = build_prompt(
         user_input=user_input,
         world_state=world.to_dict(),
         memory_summary=None,
         npc_context=assets.export_for_prompt(),
     )
-    print(f"\n[3] 프롬프트 길이: {len(prompt)}")
-    print("[3] 프롬프트 앞 400자:")
+    print(f"\n[4] 프롬프트 길이: {len(prompt)}")
+    print("[4] 프롬프트 앞 400자:")
     print("-" * 40)
     print(prompt[:400])
     if len(prompt) > 400:
@@ -156,9 +241,10 @@ if __name__ == "__main__":
     print("-" * 40)
 
     # 5. tool_turn_resolution 호출
+    print("\n[5] LLM 생성 중...")
     result = tool_turn_resolution(user_input, world, assets, llm)
-    print(f"\n[4] ToolResult:")
-    print(f"    text_fragment: {result.text_fragment!r}")
+    print(f"\n[6] ToolResult:")
+    print(f"    event_description: {result.event_description!r}")
     print(f"    state_delta: {result.state_delta}")
 
     print("\n" + "=" * 60)

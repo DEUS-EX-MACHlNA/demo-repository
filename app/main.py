@@ -246,7 +246,7 @@ async def execute_pipeline(
         narrative = get_narrative_layer()
         dialogue = await asyncio.to_thread(
             narrative.render,
-            tool_result.text_fragment,
+            tool_result.event_description,
             night_result.night_dialogue,
             world_before,
             world_after,

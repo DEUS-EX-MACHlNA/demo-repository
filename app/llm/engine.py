@@ -27,7 +27,7 @@ class LLM_Engine:
     def generate(
         self,
         prompt: str,
-        max_new_tokens: int = 120,
+        max_new_tokens: int = 512,
         temperature: float = 0.7,
         top_p: float = 0.9,
         repetition_penalty: float = 1.1,

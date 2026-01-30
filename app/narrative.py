@@ -35,7 +35,7 @@ class NarrativeLayer:
 
     def render(
         self,
-        text_fragment: str,
+        text_fragment: str | list[str],
         night_dialogue: str,
         world_before: WorldState,
         world_after: WorldState,
@@ -45,7 +45,7 @@ class NarrativeLayer:
         최종 dialogue 조립
 
         Args:
-            text_fragment: tool 실행 결과 텍스트
+            text_fragment: tool 실행 결과 텍스트 (str 또는 event_description list)
             night_dialogue: night_comes 결과 텍스트
             world_before: 액션 전 월드 상태
             world_after: 액션 후 월드 상태
@@ -58,9 +58,14 @@ class NarrativeLayer:
 
         parts = []
 
-        # 1. 메인 텍스트 (tool 결과)
+        # 1. 메인 텍스트 (tool 결과 - event_description list 지원)
         if text_fragment:
-            parts.append(text_fragment)
+            if isinstance(text_fragment, list):
+                event_text = "\n".join(s for s in text_fragment if s)
+            else:
+                event_text = str(text_fragment)
+            if event_text:
+                parts.append(event_text)
 
         # 2. 상태 변화 묘사 (선택적)
         state_change_text = self._describe_state_changes(world_before, world_after, assets)
@@ -296,11 +301,20 @@ if __name__ == "__main__":
     # 테스트 1: 일반 턴
     print(f"\n[2] 일반 턴 렌더링 테스트")
     print("-" * 40)
-    
-    print(event_description)
+
+    world_before = WorldState(
+        turn=1,
+        npcs={"family": NPCState(npc_id="family", trust=3, fear=0, suspicion=0)},
+        vars={"clue_count": 0},
+    )
+    event_description = ["피해자 가족이 고개를 끄덕인다.", "침묵이 흐른다."]
 
     dialogue = narrative.render(
-        tool_context
+        text_fragment=event_description,
+        night_dialogue="",
+        world_before=world_before,
+        world_after=world_before,
+        assets=assets,
     )
     print(dialogue)
 
