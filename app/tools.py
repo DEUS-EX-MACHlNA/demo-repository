@@ -29,9 +29,9 @@ def tool_turn_resolution(
     # 1. 프롬프트 구성
     prompt = build_prompt(
         user_input=user_input,
-        world_state=world_snapshot.model_dump(),
+        world_state=world_snapshot.to_dict(),
         memory_summary=None,
-        assets=assets.export_for_prompt(),  # 선택
+        npc_context=assets.export_for_prompt(),
     )
 
     # 2. LLM 호출
@@ -40,18 +40,13 @@ def tool_turn_resolution(
     # 3. 파싱 (text + state_delta)
     llm_response = parse_response(raw_output)
 
-    # llm_response 예:
-    # {
-    #   text: "...",
-    #   state_delta: {
-    #       "npc_stats": {"family": {"trust": -1}},
-    #       "vars": {"clue_count": 1}
-    #   }
-    # }
+    # LLM_Response: cleaned_text 사용; state_delta는 추후 파싱 확장 시 사용
+    event_description = llm_response.cleaned_text
+    state_delta = getattr(llm_response, "state_delta", None) or {}
 
     return ToolResult(
-        text_fragment=llm_response.text,
-        state_delta=llm_response.state_delta,
+        event_description=event_description,
+        state_delta=state_delta,
     )
 # ============================================================
 # Tool 4: Night Comes (state only)
@@ -90,46 +85,82 @@ def tool_4_night_comes(
 
 
 # ============================================================
-# Tool Main (Scenario Controller entrypoint)
+# tool_turn_resolution 디버그 (python -m app.tools)
 # ============================================================
-def tool_main(
-    tool_name: str,
-    args: dict[str, Any],
-    world_snapshot: WorldState,
-    assets: ScenarioAssets,
-    llm: LLM_Engine
-) -> ToolResult:
-    """
-    - tool 선택
-    - state_delta 계산
-    - LLM 1회 호출로 response 생성
-    """
+if __name__ == "__main__":
+    import sys
+    from pathlib import Path
 
-    tool_map = {
-        "npc_talk": tool_1_npc_talk,
-        "action": tool_2_action,
-        "item_usage": tool_3_item_usage,
-    }
+    # 프로젝트 루트를 path에 추가
+    root = Path(__file__).resolve().parent.parent
+    if str(root) not in sys.path:
+        sys.path.insert(0, str(root))
 
-    tool_func = tool_map.get(tool_name)
-    if tool_func is None:
-        raise ValueError(f"Unknown tool: {tool_name}")
+    from app.loader import ScenarioLoader
+    from app.models import WorldState, NPCState
 
-    # 1. 상태 변화 계산
-    state_delta = tool_func(args, world_snapshot, assets)
+    logging.basicConfig(level=logging.DEBUG, format="%(levelname)s %(name)s %(message)s")
 
-    # 2. 프롬프트 구성
+    print("=" * 60)
+    print("tool_turn_resolution 디버그")
+    print("=" * 60)
+
+    # 1. 시나리오 로드
+    base_path = root / "scenarios"
+    loader = ScenarioLoader(base_path)
+    scenario_ids = loader.list_scenarios()
+    if not scenario_ids:
+        print("[X] 시나리오 없음")
+        sys.exit(1)
+    scenario_id = scenario_ids[0]
+    assets = loader.load(scenario_id)
+    print(f"\n[1] 시나리오 로드: {scenario_id}")
+
+    # 2. 테스트용 월드 상태
+    world = WorldState(
+        turn=1,
+        npcs={
+            "family": NPCState(npc_id="family", trust=0, fear=0, suspicion=0),
+            "partner": NPCState(npc_id="partner", trust=0, fear=0, suspicion=1),
+            "witness": NPCState(npc_id="witness", trust=0, fear=2, suspicion=0),
+        },
+        inventory=["casefile_brief", "pattern_analyzer"],
+        vars={"clue_count": 0, "fabrication_score": 0},
+    )
+    print(f"[2] WorldState: turn={world.turn}, npcs={list(world.npcs.keys())}")
+
+    # 3. Mock LLM (실제 모델 없이 프롬프트/파싱만 검증)
+    class MockLLM:
+        def generate(self, prompt: str, **kwargs: Any) -> str:
+            # 디버그: 받은 프롬프트 길이만 로깅
+            logger.debug("prompt length=%d", len(prompt))
+            return "가족은 눈물을 닦으며 말을 이어갔다. \"그날은 정말… 잊을 수가 없어요.\""
+
+    user_input = "피해자 가족에게 그날 있었던 일을 물어본다"
+    llm = MockLLM()
+
+    # 4. build_prompt만 먼저 확인 (선택)
+    from app.llm import build_prompt
     prompt = build_prompt(
-        user_input=args.get("content", ""),
-        world_state=world_snapshot.model_dump(),
-        memory_summary=None
+        user_input=user_input,
+        world_state=world.to_dict(),
+        memory_summary=None,
+        npc_context=assets.export_for_prompt(),
     )
+    print(f"\n[3] 프롬프트 길이: {len(prompt)}")
+    print("[3] 프롬프트 앞 400자:")
+    print("-" * 40)
+    print(prompt[:400])
+    if len(prompt) > 400:
+        print("...")
+    print("-" * 40)
 
-    # 3. LLM 호출
-    raw_output = llm.generate(prompt)
-    llm_response = parse_response(raw_output)
+    # 5. tool_turn_resolution 호출
+    result = tool_turn_resolution(user_input, world, assets, llm)
+    print(f"\n[4] ToolResult:")
+    print(f"    text_fragment: {result.text_fragment!r}")
+    print(f"    state_delta: {result.state_delta}")
 
-    return ToolResult(
-        state_delta=state_delta,
-        text_fragment=llm_response.text
-    )
+    print("\n" + "=" * 60)
+    print("OK tool_turn_resolution 디버그 완료")
+    print("=" * 60)
