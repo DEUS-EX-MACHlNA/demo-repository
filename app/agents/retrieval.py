@@ -40,18 +40,21 @@ def _importance_score(memory: MemoryEntry) -> float:
 # ── Relevance ────────────────────────────────────────────────
 def _relevance_score_llm(memory_text: str, query: str, llm: GenerativeAgentsLLM) -> float:
     """LLM 기반 관련성 채점 (1‑10 → 0‑1)."""
-    if not llm.available:
-        return _relevance_score_keyword(memory_text, query)
+    # if not llm.available:
+    #     return _relevance_score_keyword(memory_text, query)
 
-    prompt = (
-        "다음 두 내용의 관련성을 1~10 정수로만 답하세요.\n\n"
-        f'기억: "{memory_text}"\n'
-        f'상황: "{query}"\n\n'
-        "관련성 점수:"
-    )
-    resp = llm.generate(prompt, max_tokens=5, temperature=0.1)
-    score = extract_number(resp, default=5.0)
-    return min(max(score, 1.0), 10.0) / 10.0
+    # prompt = (
+    #     "다음 두 내용의 관련성을 1~10 정수로만 답하세요.\n\n"
+    #     f'기억: "{memory_text}"\n'
+    #     f'상황: "{query}"\n\n'
+    #     "관련성 점수:"
+    # )
+    # resp = llm.generate(prompt, max_tokens=5, temperature=0.1)
+    # score = extract_number(resp, default=5.0)
+    # return min(max(score, 1.0), 10.0) / 10.0
+
+    # Token-Based Relevance only for now
+    return _relevance_score_keyword(memory_text, query)
 
 
 def _relevance_score_keyword(memory_text: str, query: str) -> float:

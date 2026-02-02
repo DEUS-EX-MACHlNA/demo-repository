@@ -23,8 +23,8 @@ class GenerativeAgentsLLM:
         self._model = None
         self._tokenizer = None
         self._loaded = False
+        self._load_model()
 
-    # ── lazy load ────────────────────────────────────────────
     def _load_model(self) -> None:
         if self._loaded:
             return
@@ -66,7 +66,7 @@ class GenerativeAgentsLLM:
         top_p: float = 0.9,
     ) -> str:
         """프롬프트로부터 텍스트 생성. 모델 없으면 빈 문자열."""
-        self._load_model()
+
         if self._model is None or self._tokenizer is None:
             return ""
 

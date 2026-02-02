@@ -27,8 +27,8 @@ from app.agents.utils import extract_number, format_persona
 
 logger = logging.getLogger(__name__)
 
-REFLECTION_THRESHOLD = 150.0
-REFLECTION_WINDOW_HOURS = 24
+REFLECTION_THRESHOLD = 40.0
+REFLECTION_WINDOW_HOURS = 6
 MIN_IMPORTANCE_FOR_REFLECTION = 5.0
 MAX_QUESTIONS = 3
 
