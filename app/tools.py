@@ -7,7 +7,7 @@ import random
 from typing import Any, Dict
 
 from app.loader import ScenarioAssets
-from app.models import Intent, NightResult, ToolResult, WorldState
+from app.models import NightResult, ToolResult, WorldState
 
 from app.llm import LLM_Engine, build_prompt, parse_response
 
@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 _llm_instance: LLM_Engine | None = None
 
-
+# @use_cache
 def _get_llm() -> LLM_Engine:
     """LLM 엔진 싱글턴"""
     global _llm_instance
@@ -103,14 +103,13 @@ def tool_turn_resolution(
     llm: LLM_Engine,
 ) -> ToolResult:
     """
-    한 턴의 모든 의사결정을 LLM에 위임한다.
-    - 행동 분류
+    한 턴의 모든 의사결정을 LLM에 위임한다 (단일 호출).
     - NPC 반응
     - 아이템 효과
     - 상태 변화 제안 (최종값 출력 -> 내부에서 델타로 변환)
     """
 
-    # 1. 프롬프트 구성
+    # 1. 통합 프롬프트 구성
     prompt = build_prompt(
         user_input=user_input,
         world_state=world_snapshot.to_dict(),
@@ -121,12 +120,10 @@ def tool_turn_resolution(
     # 2. LLM 호출
     raw_output = llm.generate(prompt)
 
-    # 3. 파싱 (event_description list + state_delta 최종값)
+    # 3. 파싱 (event_description + state_delta)
     llm_response = parse_response(raw_output)
-    event_description: list[str] = getattr(
-        llm_response, "event_description", []
-    ) or []
-    state_delta_raw = getattr(llm_response, "state_delta", None) or {}
+    event_description: list[str] = llm_response.event_description or []
+    state_delta_raw = llm_response.state_delta or {}
 
     # 4. 최종값 -> 델타 변환 (merge_deltas/apply_delta 호환)
     state_delta = _final_values_to_delta(state_delta_raw, world_snapshot)

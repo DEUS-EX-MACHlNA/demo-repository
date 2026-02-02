@@ -16,20 +16,17 @@ from typing import Any, Optional
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
-from app.controller import get_controller
 from app.loader import ScenarioAssets, get_loader, load_scenario_assets
 from app.models import (
     NightResult,
     StepResponse,
-    ToolCall,
     ToolResult,
     WorldState,
     merge_deltas,
 )
 from app.narrative import get_narrative_layer
-from app.parser import get_parser
 from app.state import get_world_state_manager
-from app.tools import execute_tool, tool_4_night_comes
+from app.tools import tool_turn_resolution, tool_4_night_comes, _get_llm
 
 # ============================================================
 # 로깅 설정
@@ -121,14 +118,10 @@ async def execute_pipeline(
     파이프라인:
     1) loader로 assets 로드
     2) world_before = wsm.get_state(...)
-    3) parsed = parser.parse(user_text, assets, world_before)
-    4) toolcall = controller.decide(parsed, world_before, assets)
-    5) (state_delta, text_fragment) = chosen_tool(...)
-    6) night = tool_4_night_comes(world_before, assets)
-    7) 병렬 실행:
-       - world_after = wsm.apply_delta(..., merge(state_delta, night_delta)) + persist
-       - dialogue = narrative.render(...)
-    8) response 반환
+    3) tool_turn_resolution(user_text, ...) - LLM 단일 호출
+    4) night = tool_4_night_comes(world_before, assets)
+    5) world_after = wsm.apply_delta(...) + narrative.render(...)
+    6) response 반환
 
     Returns:
         tuple[dialogue, is_observed, debug]
@@ -166,50 +159,24 @@ async def execute_pipeline(
         })
 
         # ============================================================
-        # Step 3: 입력 파싱
+        # Step 3: Tool 실행 (LLM 단일 호출로 처리)
         # ============================================================
         step_start = time.time()
-        parser = get_parser()
-        parsed = parser.parse(user_text, assets, world_before)
-        debug["steps"].append({
-            "step": "parse",
-            "duration_ms": (time.time() - step_start) * 1000,
-            "intent": parsed.intent,
-            "target": parsed.target,
-        })
-
-        # ============================================================
-        # Step 4: Tool 선택
-        # ============================================================
-        step_start = time.time()
-        controller = get_controller()
-        toolcall = controller.decide(parsed, world_before, assets)
-        debug["steps"].append({
-            "step": "decide_tool",
-            "duration_ms": (time.time() - step_start) * 1000,
-            "tool_name": toolcall.tool_name,
-            "tool_args": toolcall.args,
-        })
-
-        # ============================================================
-        # Step 5: 선택된 Tool 실행 (tool_1/2/3 중 하나)
-        # ============================================================
-        step_start = time.time()
-        tool_result: ToolResult = execute_tool(
-            toolcall.tool_name,
-            toolcall.args,
+        llm = _get_llm()
+        tool_result: ToolResult = tool_turn_resolution(
+            user_text,
             world_before,
-            assets
+            assets,
+            llm
         )
         debug["steps"].append({
-            "step": "execute_tool",
+            "step": "tool_turn_resolution",
             "duration_ms": (time.time() - step_start) * 1000,
-            "tool_name": toolcall.tool_name,
             "state_delta_keys": list(tool_result.state_delta.keys()),
         })
 
         # ============================================================
-        # Step 6: Night Comes 실행 (항상 1회)
+        # Step 4: Night Comes 실행 (항상 1회)
         # ============================================================
         step_start = time.time()
         night_result: NightResult = tool_4_night_comes(world_before, assets)
@@ -220,7 +187,7 @@ async def execute_pipeline(
         })
 
         # ============================================================
-        # Step 7: 병렬 실행 - Delta 적용 & Narrative 렌더링
+        # Step 5: Delta 적용 & Narrative 렌더링
         # ============================================================
         # 델타 병합
         merged_delta = merge_deltas(tool_result.state_delta, night_result.night_delta)
@@ -261,7 +228,7 @@ async def execute_pipeline(
         })
 
         # ============================================================
-        # Step 8: 결과 반환
+        # Step 6: 결과 반환
         # ============================================================
         debug["total_duration_ms"] = (time.time() - start_time) * 1000
         debug["success"] = True

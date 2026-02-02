@@ -9,6 +9,7 @@ class LLM_Response:
     cleaned_text: str
     state_delta: dict
     event_description: list[str]
+    intention: str = "action"  # talk, action, item_usage
     confidence: float | None = None
 
 
@@ -47,9 +48,15 @@ def parse_response(raw_text: str) -> LLM_Response:
     cleaned = clean_text(raw_text)
     state_delta: dict = {}
     event_description: list[str] = []
+    intention: str = "action"
 
     parsed = _extract_json(raw_text)
     if parsed:
+        # intention 파싱
+        raw_intention = parsed.get("intention", "action")
+        if raw_intention in ["talk", "action", "item_usage"]:
+            intention = raw_intention
+
         state_delta = parsed.get("state_delta", {})
         if not isinstance(state_delta, dict):
             state_delta = {}
@@ -68,5 +75,6 @@ def parse_response(raw_text: str) -> LLM_Response:
         cleaned_text=cleaned,
         state_delta=state_delta,
         event_description=event_description,
+        intention=intention,
         confidence=None,
     )
