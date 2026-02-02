@@ -30,6 +30,7 @@ from app.narrative import get_narrative_layer
 from app.parser import get_parser
 from app.state import get_world_state_manager
 from app.tools import execute_tool, tool_4_night_comes
+from app.services.scenario import create_game_for_scenario
 
 # ============================================================
 # 로깅 설정
@@ -329,7 +330,7 @@ async def step_scenario(
 
 
 @app.get(
-    "/v1/scenario/{scenario_id}",
+    "/v1/scenario/view/{scenario_id}",
     response_model=ScenarioInfoResponse,
     summary="시나리오 정보 조회"
 )
@@ -391,6 +392,12 @@ async def list_scenarios() -> dict:
     scenarios = loader.list_scenarios()
     return {"scenarios": scenarios}
 
+
+#해당 시나리오로 시작
+@app.get("/v1/scenarios/start/{scenario_id}", summary="시나리오 시작")
+async def start_scenario(scenario_id: int, user_id: int) -> int:
+    """시나리오 시작"""
+    return create_game_for_scenario(scenario_id, user_id)
 
 @app.get("/health", summary="헬스 체크")
 async def health_check() -> dict:

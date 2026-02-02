@@ -245,6 +245,7 @@ def get_scenario_json(scenario_id: int) -> dict:
 		db.close()
 
 
+# 여기가 본진
 def create_game_for_scenario(scenario_id: int, user_id: int = 1) -> int:
 	"""
 	주어진 시나리오 ID로 새로운 게임 레코드를 생성합니다.
@@ -293,27 +294,29 @@ def create_game_for_scenario(scenario_id: int, user_id: int = 1) -> int:
 		db.close()
 
 
-if __name__ == "__main__":
-	# 게임 생성 테스트
+
+
+# if __name__ == "__main__":
+# 	# 게임 생성 테스트
 	
-	try:
-		print("=" * 60)
-		print("게임 생성 테스트 시작")
-		print("=" * 60)
+# 	try:
+# 		print("=" * 60)
+# 		print("게임 생성 테스트 시작")
+# 		print("=" * 60)
 		
-		# 시나리오 ID 1로 게임 생성
-		game_id = create_game_for_scenario(scenario_id=1, user_id=1)
+# 		# 시나리오 ID 1로 게임 생성
+# 		game_id = create_game_for_scenario(scenario_id=1, user_id=1)
 		
-		print(f"\n✓ 게임 생성 성공!")
-		print(f"생성된 Game ID: {game_id}")
-		print("\n게임이 DB에 저장되었습니다.")
-		print("저장된 데이터:")
-		print(f"  - npc_data: NPC 초기 상태 데이터")
-		print(f"  - player_data: 플레이어 초기 상태 (위치, 인벤토리, 메모)")
-		print(f"  - world_data_snapshot: 게임 월드 전체 스냅샷 (state, definitions, rules, content)")
-		print(f"  - status: {GameStatus.LIVE}")
+# 		print(f"\n✓ 게임 생성 성공!")
+# 		print(f"생성된 Game ID: {game_id}")
+# 		print("\n게임이 DB에 저장되었습니다.")
+# 		print("저장된 데이터:")
+# 		print(f"  - npc_data: NPC 초기 상태 데이터")
+# 		print(f"  - player_data: 플레이어 초기 상태 (위치, 인벤토리, 메모)")
+# 		print(f"  - world_data_snapshot: 게임 월드 전체 스냅샷 (state, definitions, rules, content)")
+# 		print(f"  - status: {GameStatus.LIVE}")
 		
-	except Exception as e:
-		print(f"✗ 게임 생성 실패: {e}")
-		import traceback
-		traceback.print_exc()
+# 	except Exception as e:
+# 		print(f"✗ 게임 생성 실패: {e}")
+# 		import traceback
+# 		traceback.print_exc()
