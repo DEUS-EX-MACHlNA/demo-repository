@@ -27,7 +27,7 @@ class LLM_Engine:
     def generate(
         self,
         prompt: str,
-        max_new_tokens: int = 512,
+        max_new_tokens: int = 512, # 수정 필요할지도 모름
         temperature: float = 0.7,
         top_p: float = 0.9,
         repetition_penalty: float = 1.1,
@@ -45,6 +45,7 @@ class LLM_Engine:
             top_p=top_p,
             repetition_penalty=repetition_penalty,
             eos_token_id=self.tokenizer.eos_token_id,
+            
         )
 
         generated_tokens = output[0][inputs["input_ids"].shape[-1]:]

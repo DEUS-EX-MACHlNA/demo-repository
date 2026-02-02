@@ -33,7 +33,6 @@ class ScenarioController:
 # ============================================================
 _controller_instance: Optional[ScenarioController] = None
 
-
 def get_controller() -> ScenarioController:
     """ScenarioController 싱글턴 인스턴스 반환"""
     global _controller_instance
