@@ -29,6 +29,7 @@ OUTPUT_FORMAT = """
   },
   "event_description": ["사건1 묘사", "사건2 묘사"]
 }
+<|im_end|>
 
 - state_delta: 변화한 NPC 스탯/변수의 최종값만 포함 (변경 없으면 빈 객체)
 - event_description: 발생 사건들의 간단한 묘사 리스트 (1개 이상)
