@@ -417,14 +417,14 @@ execute_tool(
       "fabrication_score": 1
     }
   },
-  "text_fragment": "피해자 가족이(가) 잠시 망설이다가 고개를 끄덕인다. \"...그렇게 생각하신다면요.\""
+  "event_description": "피해자 가족이(가) 잠시 망설이다가 고개를 끄덕인다. \"...그렇게 생각하신다면요.\""
 }
 ```
 
-| 필드              | 타입       | 설명                 |
-| ----------------- | ---------- | -------------------- |
-| `state_delta`   | `object` | 상태 변경 델타       |
-| `text_fragment` | `str`    | 내러티브 텍스트 조각 |
+| 필드                  | 타입       | 설명           |
+| --------------------- | ---------- | -------------- |
+| `state_delta`       | `object` | 상태 변경 델타 |
+| `event_description` | `str`    | 생성 결과      |
 
 ---
 
@@ -599,6 +599,7 @@ world_after = wsm.apply_delta(
 
 ```python
 dialogue = narrative.render(
+<<<<<<< HEAD
     event_description=[
         "피해자 가족이 고개를 끄덕인다. \"그랬어요...\"",
         "당신은 메모를 확인한다."
@@ -610,6 +611,11 @@ dialogue = narrative.render(
     assets=scenario_assets,
     is_observed=True,  # 밤 변화 관찰 여부
     lm=None  # CUDA 사용 가능 여부로 자동 결정
+=======
+    text_fragment="피해자 가족이 고개를 끄덕인다...",
+    night_dialogue="밤이 깊어간다...",
+    assets=scenario_assets
+>>>>>>> 5d5100e3048e703abdf190e770d42391cfb2e698
 )
 ```
 

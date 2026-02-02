@@ -51,18 +51,20 @@ class NarrativeLayer:
 
     def render(
         self,
-        event_description: list[str],
-        night_description: list[str],
-        assets: ScenarioAssets,
-        is_observed: bool = False,
-        lm: Optional[bool] = None
+        text_fragment: str | list[str],
+        night_dialogue: str,
+        world_before: WorldState,
+        world_after: WorldState,
+        assets: ScenarioAssets
     ) -> str:
         """
         최종 dialogue 조립
 
         Args:
-            event_description: 턴 이벤트 설명 문자열 리스트
-            night_description: 밤 변화 문자열 리스트 (항상 제공됨)
+            text_fragment: tool 실행 결과 텍스트 (str 또는 event_description list)
+            night_dialogue: night_comes 결과 텍스트
+            world_before: 액션 전 월드 상태
+            world_after: 액션 후 월드 상태
             assets: 시나리오 에셋
             is_observed: 밤 변화 관찰 여부 (True일 때만 night_description 렌더링)
             lm: LM 기반 생성 사용 여부 (None이면 CUDA 사용 가능 시 자동 활성화)
@@ -70,19 +72,35 @@ class NarrativeLayer:
         Returns:
             str: 최종 사용자 출력 텍스트
         """
-        # lm이 None이면 CUDA 사용 가능 여부로 자동 결정
-        if lm is None:
-            try:
-                import torch
-                use_lm = torch.cuda.is_available()
-                logger.info(f"Auto-detecting LM usage: CUDA available = {use_lm}")
-            except ImportError:
-                use_lm = False
-                logger.info("torch not available, using simple composition")
-        else:
-            use_lm = lm
+        logger.info("Rendering narrative")
 
-        logger.info(f"Rendering narrative (lm={use_lm}, is_observed={is_observed})")
+        parts = []
+
+        # 1. 메인 텍스트 (tool 결과 - event_description list 지원)
+        if text_fragment:
+            if isinstance(text_fragment, list):
+                event_text = "\n".join(s for s in text_fragment if s)
+            else:
+                event_text = str(text_fragment)
+            if event_text:
+                parts.append(event_text)
+
+        # 2. 상태 변화 묘사 (선택적)
+        state_change_text = self._describe_state_changes(world_before, world_after, assets)
+        if state_change_text:
+            parts.append(state_change_text)
+
+        # 3. 밤 내러티브
+        if night_dialogue:
+            parts.append("")  # 빈 줄로 구분
+            parts.append("---")
+            parts.append(night_dialogue)
+
+        # 4. 턴 정보 (선택적)
+        turn_info = self._get_turn_info(world_after, assets)
+        if turn_info:
+            parts.append("")
+            parts.append(turn_info)
 
         # LM 기반 생성
         if use_lm:
@@ -389,20 +407,19 @@ if __name__ == "__main__":
     print(f"\n[2] 이벤트만 렌더링 (is_observed=False)")
     print("-" * 40)
 
-    event_desc = [
-        "피해자 가족이 고개를 끄덕인다. \"그랬어요...\"",
-        "당신은 메모를 확인한다."
-    ]
-    night_desc = [
-        "밤이 깊어간다. 진실과 조작의 경계가 흐려진다.",
-        "...누군가 당신의 로그를 확인했다."
-    ]
+    world_before = WorldState(
+        turn=1,
+        npcs={"family": NPCState(npc_id="family", trust=3, fear=0, suspicion=0)},
+        vars={"clue_count": 0},
+    )
+    event_description = ["피해자 가족이 고개를 끄덕인다.", "침묵이 흐른다."]
 
     dialogue = narrative.render(
-        event_description=event_desc,
-        night_description=night_desc,
+        text_fragment=event_description,
+        night_dialogue="",
+        world_before=world_before,
+        world_after=world_before,
         assets=assets,
-        is_observed=False  # 밤 변화 관찰 안 됨
     )
     print(dialogue)
 

@@ -155,7 +155,7 @@ class ToolCall:
 class ToolResult:
     """Tool 실행 결과"""
     state_delta: dict[str, Any]  # WorldState에 적용할 델타
-    text_fragment: str  # 내러티브에서 사용할 텍스트 조각
+    event_description: list[str]  # 발생 사건들의 묘사 리스트
 
 
 @dataclass
