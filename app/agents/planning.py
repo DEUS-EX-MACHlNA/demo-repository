@@ -7,7 +7,6 @@ Planning 시스템 — Generative Agents (Park et al. 2023) Section 3.4
 from __future__ import annotations
 
 import logging
-import time
 from typing import Any
 
 from app.agents.llm import GenerativeAgentsLLM
@@ -53,6 +52,7 @@ def generate_short_term_plan(
     suspicion: int,
     long_term_plan: str,
     llm: GenerativeAgentsLLM,
+    current_turn: int = 1,
 ) -> str:
     """턴 수준 단기 계획."""
     persona_str = format_persona(persona)
@@ -60,7 +60,7 @@ def generate_short_term_plan(
 
     # 최근 기억 검색
     query = f"{npc_name}의 다음 행동 계획"
-    recent = retrieve_memories(npc_extras, query, llm, k=5)
+    recent = retrieve_memories(npc_extras, query, llm, current_turn=current_turn, k=5)
     memory_ctx = "\n".join(f"- {m.description}" for m in recent) if recent else "(최근 기억 없음)"
 
     prompt = (
@@ -105,13 +105,13 @@ def update_plan(
     # 단기 계획
     st_plan = generate_short_term_plan(
         npc_id, npc_name, persona, npc_extras,
-        npc_trust, npc_fear, npc_suspicion, lt_plan, llm,
+        npc_trust, npc_fear, npc_suspicion, lt_plan, llm, current_turn=turn,
     )
 
     # extras에 저장
     npc_extras["current_plan"] = {
         "plan_text": st_plan,
-        "created_at": time.time(),
+        "created_at_turn": turn,
     }
 
     # 계획을 기억으로 저장
@@ -121,6 +121,7 @@ def update_plan(
         npc_id=npc_id,
         description=f"[계획] {st_plan}",
         importance_score=imp,
+        current_turn=turn,
         memory_type=MEMORY_PLAN,
     )
     add_memory(npc_extras, entry)

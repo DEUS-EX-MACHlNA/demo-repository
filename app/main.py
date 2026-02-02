@@ -29,7 +29,7 @@ from app.models import (
 from app.narrative import get_narrative_layer
 from app.parser import get_parser
 from app.state import get_world_state_manager
-from app.tools import execute_tool, tool_4_night_comes
+from app.tools import execute_tool, get_night_controller
 
 # ============================================================
 # 로깅 설정
@@ -53,7 +53,6 @@ class StepRequestBody(BaseModel):
 class StepResponseBody(BaseModel):
     """POST /v1/scenario/{scenario_id}/step 응답"""
     dialogue: str
-    is_observed: bool
     debug: dict[str, Any] = {}
 
 
@@ -124,14 +123,14 @@ async def execute_pipeline(
     3) parsed = parser.parse(user_text, assets, world_before)
     4) toolcall = controller.decide(parsed, world_before, assets)
     5) (state_delta, text_fragment) = chosen_tool(...)
-    6) night = tool_4_night_comes(world_before, assets)
+    6) night = night_controller.run(world_before, assets)
     7) 병렬 실행:
        - world_after = wsm.apply_delta(..., merge(state_delta, night_delta)) + persist
        - dialogue = narrative.render(...)
     8) response 반환
 
     Returns:
-        tuple[dialogue, is_observed, debug]
+        tuple[dialogue, debug]
     """
     start_time = time.time()
     debug: dict[str, Any] = {
@@ -212,11 +211,12 @@ async def execute_pipeline(
         # Step 6: Night Comes 실행 (항상 1회)
         # ============================================================
         step_start = time.time()
-        night_result: NightResult = tool_4_night_comes(world_before, assets)
+        night_controller = get_night_controller()
+        night_result: NightResult = night_controller.run(world_before, assets)
         debug["steps"].append({
             "step": "night_comes",
             "duration_ms": (time.time() - step_start) * 1000,
-            "is_observed": night_result.is_observed,
+            "dialogue_rounds": len(night_result.night_conversation),
         })
 
         # ============================================================
@@ -247,7 +247,7 @@ async def execute_pipeline(
         dialogue = await asyncio.to_thread(
             narrative.render,
             tool_result.text_fragment,
-            night_result.night_dialogue,
+            night_result.night_description,
             world_before,
             world_after,
             assets
@@ -266,7 +266,7 @@ async def execute_pipeline(
         debug["total_duration_ms"] = (time.time() - start_time) * 1000
         debug["success"] = True
 
-        return dialogue, night_result.is_observed, debug
+        return dialogue, debug
 
     except Exception as e:
         logger.error(f"Pipeline error: {e}", exc_info=True)
@@ -296,7 +296,7 @@ async def step_scenario(
         body: {user_id, text}
 
     Returns:
-        {dialogue, is_observed, debug}
+        {dialogue, debug}
     """
     logger.info(f"Step request: scenario={scenario_id}, user={body.user_id}")
 
@@ -309,7 +309,7 @@ async def step_scenario(
         )
 
     try:
-        dialogue, is_observed, debug = await execute_pipeline(
+        dialogue, debug = await execute_pipeline(
             body.user_id,
             scenario_id,
             body.text
@@ -317,7 +317,6 @@ async def step_scenario(
 
         return StepResponseBody(
             dialogue=dialogue,
-            is_observed=is_observed,
             debug=debug
         )
 

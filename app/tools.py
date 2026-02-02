@@ -277,112 +277,11 @@ def tool_3_item_usage(
 
 
 # ============================================================
-# Tool 4: Night Comes (밤이 온다) - 항상 1회 실행
+# Night Phase — NightController
 # ============================================================
-def tool_4_night_comes(
-    world_snapshot: WorldState,
-    assets: ScenarioAssets
-) -> NightResult:
-    """
-    밤이 온다 Tool (Stub) - 매 턴 끝에 항상 1회 실행
-
-    역할:
-    - 턴 증가
-    - NPC들의 상태 변화 (의심, 두려움 등)
-    - is_observed 판정 (플레이어의 행동이 관찰되었는지)
-    - 밤 시간대 내러티브 생성
-
-    Args:
-        world_snapshot: 현재 월드 상태
-        assets: 시나리오 에셋
-
-    Returns:
-        NightResult: {night_delta, night_dialogue, is_observed}
-    """
-    logger.info(f"tool_4_night_comes: turn={world_snapshot.turn}")
-
-    # 턴 증가
-    night_delta: dict[str, Any] = {
-        "turn_increment": 1,
-        "npc_stats": {},
-        "vars": {},
-    }
-
-    # NPC 상태 자연 변화 (Stub: 약간의 랜덤성)
-    for npc_id, npc_state in world_snapshot.npcs.items():
-        # 의심이 높으면 더 증가하는 경향
-        if npc_state.suspicion > 3:
-            suspicion_change = random.choice([0, 1, 1])
-        else:
-            suspicion_change = random.choice([-1, 0, 0, 1])
-
-        # 신뢰도 자연 감소 (시간이 지나면 불안해짐)
-        trust_change = random.choice([-1, 0, 0])
-
-        if suspicion_change != 0 or trust_change != 0:
-            night_delta["npc_stats"][npc_id] = {}
-            if suspicion_change != 0:
-                night_delta["npc_stats"][npc_id]["suspicion"] = suspicion_change
-            if trust_change != 0:
-                night_delta["npc_stats"][npc_id]["trust"] = trust_change
-
-    # is_observed 판정 (Stub: fabrication_score에 비례)
-    fabrication_score = world_snapshot.vars.get("fabrication_score", 0)
-    # fabrication이 높을수록 관찰될 확률 증가
-    observe_probability = min(0.1 + (fabrication_score * 0.1), 0.8)
-    is_observed = random.random() < observe_probability
-
-    # 밤 내러티브 생성
-    turn = world_snapshot.turn
-    turn_limit = assets.get_turn_limit()
-
-    # 턴에 따른 분위기 변화
-    if turn <= 3:
-        dialogues = [
-            "하루가 저문다. 아직 시간은 있다.",
-            "첫날 밤. 조각들이 서서히 모이기 시작한다.",
-            "어둠이 내린다. 내일은 더 많은 것이 드러날 것이다.",
-        ]
-    elif turn <= 7:
-        dialogues = [
-            "밤이 깊어간다. 진실과 조작의 경계가 흐려진다.",
-            "시간이 흐른다. 당신의 질문들이 세계를 바꾸고 있다.",
-            "고요한 밤. 하지만 데이터는 쉬지 않는다.",
-        ]
-    elif turn <= 10:
-        dialogues = [
-            "시간이 얼마 남지 않았다. 결론을 향해 달려가고 있다.",
-            "밤공기가 무겁다. 끝이 가까워지고 있다.",
-            "마감이 다가온다. 당신은 무엇을 선택할 것인가?",
-        ]
-    else:
-        dialogues = [
-            "마지막 밤. 모든 것이 곧 끝난다.",
-            "시간이 다 되어간다. 더 이상의 망설임은 사치다.",
-            "최후의 순간이 다가온다.",
-        ]
-
-    night_dialogue = random.choice(dialogues)
-
-    # 관찰되었을 때 추가 내러티브
-    if is_observed:
-        observed_additions = [
-            "\n\n...누군가 당신의 로그를 확인했다.",
-            "\n\n[시스템 알림] 외부 접근 감지.",
-            "\n\n당신의 작업이 기록되고 있다. 누군가에 의해.",
-        ]
-        night_dialogue += random.choice(observed_additions)
-
-    logger.debug(
-        f"tool_4_night_comes result: is_observed={is_observed}, "
-        f"delta_npcs={len(night_delta['npc_stats'])}"
-    )
-
-    return NightResult(
-        night_delta=night_delta,
-        night_dialogue=night_dialogue,
-        is_observed=is_observed
-    )
+# Generative Agents (Park et al. 2023) 기반 Night Phase.
+# NPC들이 자율적으로 기억 조회, 성찰, 계획, 대화를 수행한다.
+from app.agents.generative_night import NightController, get_night_controller  # noqa: F401
 
 
 # ============================================================
@@ -502,16 +401,17 @@ if __name__ == "__main__":
         print(f"    delta: {result.state_delta}")
         print(f"    text: {result.text_fragment[:50]}...")
 
-    # Tool 4: Night Comes 테스트
-    print(f"\n[5] Tool 4: Night Comes 테스트 (3회 실행)")
+    # NightController 테스트
+    print(f"\n[5] NightController 테스트 (3회 실행)")
     print("-" * 40)
 
+    night_ctrl = NightController()
     for i in range(3):
-        result = tool_4_night_comes(world, assets)
+        result = night_ctrl.run(world, assets)
         print(f"  실행 {i+1}:")
-        print(f"    is_observed: {result.is_observed}")
         print(f"    night_delta: {result.night_delta}")
-        print(f"    dialogue: {result.night_dialogue[:60]}...")
+        print(f"    description: {result.night_description[:60]}...")
+        print(f"    conversation: {len(result.night_conversation)} rounds")
 
     print("\n" + "=" * 60)
     print("✅ TOOLS 테스트 완료")

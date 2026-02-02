@@ -9,7 +9,6 @@ from __future__ import annotations
 import logging
 import math
 import re
-import time
 from typing import Any
 
 from app.agents.llm import GenerativeAgentsLLM
@@ -22,14 +21,14 @@ logger = logging.getLogger(__name__)
 ALPHA = 1.0  # recency 가중치
 BETA = 1.0   # importance 가중치
 GAMMA = 1.0  # relevance 가중치
-DECAY_FACTOR = 0.995  # 시간당 감쇄
+DECAY_FACTOR = 0.95  # 턴당 감쇄
 DEFAULT_K = 5
 
 
 # ── Recency ──────────────────────────────────────────────────
-def _recency_score(memory: MemoryEntry, current_time: float) -> float:
-    hours = max((current_time - memory.last_access_time) / 3600, 0)
-    return DECAY_FACTOR ** hours
+def _recency_score(memory: MemoryEntry, current_turn: int) -> float:
+    turns_elapsed = max(current_turn - memory.last_access_turn, 0)
+    return DECAY_FACTOR ** turns_elapsed
 
 
 # ── Importance (이미 MemoryEntry에 저장된 값 사용) ────────────
@@ -71,13 +70,13 @@ def _relevance_score_keyword(memory_text: str, query: str) -> float:
 def _retrieval_score(
     memory: MemoryEntry,
     query: str,
-    current_time: float,
+    current_turn: int,
     llm: GenerativeAgentsLLM,
     alpha: float = ALPHA,
     beta: float = BETA,
     gamma: float = GAMMA,
 ) -> float:
-    rec = _recency_score(memory, current_time)
+    rec = _recency_score(memory, current_turn)
     imp = _importance_score(memory)
     rel = _relevance_score_llm(memory.description, query, llm)
     return alpha * rec + beta * imp + gamma * rel
@@ -88,6 +87,7 @@ def retrieve_memories(
     npc_extras: dict[str, Any],
     query: str,
     llm: GenerativeAgentsLLM,
+    current_turn: int,
     k: int = DEFAULT_K,
 ) -> list[MemoryEntry]:
     """NPC의 Memory Stream에서 query에 가장 관련 높은 k개 기억 반환."""
@@ -95,14 +95,13 @@ def retrieve_memories(
     if not stream:
         return []
 
-    now = time.time()
-    scored = [(m, _retrieval_score(m, query, now, llm)) for m in stream]
+    scored = [(m, _retrieval_score(m, query, current_turn, llm)) for m in stream]
     scored.sort(key=lambda x: x[1], reverse=True)
     top = [m for m, _ in scored[:k]]
 
-    # last_access_time 갱신
+    # last_access_turn 갱신
     for m in top:
-        m.last_access_time = now
+        m.last_access_turn = current_turn
 
     logger.debug(f"retrieve_memories: query='{query[:30]}...' returned {len(top)} memories")
     return top

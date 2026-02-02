@@ -43,13 +43,18 @@ class Intent(str, Enum):
 class ParsedInput:
     """파서의 출력 결과"""
     intent: str  # Intent enum value
-    target_npc_id: str  # NPC ID (빈 문자열이면 NPC 대상 아님)
+    target_npc_ids: list[str]  # NPC ID 리스트 (빈 리스트면 NPC 대상 아님)
     item_id: str  # item ID (빈 문자열이면 아이템 사용 아님)
     content: str  # 정제된 내용
     raw: str  # 원본 텍스트
     extraction_method: str = "rule_based"  # rule_based | lm_based | prespecified
 
-    # 하위 호환성을 위한 target 프로퍼티
+    # 하위 호환성을 위한 프로퍼티들
+    @property
+    def target_npc_id(self) -> str:
+        """하위 호환성: 첫 번째 NPC ID 반환 (없으면 빈 문자열)"""
+        return self.target_npc_ids[0] if self.target_npc_ids else ""
+
     @property
     def target(self) -> Optional[str]:
         """하위 호환성: target_npc_id 또는 item_id 반환"""
@@ -155,10 +160,10 @@ class ToolResult:
 
 @dataclass
 class NightResult:
-    """tool_4_night_comes 결과"""
+    """NightController 실행 결과"""
     night_delta: dict[str, Any]
-    night_dialogue: str
-    is_observed: bool
+    night_conversation: list[list[dict[str, str]]]  # [[{speaker, text}, ...], ...]  대화쌍별
+    night_description: str
 
 
 # ============================================================

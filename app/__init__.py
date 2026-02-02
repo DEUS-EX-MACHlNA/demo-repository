@@ -17,6 +17,7 @@ from app.models import (
     ToolResult,
     WorldState,
 )
+from app.agents.generative_night import NightController, get_night_controller
 from app.state import WorldStateManager
 
 __version__ = "0.1.0"
@@ -38,6 +39,9 @@ __all__ = [
     "StateDelta",
     "StepRequest",
     "StepResponse",
+    # Night
+    "NightController",
+    "get_night_controller",
     # State
     "WorldStateManager",
 ]

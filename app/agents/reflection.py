@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import logging
 import re
-import time
 from typing import Any
 
 from app.agents.llm import GenerativeAgentsLLM
@@ -28,7 +27,7 @@ from app.agents.utils import extract_number, format_persona
 logger = logging.getLogger(__name__)
 
 REFLECTION_THRESHOLD = 40.0
-REFLECTION_WINDOW_HOURS = 6
+REFLECTION_WINDOW_TURNS = 5
 MIN_IMPORTANCE_FOR_REFLECTION = 5.0
 MAX_QUESTIONS = 3
 
@@ -43,13 +42,14 @@ def should_reflect(npc_extras: dict[str, Any]) -> bool:
 # ── 후보 기억 수집 ───────────────────────────────────────────
 def _get_reflection_candidates(
     npc_extras: dict[str, Any],
-    window_hours: int = REFLECTION_WINDOW_HOURS,
+    current_turn: int,
+    window_turns: int = REFLECTION_WINDOW_TURNS,
 ) -> list[MemoryEntry]:
     stream = get_memory_stream(npc_extras)
-    cutoff = time.time() - window_hours * 3600
+    cutoff = current_turn - window_turns
     candidates = [
         m for m in stream
-        if m.creation_time >= cutoff and m.importance_score >= MIN_IMPORTANCE_FOR_REFLECTION
+        if m.creation_turn >= cutoff and m.importance_score >= MIN_IMPORTANCE_FOR_REFLECTION
     ]
     candidates.sort(key=lambda m: m.importance_score, reverse=True)
     return candidates[:10]
@@ -113,9 +113,10 @@ def perform_reflection(
     npc_name: str,
     persona: dict[str, Any],
     llm: GenerativeAgentsLLM,
+    current_turn: int,
 ) -> list[str]:
     """성찰 전 과정 수행. 생성된 통찰 문자열 리스트 반환."""
-    candidates = _get_reflection_candidates(npc_extras)
+    candidates = _get_reflection_candidates(npc_extras, current_turn)
     if not candidates:
         logger.debug(f"reflection: npc={npc_id} — no candidates")
         return []
@@ -136,13 +137,14 @@ def perform_reflection(
             npc_id=npc_id,
             description=insight,
             importance_score=imp,
+            current_turn=current_turn,
             memory_type=MEMORY_REFLECTION,
         )
         add_memory(npc_extras, entry)
 
     # 누적 중요도 리셋
     npc_extras["accumulated_importance"] = 0.0
-    npc_extras["last_reflection_time"] = time.time()
+    npc_extras["last_reflection_turn"] = current_turn
 
     logger.info(f"reflection: npc={npc_id} generated {len(insights)} insights")
     return insights

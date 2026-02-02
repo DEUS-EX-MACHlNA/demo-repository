@@ -70,13 +70,14 @@ def _generate_utterance(
     listener_name: str,
     conversation_history: list[dict[str, str]],
     llm: GenerativeAgentsLLM,
+    current_turn: int = 1,
 ) -> str:
     persona_str = format_persona(speaker_persona)
     emotion_str = format_emotion(speaker_trust, speaker_fear, speaker_suspicion)
 
     # 관련 기억 검색
     query = f"{listener_name}와(과) 대화"
-    memories = retrieve_memories(speaker_extras, query, llm, k=3)
+    memories = retrieve_memories(speaker_extras, query, llm, current_turn=current_turn, k=3)
     mem_ctx = "\n".join(f"- {m.description}" for m in memories) if memories else "(관련 기억 없음)"
 
     plan_text = speaker_extras.get("current_plan", {}).get("plan_text", "")
@@ -119,6 +120,7 @@ def generate_dialogue(
     npc2_fear: int,
     npc2_suspicion: int,
     llm: GenerativeAgentsLLM,
+    current_turn: int = 1,
     max_turns: int = MAX_DIALOGUE_TURNS,
 ) -> list[dict[str, str]]:
     """두 NPC의 대화를 생성. [{speaker, text}, ...] 반환."""
@@ -129,7 +131,7 @@ def generate_dialogue(
         u1 = _generate_utterance(
             npc1_id, npc1_name, npc1_persona, npc1_extras,
             npc1_trust, npc1_fear, npc1_suspicion,
-            npc2_name, conversation, llm,
+            npc2_name, conversation, llm, current_turn,
         )
         conversation.append({"speaker": npc1_name, "text": u1})
 
@@ -137,7 +139,7 @@ def generate_dialogue(
         u2 = _generate_utterance(
             npc2_id, npc2_name, npc2_persona, npc2_extras,
             npc2_trust, npc2_fear, npc2_suspicion,
-            npc1_name, conversation, llm,
+            npc1_name, conversation, llm, current_turn,
         )
         conversation.append({"speaker": npc2_name, "text": u2})
 
@@ -156,6 +158,7 @@ def store_dialogue_memories(
     npc_extras: dict[str, Any],
     persona_summary: str,
     llm: GenerativeAgentsLLM,
+    current_turn: int = 1,
 ) -> None:
     """대화 내용을 해당 NPC의 Memory Stream에 dialogue 기억으로 저장."""
     # 상대 발화를 요약하여 저장
@@ -169,6 +172,7 @@ def store_dialogue_memories(
         npc_id=npc_id,
         description=summary,
         importance_score=imp,
+        current_turn=current_turn,
         memory_type=MEMORY_DIALOGUE,
     )
     add_memory(npc_extras, entry)

@@ -3,6 +3,7 @@
 items:
   - item_id: casefile_brief
     name: "사건 브리핑 팩"
+    aliases: ["브리핑", "사건파일", "사건 브리핑", "브리핑 팩", "사건 개요", "브리핑팩", "사건브리핑", "케이스파일", "파일"]
     type: "document"
     description: "사건 개요, 시간대, 초기 진술 요약이 담긴 기본 문서."
     acquire:
@@ -19,6 +20,7 @@ items:
 
   - item_id: call_log
     name: "통화 기록 로그"
+    aliases: ["통화기록", "통화 로그", "콜로그", "로그", "통화 기록", "통화내역", "통화 내역", "기록"]
     type: "evidence"
     description: "피해자 통화 내역(일부 메타데이터 포함). 내용은 NPC 신뢰/해금으로만 확장됨."
     acquire:
@@ -31,10 +33,11 @@ items:
           allowed_when: "system.node_id != END"
           effects:
             - { type: var_add, key: vars.identity_match_score, value: 1 }
-          notes: "‘너의 패턴’과 겹치는 언어/리듬을 발견하는 트리거로 활용."
+          notes: "'너의 패턴'과 겹치는 언어/리듬을 발견하는 트리거로 활용."
 
   - item_id: pattern_analyzer
     name: "패턴 분석기"
+    aliases: ["분석기", "패턴 분석", "분석 도구", "분석툴", "패턴분석기", "분석", "패턴 도구", "패턴툴"]
     type: "tool"
     description: "진술/요약문에서 압박 순서, 문장 리듬, 유도 패턴을 추출한다."
     acquire:
@@ -47,10 +50,11 @@ items:
           allowed_when: "vars.fabrication_score >= 1"
           effects:
             - { type: var_add, key: vars.identity_match_score, value: 1 }
-          notes: "조작이 누적될수록 ‘자기 동일성’이 더 빨리 드러나게 만드는 가속 페달."
+          notes: "조작이 누적될수록 '자기 동일성'이 더 빨리 드러나게 만드는 가속 페달."
 
   - item_id: audit_access
     name: "감사 권한 토큰"
+    aliases: ["감사권한", "권한", "토큰", "감사 토큰", "감사 권한", "권한토큰", "엑세스", "접근권한", "접근 권한"]
     type: "permission"
     description: "일부 로그에 접근할 수 있는 임시 권한. 접근은 흔적을 남긴다."
     acquire:
@@ -64,12 +68,13 @@ items:
           effects:
             - { type: var_add, key: vars.fabrication_score, value: 1 }
             - { type: var_add, key: vars.identity_match_score, value: 1 }
-          notes: "권한 사용 자체가 ‘너가 할 수 있는 조작’을 암시해서 fabrication/identity 둘 다 자극."
+          notes: "권한 사용 자체가 '너가 할 수 있는 조작'을 암시해서 fabrication/identity 둘 다 자극."
 
   - item_id: memo_pad
     name: "요약 메모 패드"
+    aliases: ["메모", "메모장", "메모패드", "요약", "요약 메모", "메모 패드", "패드", "노트"]
     type: "tool"
-    description: "참고인 진술을 요약해 ‘사실’로 고정하려는 유혹을 강화한다."
+    description: "참고인 진술을 요약해 '사실'로 고정하려는 유혹을 강화한다."
     acquire:
       method: "start"
       condition: "true"
@@ -81,4 +86,4 @@ items:
           effects:
             - { type: var_add, key: vars.clue_count, value: 1 }
             - { type: var_add, key: vars.fabrication_score, value: 1 }
-          notes: "요약이 단서를 만들기도 하지만, 동시에 세계를 네 결론에 맞게 ‘정렬’시킴."
+          notes: "요약이 단서를 만들기도 하지만, 동시에 세계를 네 결론에 맞게 '정렬'시킴."

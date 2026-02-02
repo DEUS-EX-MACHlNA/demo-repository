@@ -129,6 +129,7 @@ MAIN_ENGINE_SYSTEM_PROMPT = """당신은 인터랙티브 소설 게임의 메인
   "events": [{{"type": "...", "detail": "..."}}],
   "state_patch": {{"clue_count": 0, "identity_match_score": 0, "fabrication_score": 0}},
   "ending": null | {{"ending_id": "self_confess|forced_shutdown", "reason": "..."}},
+  "intent": "leading" | "empathic" | "summarize",
   "summary_for_narrator": "..."
 }}
 

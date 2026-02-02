@@ -143,7 +143,9 @@ class PromptParser:
             model_name = "LGAI-EXAONE/EXAONE-3.5-2.4B-Instruct"
             hf_token = os.environ.get("HF_TOKEN")
 
-            logger.info(f"Loading LM model: {model_name}")
+            # CUDA 사용 가능 여부 확인
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+            logger.info(f"Loading LM model: {model_name} on {device}")
 
             self._lm_tokenizer = AutoTokenizer.from_pretrained(
                 model_name,
@@ -158,10 +160,10 @@ class PromptParser:
                 trust_remote_code=True,
                 torch_dtype=torch.float16,  # 메모리 사용량 절반으로 줄임
                 low_cpu_mem_usage=True,  # CPU 메모리 사용량 최적화
-                device_map="cpu"  # CPU에서 실행 (GPU 메모리 부족 시)
+                device_map="auto" if device == "cuda" else "cpu"  # CUDA 사용 가능하면 자동 배치
             )
 
-            logger.info("LM model loaded successfully")
+            logger.info(f"LM model loaded successfully on {device}")
             self._lm_loaded = True
 
         except Exception as e:
@@ -228,41 +230,103 @@ class PromptParser:
 
         return item_aliases
 
-    def _extract_target_npc_id_rule_based(
+    def _normalize_text(self, text: str) -> str:
+        """텍스트 정규화: 소문자 변환 + 공백 제거 + 조사 제거"""
+        # 소문자 변환 + 공백 제거
+        normalized = text.lower().replace(" ", "")
+
+        # 한국어 조사 제거 (뒤에서부터 매칭)
+        # 우선순위: 긴 조사부터 제거 (예: "에게서" 먼저, "에게" 나중)
+        particles = [
+            "에게서", "한테서", "으로부터", "로부터",  # 3-4글자 조사
+            "에게", "한테", "께서", "에서", "으로", "로써", "부터", "까지", "마저", "조차",  # 2글자 조사
+            "은", "는", "이", "가", "을", "를", "의", "와", "과", "에", "로", "도", "만", "야"  # 1글자 조사
+        ]
+
+        for particle in particles:
+            if normalized.endswith(particle):
+                # 조사를 제거한 후 최소 2글자 이상 남아야 함 (예: "가을" → "가" 방지)
+                candidate = normalized[:-len(particle)]
+                if len(candidate) >= 2:
+                    normalized = candidate
+                    break  # 하나만 제거
+
+        return normalized
+
+    def _alias_matches(self, alias: str, user_input: str) -> bool:
+        """
+        alias가 user_input에 포함되어 있는지 확인 (띄어쓰기 무시 + 조사 제거)
+
+        - 원본 그대로 매칭
+        - 소문자 변환 후 매칭
+        - 공백 제거 후 매칭
+        - 조사 제거 후 매칭 ("파트너에게" → "파트너")
+        """
+        # 원본 매칭
+        if alias in user_input:
+            return True
+
+        # 소문자 매칭
+        alias_lower = alias.lower()
+        user_input_lower = user_input.lower()
+        if alias_lower in user_input_lower:
+            return True
+
+        # 공백 제거 후 매칭
+        alias_normalized = self._normalize_text(alias)
+        user_input_normalized = self._normalize_text(user_input)
+        if alias_normalized in user_input_normalized:
+            return True
+
+        # 조사 제거 매칭: user_input의 각 단어에서 조사를 제거하고 alias와 비교
+        # 예: "파트너에게" → "파트너" 추출 후 alias와 비교
+        import re
+        # 공백이나 구두점으로 분리된 단어들 추출
+        words = re.findall(r'[\w가-힣]+', user_input)
+        for word in words:
+            word_normalized = self._normalize_text(word)
+            if word_normalized == alias_normalized:
+                return True
+
+        return False
+
+    def _extract_target_npc_ids_rule_based(
         self,
         user_input: str,
         assets: ScenarioAssets,
         world_snapshot: WorldState
-    ) -> Optional[str]:
+    ) -> list[str]:
         """
-        Rule-based NPC ID 추출
+        Rule-based NPC ID 추출 (여러 개 가능)
 
-        1. aliases 매칭
+        1. aliases 매칭 (여러 개 추출 가능)
         2. 지시대명사 패턴 → last_mentioned_npc_id
-        3. 실패 시 None 반환
+        3. 실패 시 빈 리스트 반환
         """
-        text_lower = user_input.lower()
+        found_npcs = []
 
-        # 1. aliases 매칭
+        # 1. aliases 매칭 (모든 매칭되는 NPC 추출)
         npc_aliases = self._extract_npc_aliases(assets)
         for npc_id, aliases in npc_aliases.items():
             for alias in aliases:
-                if alias in user_input or alias.lower() in text_lower:
+                if self._alias_matches(alias, user_input):
                     # assets에서 NPC 존재 확인
-                    if assets.get_npc_by_id(npc_id):
+                    if assets.get_npc_by_id(npc_id) and npc_id not in found_npcs:
                         logger.debug(f"NPC detected via alias: {npc_id} (alias: {alias})")
-                        return npc_id
+                        found_npcs.append(npc_id)
+                        break  # 같은 NPC의 다른 alias는 스킵
 
-        # 2. 지시대명사 패턴
-        for pattern in self._npc_ref_patterns:
-            if pattern.search(user_input):
-                last_npc_id = world_snapshot.vars.get("last_mentioned_npc_id", "")
-                if last_npc_id:
-                    logger.debug(f"NPC detected via reference pattern: {last_npc_id}")
-                    return last_npc_id
+        # 2. aliases로 찾지 못했다면 지시대명사 패턴 확인
+        if not found_npcs:
+            for pattern in self._npc_ref_patterns:
+                if pattern.search(user_input):
+                    last_npc_id = world_snapshot.vars.get("last_mentioned_npc_id", "")
+                    if last_npc_id:
+                        logger.debug(f"NPC detected via reference pattern: {last_npc_id}")
+                        found_npcs.append(last_npc_id)
+                        break
 
-        # 3. 실패
-        return None
+        return found_npcs
 
     def _extract_item_id_rule_based(
         self,
@@ -277,8 +341,6 @@ class PromptParser:
         2. 지시대명사 패턴 → last_used_item_id
         3. 실패 시 None 반환
         """
-        text_lower = user_input.lower()
-
         # 1. aliases 매칭 (인벤토리에 있는 것만)
         item_aliases = self._extract_item_aliases(assets)
         for item_id, aliases in item_aliases.items():
@@ -286,7 +348,7 @@ class PromptParser:
                 continue  # 소유하지 않은 아이템은 스킵
 
             for alias in aliases:
-                if alias in user_input or alias.lower() in text_lower:
+                if self._alias_matches(alias, user_input):
                     logger.debug(f"Item detected via alias: {item_id} (alias: {alias})")
                     return item_id
 
@@ -308,15 +370,19 @@ class PromptParser:
 
         try:
             messages = [{"role": "user", "content": prompt}]
-            inputs = self._lm_tokenizer.apply_chat_template(
+            input_ids = self._lm_tokenizer.apply_chat_template(
                 messages,
                 tokenize=True,
                 add_generation_prompt=True,
                 return_tensors="pt"
             ).to(self._lm_model.device)
 
+            # attention_mask 생성 (pad token과 eos token이 같을 때 필요)
+            attention_mask = (input_ids != self._lm_tokenizer.pad_token_id).long().to(self._lm_model.device)
+
             outputs = self._lm_model.generate(
-                inputs,
+                input_ids,
+                attention_mask=attention_mask,
                 max_new_tokens=max_new_tokens,
                 do_sample=True,
                 temperature=0.3,
@@ -336,14 +402,14 @@ class PromptParser:
             logger.error(f"LM call failed: {e}")
             return ""
 
-    def _extract_target_npc_id_lm_based(
+    def _extract_target_npc_ids_lm_based(
         self,
         user_input: str,
         assets: ScenarioAssets,
         world_snapshot: WorldState
-    ) -> Optional[str]:
+    ) -> list[str]:
         """
-        LM-based NPC ID 추출
+        LM-based NPC ID 추출 (여러 개 가능)
         """
         logger.debug("LM-based NPC extraction called")
 
@@ -351,8 +417,8 @@ class PromptParser:
         self._load_lm_model()
 
         if not self._lm_model:
-            # Fallback: None 반환
-            return None
+            # Fallback: 빈 리스트 반환
+            return []
 
         # NPC 정보 구성
         npc_aliases = self._extract_npc_aliases(assets)
@@ -364,7 +430,11 @@ class PromptParser:
 
         npc_list_str = "\n".join(npc_info) if npc_info else "(없음)"
 
-        # 프롬프트 구성
+        # 최근 언급된 NPC 정보
+        last_npc_id = world_snapshot.vars.get("last_mentioned_npc_id", "")
+        last_npc_hint = f"\n최근 대화한 NPC: {last_npc_id}" if last_npc_id else ""
+
+        # 프롬프트 구성 (여러 개 추출 가능하도록 수정)
         prompt = f"""다음 사용자 입력에서 대화 대상 NPC의 ID를 추출하세요.
 
 사용자 입력: "{user_input}"
@@ -372,21 +442,26 @@ class PromptParser:
 가능한 NPC 목록:
 {npc_list_str}
 
-대화 대상 NPC가 명확하지 않으면 "none"을 반환하세요.
+최근 대화 NPC:
+{last_npc_hint}
+
+여러 NPC가 언급되었다면 쉼표로 구분하여 모두 반환하세요.
+대화 대상 NPC가 없으면 "none"을 반환하세요.
 NPC ID만 반환하세요 (추가 설명 없이).
 
 NPC ID:"""
 
-        response = self._call_lm(prompt, max_new_tokens=32)
+        response = self._call_lm(prompt, max_new_tokens=64)
 
-        # 응답 파싱
+        # 응답 파싱 (여러 개 추출)
         response = response.strip().lower()
+        found_npcs = []
         for npc_id in npc_aliases.keys():
             if npc_id in response:
                 logger.debug(f"LM-based NPC extraction: {npc_id}")
-                return npc_id
+                found_npcs.append(npc_id)
 
-        return None
+        return found_npcs
 
     def _extract_item_id_lm_based(
         self,
@@ -415,6 +490,10 @@ NPC ID:"""
 
         item_list_str = "\n".join(item_info) if item_info else "(없음)"
 
+        # 최근 사용한 아이템 정보
+        last_item_id = world_snapshot.vars.get("last_used_item_id", "")
+        last_item_hint = f"\n최근 사용한 아이템: {last_item_id}" if last_item_id and last_item_id in world_snapshot.inventory else ""
+
         # 프롬프트 구성
         prompt = f"""다음 사용자 입력에서 사용하려는 아이템의 ID를 추출하세요.
 
@@ -422,6 +501,9 @@ NPC ID:"""
 
 인벤토리에 있는 아이템 목록:
 {item_list_str}
+
+최근 사용 아이템:
+{last_item_hint}
 
 사용하려는 아이템이 명확하지 않으면 "none"을 반환하세요.
 아이템 ID만 반환하세요 (추가 설명 없이).
@@ -464,7 +546,7 @@ NPC ID:"""
 
         Args:
             user_input: 사용자 입력 텍스트 (필수)
-            target_npc_id: 타겟 NPC ID (미리 지정 가능, ""이면 추출)
+            target_npc_id: 타겟 NPC ID (미리 지정 가능, ""이면 추출) - 하위 호환성
             item_id: 타겟 아이템 ID (미리 지정 가능, ""이면 추출)
             assets: 시나리오 에셋 (추출 시 필요)
             world_snapshot: 현재 월드 상태 (추출 시 필요)
@@ -474,35 +556,35 @@ NPC ID:"""
         """
         logger.info(f"Parsing input: '{user_input[:50]}...'")
 
-        extraction_method = "prespecified"
-        used_rule_based = False
-        used_lm_based = False
+        # 각 추출의 방법을 독립적으로 추적
+        npc_extraction_method = "prespecified"
+        item_extraction_method = "prespecified"
 
         # Intent 감지 (항상 수행)
         intent = self._detect_intent(user_input)
 
-        # target_npc_id 추출 (미리 지정되지 않았으면)
-        if not target_npc_id and assets and world_snapshot:
+        # target_npc_ids 추출 (미리 지정되지 않았으면)
+        target_npc_ids = [target_npc_id] if target_npc_id else []
+
+        if not target_npc_ids and assets and world_snapshot:
             # 1. Rule-based 추출
-            target_npc_id_extracted = self._extract_target_npc_id_rule_based(
+            target_npc_ids_extracted = self._extract_target_npc_ids_rule_based(
                 user_input, assets, world_snapshot
             )
 
-            if target_npc_id_extracted:
-                used_rule_based = True
-                target_npc_id = target_npc_id_extracted
+            if target_npc_ids_extracted:
+                npc_extraction_method = "rule_based"
+                target_npc_ids = target_npc_ids_extracted
             else:
-                # 2. Rule-based 실패 시 LM-based
-                target_npc_id_extracted = self._extract_target_npc_id_lm_based(
+                # 2. Rule-based 실패 시 LM-based 호출
+                target_npc_ids_extracted = self._extract_target_npc_ids_lm_based(
                     user_input, assets, world_snapshot
                 )
-                if target_npc_id_extracted:
-                    used_lm_based = True
-                    target_npc_id = target_npc_id_extracted
-                else:
-                    target_npc_id = ""
+                if target_npc_ids_extracted:
+                    npc_extraction_method = "lm_based"
+                    target_npc_ids = target_npc_ids_extracted
 
-        # item_id 추출 (미리 지정되지 않았으면)
+        # item_id 추출 (미리 지정되지 않았으면) - NPC와 독립적으로 작동
         if not item_id and assets and world_snapshot:
             # 1. Rule-based 추출
             item_id_extracted = self._extract_item_id_rule_based(
@@ -510,31 +592,53 @@ NPC ID:"""
             )
 
             if item_id_extracted:
-                used_rule_based = True
+                item_extraction_method = "rule_based"
                 item_id = item_id_extracted
             else:
-                # 2. Rule-based 실패 시 LM-based
+                # 2. Rule-based 실패 시 LM-based 호출
                 item_id_extracted = self._extract_item_id_lm_based(
                     user_input, assets, world_snapshot
                 )
                 if item_id_extracted:
-                    used_lm_based = True
+                    item_extraction_method = "lm_based"
                     item_id = item_id_extracted
-                else:
-                    item_id = ""
+
+        # NPC나 아이템 중 하나라도 비어있으면 LM 추가 호출 (2차 보강)
+        if assets and world_snapshot:
+            if not target_npc_ids and npc_extraction_method != "prespecified":
+                logger.debug("Empty NPC list - trying LM extraction as fallback")
+                target_npc_ids_lm = self._extract_target_npc_ids_lm_based(
+                    user_input, assets, world_snapshot
+                )
+                if target_npc_ids_lm:
+                    target_npc_ids = target_npc_ids_lm
+                    npc_extraction_method = "lm_based"
+
+            if not item_id and item_extraction_method != "prespecified":
+                logger.debug("Empty item_id - trying LM extraction as fallback")
+                item_id_lm = self._extract_item_id_lm_based(
+                    user_input, assets, world_snapshot
+                )
+                if item_id_lm:
+                    item_id = item_id_lm
+                    item_extraction_method = "lm_based"
 
         # extraction_method 결정 (우선순위: lm_based > rule_based > prespecified)
-        if used_lm_based:
+        # NPC와 아이템 중 더 높은 우선순위 방법 선택
+        extraction_methods = [npc_extraction_method, item_extraction_method]
+        if "lm_based" in extraction_methods:
             extraction_method = "lm_based"
-        elif used_rule_based:
+        elif "rule_based" in extraction_methods:
             extraction_method = "rule_based"
+        else:
+            extraction_method = "prespecified"
 
         # content 추출
         content = self._extract_content(user_input)
 
         parsed = ParsedInput(
             intent=intent.value,
-            target_npc_id=target_npc_id or "",
+            target_npc_ids=target_npc_ids,
             item_id=item_id or "",
             content=content,
             raw=user_input,
@@ -543,7 +647,7 @@ NPC ID:"""
 
         logger.info(
             f"Parsed result: intent={parsed.intent}, "
-            f"target_npc_id={parsed.target_npc_id}, "
+            f"target_npc_ids={parsed.target_npc_ids}, "
             f"item_id={parsed.item_id}, "
             f"method={parsed.extraction_method}"
         )
@@ -554,7 +658,8 @@ NPC ID:"""
         return {
             "parser": "two_stage_parser",
             "intent": parsed.intent,
-            "target_npc_id": parsed.target_npc_id,
+            "target_npc_ids": parsed.target_npc_ids,
+            "target_npc_id": parsed.target_npc_id,  # 하위 호환성
             "item_id": parsed.item_id,
             "extraction_method": parsed.extraction_method,
             "content_length": len(parsed.content),
@@ -689,7 +794,7 @@ if __name__ == "__main__":
 
         print(f"  결과:")
         print(f"    - intent: {parsed.intent}")
-        print(f"    - target_npc_id: {parsed.target_npc_id or '(없음)'}")
+        print(f"    - target_npc_ids: {parsed.target_npc_ids if parsed.target_npc_ids else '[]'}")
         print(f"    - item_id: {parsed.item_id or '(없음)'}")
         print(f"    - 추출 방법: {extraction_stage}")
         print()
@@ -772,7 +877,7 @@ if __name__ == "__main__":
 
             print(f"  결과:")
             print(f"    - intent: {parsed.intent}")
-            print(f"    - target_npc_id: {parsed.target_npc_id or '(없음)'}")
+            print(f"    - target_npc_ids: {parsed.target_npc_ids if parsed.target_npc_ids else '[]'}")
             print(f"    - item_id: {parsed.item_id or '(없음)'}")
             print(f"    - 추출 방법: {extraction_stage}")
             print()
