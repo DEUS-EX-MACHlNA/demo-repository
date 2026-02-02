@@ -4,6 +4,7 @@ from __future__ import annotations
 import logging
 import os
 import random
+import time
 from typing import Any, Dict
 
 from app.loader import ScenarioAssets
@@ -108,25 +109,47 @@ def tool_turn_resolution(
     - 아이템 효과
     - 상태 변화 제안 (최종값 출력 -> 내부에서 델타로 변환)
     """
+    total_start = time.perf_counter()
 
     # 1. 통합 프롬프트 구성
+    t1_start = time.perf_counter()
     prompt = build_prompt(
         user_input=user_input,
         world_state=world_snapshot.to_dict(),
         memory_summary=None,
         npc_context=assets.export_for_prompt(),
     )
+    t1_end = time.perf_counter()
 
     # 2. LLM 호출
+    t2_start = time.perf_counter()
     raw_output = llm.generate(prompt)
+    t2_end = time.perf_counter()
 
     # 3. 파싱 (event_description + state_delta)
+    t3_start = time.perf_counter()
     llm_response = parse_response(raw_output)
     event_description: list[str] = llm_response.event_description or []
     state_delta_raw = llm_response.state_delta or {}
+    t3_end = time.perf_counter()
 
     # 4. 최종값 -> 델타 변환 (merge_deltas/apply_delta 호환)
+    t4_start = time.perf_counter()
     state_delta = _final_values_to_delta(state_delta_raw, world_snapshot)
+    t4_end = time.perf_counter()
+
+    total_end = time.perf_counter()
+
+    # 시간 측정 결과 로깅
+    logger.info(
+        "[tool_turn_resolution] 시간 측정:\n"
+        f"  1. build_prompt:    {(t1_end - t1_start) * 1000:.2f} ms\n"
+        f"  2. llm.generate:    {(t2_end - t2_start) * 1000:.2f} ms\n"
+        f"  3. parse_response:  {(t3_end - t3_start) * 1000:.2f} ms\n"
+        f"  4. delta_convert:   {(t4_end - t4_start) * 1000:.2f} ms\n"
+        f"  ──────────────────────────────────\n"
+        f"  총 소요 시간:       {(total_end - total_start) * 1000:.2f} ms"
+    )
 
     return ToolResult(
         event_description=event_description,
