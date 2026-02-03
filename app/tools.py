@@ -15,15 +15,26 @@ from app.llm import LLM_Engine, build_prompt, parse_response
 logger = logging.getLogger(__name__)
 
 _llm_instance: LLM_Engine | None = None
+_langchain_engine_instance = None
 
-# @use_cache
+
 def _get_llm() -> LLM_Engine:
-    """LLM 엔진 싱글턴"""
+    """LLM 엔진 싱글턴 (transformers 기반)"""
     global _llm_instance
     if _llm_instance is None:
         model_name = os.environ.get("LLM_MODEL", "Qwen/Qwen3-8B")
         _llm_instance = LLM_Engine(model_name=model_name)
     return _llm_instance
+
+
+def _get_langchain_engine():
+    """LangChain 엔진 싱글턴"""
+    global _langchain_engine_instance
+    if _langchain_engine_instance is None:
+        from app.llm.langchain_engine import LangChainEngine
+        model = os.environ.get("LANGCHAIN_MODEL", "Qwen/Qwen2.5-7B-Instruct")
+        _langchain_engine_instance = LangChainEngine(model=model)
+    return _langchain_engine_instance
 
 
 def execute_tool(
@@ -155,39 +166,120 @@ def tool_turn_resolution(
         event_description=event_description,
         state_delta=state_delta,
     )
+
+
 # ============================================================
-# Tool 4: Night Comes (state only)
+# tool_turn_resolution_v2: LangChain bind_tools 기반
 # ============================================================
-def tool_4_night_comes(
+def tool_turn_resolution_v2(
+    user_input: str,
     world_snapshot: WorldState,
-    assets: ScenarioAssets
-) -> NightResult:
+    assets: ScenarioAssets,
+) -> ToolResult:
+    """
+    LangChain + bind_tools 기반 2단계 턴 해결
 
-    night_delta: dict[str, Any] = {
-        "turn_increment": 1,
-        "npc_stats": {},
-        "vars": {},
-    }
+    1단계: Router LLM이 의도 분류 (tool 선택)
+    2단계: 선택된 tool이 해당 의도의 프롬프트로 응답 생성
+    """
+    from langchain_core.messages import SystemMessage, HumanMessage
 
-    for npc_id, npc_state in world_snapshot.npcs.items():
-        suspicion_change = random.choice([-1, 0, 1])
-        trust_change = random.choice([-1, 0])
+    from app.tools_langchain import (
+        AVAILABLE_TOOLS,
+        set_tool_context,
+        tool_talk,
+        tool_action,
+        tool_item,
+    )
 
-        if suspicion_change or trust_change:
-            night_delta["npc_stats"][npc_id] = {}
-            if suspicion_change:
-                night_delta["npc_stats"][npc_id]["suspicion"] = suspicion_change
-            if trust_change:
-                night_delta["npc_stats"][npc_id]["trust"] = trust_change
+    total_start = time.perf_counter()
 
-    fabrication_score = world_snapshot.vars.get("fabrication_score", 0)
-    observe_probability = min(0.1 + fabrication_score * 0.1, 0.8)
-    is_observed = random.random() < observe_probability
+    # LLM 엔진 가져오기
+    engine = _get_langchain_engine()
 
-    return NightResult(
-        night_delta=night_delta,
-        night_dialogue="",
-        is_observed=is_observed
+    # 메모리 검색용 LLM (optional)
+    memory_llm = None
+    try:
+        from app.agents.llm import get_llm as get_memory_llm
+        memory_llm = get_memory_llm()
+    except Exception as e:
+        logger.debug(f"메모리 LLM 로드 실패 (무시됨): {e}")
+
+    # 1. Tool 컨텍스트 설정
+    set_tool_context(
+        world_state=world_snapshot,
+        assets=assets,
+        llm_engine=engine,
+        memory_llm=memory_llm,
+    )
+
+    # 2. Router LLM 준비 (bind_tools)
+    router_llm = engine.get_llm_with_tools(AVAILABLE_TOOLS)
+
+    # 3. Router 시스템 프롬프트
+    npc_ids = assets.get_all_npc_ids()
+    inventory = world_snapshot.inventory
+
+    router_system = f"""당신은 인터랙티브 노벨 게임의 의도 분류기입니다.
+사용자의 입력을 분석하여 적절한 tool을 선택하세요:
+
+- tool_talk: NPC에게 대화하거나 질문하는 경우
+- tool_action: 장소 이동, 조사, 관찰 등 일반적인 행동
+- tool_item: 아이템을 사용하거나 적용하는 경우
+
+현재 게임 상태:
+- NPC 목록: {npc_ids}
+- 인벤토리: {inventory}
+
+사용자 입력을 분석하고 적절한 tool을 호출하세요.
+"""
+
+    # 4. Router LLM 호출 (Tool Call 결정)
+    messages = [
+        SystemMessage(content=router_system),
+        HumanMessage(content=user_input),
+    ]
+
+    logger.info(f"[v2] Router LLM 호출: user_input={user_input[:50]}...")
+    router_response = router_llm.invoke(messages)
+
+    # 5. Tool Call 실행
+    result: Dict[str, Any] = {}
+
+    if not router_response.tool_calls:
+        # Fallback: tool_action으로 처리
+        logger.info("[v2] tool_calls 없음, fallback으로 tool_action 사용")
+        result = tool_action.invoke({"action_description": user_input})
+    else:
+        # 첫 번째 tool call 실행
+        tc = router_response.tool_calls[0]
+        tool_name = tc["name"]
+        tool_args = tc["args"]
+
+        logger.info(f"[v2] Tool 선택: {tool_name}, args={tool_args}")
+
+        if tool_name == "tool_talk":
+            result = tool_talk.invoke(tool_args)
+        elif tool_name == "tool_action":
+            result = tool_action.invoke(tool_args)
+        elif tool_name == "tool_item":
+            result = tool_item.invoke(tool_args)
+        else:
+            logger.warning(f"[v2] 알 수 없는 tool: {tool_name}, fallback 사용")
+            result = tool_action.invoke({"action_description": user_input})
+
+    # 6. 결과를 ToolResult로 변환
+    state_delta = _final_values_to_delta(
+        result.get("state_delta", {}),
+        world_snapshot
+    )
+
+    total_end = time.perf_counter()
+    logger.info(f"[v2] 총 소요 시간: {(total_end - total_start) * 1000:.2f} ms")
+
+    return ToolResult(
+        event_description=result.get("event_description", []),
+        state_delta=state_delta,
     )
 
 
