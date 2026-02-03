@@ -15,15 +15,26 @@ from app.llm import LLM_Engine, build_prompt, parse_response
 logger = logging.getLogger(__name__)
 
 _llm_instance: LLM_Engine | None = None
+_langchain_engine_instance = None
 
-# @use_cache
+
 def _get_llm() -> LLM_Engine:
-    """LLM 엔진 싱글턴"""
+    """LLM 엔진 싱글턴 (transformers 기반)"""
     global _llm_instance
     if _llm_instance is None:
         model_name = os.environ.get("LLM_MODEL", "Qwen/Qwen3-8B")
         _llm_instance = LLM_Engine(model_name=model_name)
     return _llm_instance
+
+
+def _get_langchain_engine():
+    """LangChain 엔진 싱글턴"""
+    global _langchain_engine_instance
+    if _langchain_engine_instance is None:
+        from app.llm.langchain_engine import LangChainEngine
+        model = os.environ.get("LANGCHAIN_MODEL", "Qwen/Qwen2.5-7B-Instruct")
+        _langchain_engine_instance = LangChainEngine(model=model)
+    return _langchain_engine_instance
 
 
 def execute_tool(
@@ -112,87 +123,186 @@ def tool_turn_resolution(
     total_start = time.perf_counter()
 
     # 1. 통합 프롬프트 구성
-    t1_start = time.perf_counter()
+    # t1_start = time.perf_counter()
     prompt = build_prompt(
         user_input=user_input,
         world_state=world_snapshot.to_dict(),
         memory_summary=None,
         npc_context=assets.export_for_prompt(),
     )
-    t1_end = time.perf_counter()
+    # t1_end = time.perf_counter()
 
     # 2. LLM 호출
-    t2_start = time.perf_counter()
+    # t2_start = time.perf_counter()
     raw_output = llm.generate(prompt)
-    t2_end = time.perf_counter()
+    # t2_end = time.perf_counter()
 
     # 3. 파싱 (event_description + state_delta)
-    t3_start = time.perf_counter()
+    # t3_start = time .perf_counter()
     llm_response = parse_response(raw_output)
     event_description: list[str] = llm_response.event_description or []
     state_delta_raw = llm_response.state_delta or {}
-    t3_end = time.perf_counter()
+    # t3_end = time.perf_counter()
 
     # 4. 최종값 -> 델타 변환 (merge_deltas/apply_delta 호환)
-    t4_start = time.perf_counter()
+    # t4_start = time.perf_counter()
     state_delta = _final_values_to_delta(state_delta_raw, world_snapshot)
-    t4_end = time.perf_counter()
+    # t4_end = time.perf_counter()
 
-    total_end = time.perf_counter()
+    # total_end = time.perf_counter()
 
     # 시간 측정 결과 로깅
-    logger.info(
-        "[tool_turn_resolution] 시간 측정:\n"
-        f"  1. build_prompt:    {(t1_end - t1_start) * 1000:.2f} ms\n"
-        f"  2. llm.generate:    {(t2_end - t2_start) * 1000:.2f} ms\n"
-        f"  3. parse_response:  {(t3_end - t3_start) * 1000:.2f} ms\n"
-        f"  4. delta_convert:   {(t4_end - t4_start) * 1000:.2f} ms\n"
-        f"  ──────────────────────────────────\n"
-        f"  총 소요 시간:       {(total_end - total_start) * 1000:.2f} ms"
-    )
+    # logger.info(
+    #     "[tool_turn_resolution] 시간 측정:\n"
+    #     f"  1. build_prompt:    {(t1_end - t1_start) * 1000:.2f} ms\n"
+    #     f"  2. llm.generate:    {(t2_end - t2_start) * 1000:.2f} ms\n"
+    #     f"  3. parse_response:  {(t3_end - t3_start) * 1000:.2f} ms\n"
+    #     f"  4. delta_convert:   {(t4_end - t4_start) * 1000:.2f} ms\n"
+    #     f"  ──────────────────────────────────\n"
+    #     f"  총 소요 시간:       {(total_end - total_start) * 1000:.2f} ms"
+    # )
 
     return ToolResult(
         event_description=event_description,
         state_delta=state_delta,
     )
+
+
 # ============================================================
-# Tool 4: Night Comes (state only)
+# tool_turn_resolution_v2: LangChain bind_tools 기반
 # ============================================================
-def tool_4_night_comes(
+def tool_turn_resolution_v2(
+    user_input: str,
     world_snapshot: WorldState,
-    assets: ScenarioAssets
-) -> NightResult:
+    assets: ScenarioAssets,
+) -> ToolResult:
+    """
+    LangChain + bind_tools 기반 2단계 턴 해결
 
-    night_delta: dict[str, Any] = {
-        "turn_increment": 1,
-        "npc_stats": {},
-        "vars": {},
-    }
+    1단계: Router LLM이 의도 분류 (tool 선택)
+    2단계: 선택된 tool이 해당 의도의 프롬프트로 응답 생성
+    """
+    from langchain_core.messages import SystemMessage, HumanMessage
 
-    for npc_id, npc_state in world_snapshot.npcs.items():
-        suspicion_change = random.choice([-1, 0, 1])
-        trust_change = random.choice([-1, 0])
+    from app.tools_langchain import (
+        AVAILABLE_TOOLS,
+        set_tool_context,
+        tool_talk,
+        tool_action,
+        tool_item,
+    )
 
-        if suspicion_change or trust_change:
-            night_delta["npc_stats"][npc_id] = {}
-            if suspicion_change:
-                night_delta["npc_stats"][npc_id]["suspicion"] = suspicion_change
-            if trust_change:
-                night_delta["npc_stats"][npc_id]["trust"] = trust_change
+    total_start = time.perf_counter()
 
-    fabrication_score = world_snapshot.vars.get("fabrication_score", 0)
-    observe_probability = min(0.1 + fabrication_score * 0.1, 0.8)
-    is_observed = random.random() < observe_probability
+    # LLM 엔진 가져오기
+    engine = _get_langchain_engine()
 
-    return NightResult(
-        night_delta=night_delta,
-        night_dialogue="",
-        is_observed=is_observed
+    # 사용 중인 모델/빌드 정보 출력
+    print("=" * 60)
+    print("[tool_turn_resolution_v2] 엔진 정보")
+    print(f"  모델: {engine.model}")
+    print(f"  base_url: {engine.base_url}")
+    print("=" * 60)
+
+    # 메모리 검색용 LLM (optional)
+    memory_llm = None
+    try:
+        from app.agents.llm import get_llm as get_memory_llm
+        memory_llm = get_memory_llm()
+    except Exception as e:
+        logger.debug(f"메모리 LLM 로드 실패 (무시됨): {e}")
+
+    # 1. Tool 컨텍스트 설정
+    set_tool_context(
+        world_state=world_snapshot,
+        assets=assets,
+        llm_engine=engine,
+        memory_llm=memory_llm,
+    )
+
+    # 2. Router LLM 준비 (bind_tools)
+    router_llm = engine.get_llm_with_tools(AVAILABLE_TOOLS)
+
+    # 3. Router 시스템 프롬프트
+    npc_ids = assets.get_all_npc_ids()
+    inventory = world_snapshot.inventory
+
+    router_system = f"""당신은 인터랙티브 노벨 게임의 의도 분류기입니다.
+사용자의 입력을 분석하여 적절한 tool을 선택하세요:
+
+- tool_talk: NPC에게 대화하거나 질문하는 경우
+- tool_action: 장소 이동, 조사, 관찰 등 일반적인 행동
+- tool_item: 아이템을 사용하거나 적용하는 경우
+
+현재 게임 상태:
+- NPC 목록: {npc_ids}
+- 인벤토리: {inventory}
+
+사용자 입력을 분석하고 적절한 tool을 호출하세요.
+"""
+
+    # 4. Router LLM 호출 (Tool Call 결정)
+    messages = [
+        SystemMessage(content=router_system),
+        HumanMessage(content=user_input),
+    ]
+
+    logger.info(f"[v2] Router LLM 호출: user_input={user_input[:50]}...")
+    router_response = router_llm.invoke(messages)
+
+    # 5. Tool Call 실행
+    result: Dict[str, Any] = {}
+
+    if not router_response.tool_calls:
+        # Fallback: tool_action으로 처리
+        logger.info("[v2] tool_calls 없음, fallback으로 tool_action 사용")
+        result = tool_action.invoke({"action_description": user_input})
+    else:
+        # 첫 번째 tool call 실행
+        tc = router_response.tool_calls[0]
+        tool_name = tc["name"]
+        tool_args = tc["args"]
+
+        logger.info(f"[v2] Tool 선택: {tool_name}, args={tool_args}")
+
+        if tool_name == "tool_talk":
+            result = tool_talk.invoke(tool_args)
+        elif tool_name == "tool_action":
+            result = tool_action.invoke(tool_args)
+        elif tool_name == "tool_item":
+            result = tool_item.invoke(tool_args)
+        else:
+            logger.warning(f"[v2] 알 수 없는 tool: {tool_name}, fallback 사용")
+            result = tool_action.invoke({"action_description": user_input})
+
+    # 6. 결과를 ToolResult로 변환
+    state_delta = _final_values_to_delta(
+        result.get("state_delta", {}),
+        world_snapshot
+    )
+
+    total_end = time.perf_counter()
+    elapsed_ms = (total_end - total_start) * 1000
+    logger.info(f"[v2] 총 소요 시간: {elapsed_ms:.2f} ms")
+
+    # 결과 요약 출력
+    print("=" * 60)
+    print("[tool_turn_resolution_v2] 결과 요약")
+    print(f"  사용 모델: {engine.model}")
+    print(f"  base_url: {engine.base_url}")
+    print(f"  소요 시간: {elapsed_ms:.2f} ms")
+    print(f"  event_description: {result.get('event_description', [])}")
+    print(f"  state_delta: {state_delta}")
+    print("=" * 60)
+
+    return ToolResult(
+        event_description=result.get("event_description", []),
+        state_delta=state_delta,
     )
 
 
 # ============================================================
-# tool_turn_resolution 디버그 (python -m app.tools)
+# tool_turn_resolution_v2 디버그 (python -m app.tools)
 # ============================================================
 if __name__ == "__main__":
     import sys
@@ -209,7 +319,7 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG, format="%(levelname)s %(name)s %(message)s")
 
     print("=" * 60)
-    print("tool_turn_resolution 디버그")
+    print("tool_turn_resolution_v2 디버그 (LangChain + HuggingFace Router)")
     print("=" * 60)
 
     # 1. 시나리오 로드
@@ -235,38 +345,41 @@ if __name__ == "__main__":
         vars={"clue_count": 0, "fabrication_score": 0},
     )
     print(f"[2] WorldState: turn={world.turn}, npcs={list(world.npcs.keys())}")
+    print(f"    inventory: {world.inventory}")
 
-    # 3. 실제 LLM 모델 로드 (llm/engine.py 참고)
+    # 3. 환경변수 확인
     import os
-    model_name = os.environ.get("LLM_MODEL", "Qwen/Qwen3-8B")
-    print(f"\n[3] LLM 로딩 중: {model_name} (환경변수 LLM_MODEL로 변경 가능)")
-    llm = LLM_Engine(model_name=model_name)
-    print("[3] LLM 로드 완료")
+    langchain_model = os.environ.get("LANGCHAIN_MODEL", "Qwen/Qwen2.5-7B-Instruct")
+    hf_token = os.environ.get("HF_TOKEN", "")
+    print(f"\n[3] 환경변수 확인:")
+    print(f"    LANGCHAIN_MODEL: {langchain_model}")
+    print(f"    HF_TOKEN: {'설정됨' if hf_token else '미설정 (API 호출 실패 가능)'}")
 
-    user_input = "피해자 가족에게 그날 있었던 일을 물어본다"
+    # 4. 테스트 케이스들
+    test_cases = [
+        "피해자 가족에게 그날 있었던 일을 물어본다",
+        "현장 주변을 조사한다",
+        "패턴 분석기를 사용한다",
+    ]
 
-    # 4. build_prompt 확인
-    prompt = build_prompt(
-        user_input=user_input,
-        world_state=world.to_dict(),
-        memory_summary=None,
-        npc_context=assets.export_for_prompt(),
-    )
-    print(f"\n[4] 프롬프트 길이: {len(prompt)}")
-    print("[4] 프롬프트 앞 400자:")
-    print("-" * 40)
-    print(prompt[:400])
-    if len(prompt) > 400:
-        print("...")
-    print("-" * 40)
+    print(f"\n[4] 테스트 케이스 ({len(test_cases)}개)")
+    print("-" * 60)
 
-    # 5. tool_turn_resolution 호출
-    print("\n[5] LLM 생성 중...")
-    result = tool_turn_resolution(user_input, world, assets, llm)
-    print(f"\n[6] ToolResult:")
-    print(f"    event_description: {result.event_description!r}")
-    print(f"    state_delta: {result.state_delta}")
+    for i, user_input in enumerate(test_cases, 1):
+        print(f"\n>>> 테스트 {i}: \"{user_input}\"")
+        print("-" * 40)
+
+        try:
+            result = tool_turn_resolution_v2(user_input, world, assets)
+
+            print(f"\n[결과]")
+            print(f"  event_description: {result.event_description}")
+            print(f"  state_delta: {result.state_delta}")
+        except Exception as e:
+            print(f"\n[에러] {type(e).__name__}: {e}")
+
+        print("-" * 40)
 
     print("\n" + "=" * 60)
-    print("OK tool_turn_resolution 디버그 완료")
+    print("OK tool_turn_resolution_v2 디버그 완료")
     print("=" * 60)
