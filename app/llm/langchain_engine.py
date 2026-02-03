@@ -50,6 +50,11 @@ class LangChainEngine:
         """단순 텍스트 생성 (기존 LLM_Engine 호환)"""
         from langchain_core.messages import HumanMessage, SystemMessage
 
+        # 사용 중인 모델 정보 출력
+        print(f"[LangChainEngine.generate] 모델: {self.model}")
+        print(f"[LangChainEngine.generate] base_url: {self.base_url}")
+        logger.info(f"generate 호출 - 모델: {self.model}, base_url: {self.base_url}")
+
         messages: list[Any] = []
         if system_prompt:
             messages.append(SystemMessage(content=system_prompt))
@@ -61,6 +66,7 @@ class LangChainEngine:
                 max_tokens=max_tokens,
                 temperature=temperature or self.temperature,
             )
+            print(f"[LangChainEngine.generate] 응답 수신 완료 (길이: {len(response.content)}자)")
             return response.content
         except Exception as e:
             logger.error(f"LLM 생성 실패: {e}")
