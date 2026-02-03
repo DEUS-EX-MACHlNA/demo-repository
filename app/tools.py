@@ -197,6 +197,13 @@ def tool_turn_resolution_v2(
     # LLM 엔진 가져오기
     engine = _get_langchain_engine()
 
+    # 사용 중인 모델/빌드 정보 출력
+    print("=" * 60)
+    print("[tool_turn_resolution_v2] 엔진 정보")
+    print(f"  모델: {engine.model}")
+    print(f"  base_url: {engine.base_url}")
+    print("=" * 60)
+
     # 메모리 검색용 LLM (optional)
     memory_llm = None
     try:
@@ -275,7 +282,18 @@ def tool_turn_resolution_v2(
     )
 
     total_end = time.perf_counter()
-    logger.info(f"[v2] 총 소요 시간: {(total_end - total_start) * 1000:.2f} ms")
+    elapsed_ms = (total_end - total_start) * 1000
+    logger.info(f"[v2] 총 소요 시간: {elapsed_ms:.2f} ms")
+
+    # 결과 요약 출력
+    print("=" * 60)
+    print("[tool_turn_resolution_v2] 결과 요약")
+    print(f"  사용 모델: {engine.model}")
+    print(f"  base_url: {engine.base_url}")
+    print(f"  소요 시간: {elapsed_ms:.2f} ms")
+    print(f"  event_description: {result.get('event_description', [])}")
+    print(f"  state_delta: {state_delta}")
+    print("=" * 60)
 
     return ToolResult(
         event_description=result.get("event_description", []),
@@ -284,7 +302,7 @@ def tool_turn_resolution_v2(
 
 
 # ============================================================
-# tool_turn_resolution 디버그 (python -m app.tools)
+# tool_turn_resolution_v2 디버그 (python -m app.tools)
 # ============================================================
 if __name__ == "__main__":
     import sys
@@ -301,7 +319,7 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG, format="%(levelname)s %(name)s %(message)s")
 
     print("=" * 60)
-    print("tool_turn_resolution 디버그")
+    print("tool_turn_resolution_v2 디버그 (LangChain + HuggingFace Router)")
     print("=" * 60)
 
     # 1. 시나리오 로드
@@ -327,38 +345,41 @@ if __name__ == "__main__":
         vars={"clue_count": 0, "fabrication_score": 0},
     )
     print(f"[2] WorldState: turn={world.turn}, npcs={list(world.npcs.keys())}")
+    print(f"    inventory: {world.inventory}")
 
-    # 3. 실제 LLM 모델 로드 (llm/engine.py 참고)
+    # 3. 환경변수 확인
     import os
-    model_name = os.environ.get("LLM_MODEL", "Qwen/Qwen3-8B")
-    print(f"\n[3] LLM 로딩 중: {model_name} (환경변수 LLM_MODEL로 변경 가능)")
-    llm = LLM_Engine(model_name=model_name)
-    print("[3] LLM 로드 완료")
+    langchain_model = os.environ.get("LANGCHAIN_MODEL", "Qwen/Qwen2.5-7B-Instruct")
+    hf_token = os.environ.get("HF_TOKEN", "")
+    print(f"\n[3] 환경변수 확인:")
+    print(f"    LANGCHAIN_MODEL: {langchain_model}")
+    print(f"    HF_TOKEN: {'설정됨' if hf_token else '미설정 (API 호출 실패 가능)'}")
 
-    user_input = "피해자 가족에게 그날 있었던 일을 물어본다"
+    # 4. 테스트 케이스들
+    test_cases = [
+        "피해자 가족에게 그날 있었던 일을 물어본다",
+        "현장 주변을 조사한다",
+        "패턴 분석기를 사용한다",
+    ]
 
-    # 4. build_prompt 확인
-    prompt = build_prompt(
-        user_input=user_input,
-        world_state=world.to_dict(),
-        memory_summary=None,
-        npc_context=assets.export_for_prompt(),
-    )
-    print(f"\n[4] 프롬프트 길이: {len(prompt)}")
-    print("[4] 프롬프트 앞 400자:")
-    print("-" * 40)
-    print(prompt[:400])
-    if len(prompt) > 400:
-        print("...")
-    print("-" * 40)
+    print(f"\n[4] 테스트 케이스 ({len(test_cases)}개)")
+    print("-" * 60)
 
-    # 5. tool_turn_resolution 호출
-    print("\n[5] LLM 생성 중...")
-    result = tool_turn_resolution(user_input, world, assets, llm)
-    print(f"\n[6] ToolResult:")
-    print(f"    event_description: {result.event_description!r}")
-    print(f"    state_delta: {result.state_delta}")
+    for i, user_input in enumerate(test_cases, 1):
+        print(f"\n>>> 테스트 {i}: \"{user_input}\"")
+        print("-" * 40)
+
+        try:
+            result = tool_turn_resolution_v2(user_input, world, assets)
+
+            print(f"\n[결과]")
+            print(f"  event_description: {result.event_description}")
+            print(f"  state_delta: {result.state_delta}")
+        except Exception as e:
+            print(f"\n[에러] {type(e).__name__}: {e}")
+
+        print("-" * 40)
 
     print("\n" + "=" * 60)
-    print("OK tool_turn_resolution 디버그 완료")
+    print("OK tool_turn_resolution_v2 디버그 완료")
     print("=" * 60)
