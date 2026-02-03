@@ -33,7 +33,7 @@ class LangChainEngine:
             logger.warning("HF_TOKEN 환경변수가 설정되지 않았습니다.")
 
         self.llm = ChatOpenAI(
-            model=model,
+            model=self.model,
             base_url=base_url,
             api_key=api_key,
             temperature=temperature,
