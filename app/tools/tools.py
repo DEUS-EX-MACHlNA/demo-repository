@@ -18,6 +18,134 @@ _llm_instance: LLM_Engine | None = None
 _langchain_engine_instance = None
 
 
+# ============================================================
+# Parsing & Tool Selection (규칙 기반, 토큰 제한 없음)
+# ============================================================
+def parse_intention(
+    user_input: str,
+    world_state: WorldState,
+    assets: ScenarioAssets,
+) -> dict[str, Any]:
+    """
+    사용자 입력을 규칙 기반으로 파싱하여 의도를 파악합니다.
+
+    Args:
+        user_input: 사용자 입력 텍스트
+        world_state: 현재 월드 상태
+        assets: 시나리오 에셋
+
+    Returns:
+        파싱 결과 딕셔너리:
+        {
+            "intent": "interact" | "use" | "action",
+            "target": str | None,  # NPC ID 또는 item ID
+            "content": str,  # 정제된 내용
+            "raw": str,  # 원본 텍스트
+        }
+    """
+    text = user_input.strip()
+
+    # NPC 목록 가져오기
+    npc_ids = assets.get_all_npc_ids()
+    npc_names = []
+    for npc_id in npc_ids:
+        npc_info = assets.get_npc_by_id(npc_id)
+        if npc_info:
+            npc_names.append(npc_info.get("name", npc_id))
+
+    # 인벤토리 아이템 가져오기
+    inventory = world_state.inventory
+    item_names = []
+    for item_id in inventory:
+        item_info = assets.get_item_by_id(item_id)
+        if item_info:
+            item_names.append(item_info.get("name", item_id))
+
+    # 대화 관련 키워드
+    talk_keywords = ["물어", "말", "질문", "대화", "묻", "이야기", "문의", "에게", "한테"]
+
+    # 아이템 사용 관련 키워드
+    use_keywords = ["사용", "쓰", "활용", "이용", "적용", "작동"]
+
+    # 1. NPC 대화 감지
+    for npc_id, npc_name in zip(npc_ids, npc_names):
+        if npc_name in text or npc_id in text:
+            # 대화 관련 키워드가 있는지 확인
+            has_talk_keyword = any(kw in text for kw in talk_keywords)
+            if has_talk_keyword or "에게" in text or "한테" in text:
+                return {
+                    "intent": "interact",
+                    "target": npc_id,
+                    "content": text,
+                    "raw": user_input,
+                }
+
+    # 2. 아이템 사용 감지
+    for item_id, item_name in zip(inventory, item_names):
+        if item_name in text or item_id in text:
+            # 사용 관련 키워드가 있는지 확인
+            has_use_keyword = any(kw in text for kw in use_keywords)
+            if has_use_keyword:
+                return {
+                    "intent": "use",
+                    "target": item_id,
+                    "content": text,
+                    "raw": user_input,
+                }
+
+    # 3. 일반 행동으로 분류
+    return {
+        "intent": "action",
+        "target": None,
+        "content": text,
+        "raw": user_input,
+    }
+
+
+def select_tool(
+    parsed_intent: dict[str, Any],
+) -> dict[str, Any]:
+    """
+    파싱된 의도를 기반으로 적절한 tool과 args를 선택합니다.
+
+    Args:
+        parsed_intent: parse_intention의 반환값
+
+    Returns:
+        {
+            "tool_name": str,  # "interact" | "action" | "use"
+            "args": dict,  # tool에 전달할 인자
+        }
+    """
+    intent = parsed_intent["intent"]
+    target = parsed_intent["target"]
+    content = parsed_intent["content"]
+
+    if intent == "interact":
+        return {
+            "tool_name": "interact",
+            "args": {
+                "target": target,
+                "interact": content,
+            }
+        }
+    elif intent == "use":
+        return {
+            "tool_name": "use",
+            "args": {
+                "item": target,
+                "action": content,
+            }
+        }
+    else:  # action
+        return {
+            "tool_name": "action",
+            "args": {
+                "action": content,
+            }
+        }
+
+
 def _get_llm() -> LLM_Engine:
     """LLM 엔진 싱글턴 (transformers 기반)"""
     global _llm_instance
