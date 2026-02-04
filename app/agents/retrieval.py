@@ -11,7 +11,7 @@ import math
 import re
 from typing import Any
 
-from app.agents.llm import GenerativeAgentsLLM
+from app.llm import GenerativeAgentsLLM
 from app.agents.memory import MemoryEntry, get_memory_stream
 from app.agents.utils import extract_number
 

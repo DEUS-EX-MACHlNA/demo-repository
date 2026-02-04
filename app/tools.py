@@ -31,7 +31,7 @@ def _get_langchain_engine():
     """LangChain 엔진 싱글턴"""
     global _langchain_engine_instance
     if _langchain_engine_instance is None:
-        from app.llm.langchain_engine import LangChainEngine
+        from app.llm import LangChainEngine
         model = os.environ.get("LANGCHAIN_MODEL", "Qwen/Qwen2.5-7B-Instruct")
         _langchain_engine_instance = LangChainEngine(model=model)
     return _langchain_engine_instance
@@ -207,7 +207,7 @@ def tool_turn_resolution_v2(
     # 메모리 검색용 LLM (optional)
     memory_llm = None
     try:
-        from app.agents.llm import get_llm as get_memory_llm
+        from app.llm import get_llm as get_memory_llm
         memory_llm = get_memory_llm()
     except Exception as e:
         logger.debug(f"메모리 LLM 로드 실패 (무시됨): {e}")

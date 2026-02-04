@@ -26,7 +26,7 @@ from app.agents.dialogue import (
     generate_dialogue,
     store_dialogue_memories,
 )
-from app.agents.llm import GenerativeAgentsLLM, get_llm
+from app.llm import GenerativeAgentsLLM, get_llm
 from app.agents.planning import update_plan
 from app.agents.reflection import perform_reflection, should_reflect
 from app.agents.utils import format_persona
