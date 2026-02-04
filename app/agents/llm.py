@@ -2,7 +2,7 @@
 app/agents/llm.py
 Generative Agents LLM 래퍼 — EXAONE lazy loading + fallback
 
-narrative.py / parser.py 와 동일한 패턴을 따른다.
+H100 최적화: Flash Attention 2 + BF16 + 4bit 양자화
 """
 from __future__ import annotations
 
@@ -23,6 +23,7 @@ class GenerativeAgentsLLM:
         self._model = None
         self._tokenizer = None
         self._loaded = False
+        self._device = "cpu"  # 실제 device 저장용
         self._load_model()
 
     def _load_model(self) -> None:
@@ -32,7 +33,7 @@ class GenerativeAgentsLLM:
 
         try:
             import torch
-            from transformers import AutoModelForCausalLM, AutoTokenizer
+            from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 
             hf_token = os.environ.get("HF_TOKEN")
             device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -43,14 +44,61 @@ class GenerativeAgentsLLM:
                 token=hf_token,
                 trust_remote_code=True,
             )
-            self._model = AutoModelForCausalLM.from_pretrained(
-                self.model_name,
-                token=hf_token,
-                trust_remote_code=True,
-                torch_dtype=torch.float16,
-                low_cpu_mem_usage=True,
-                device_map="auto" if device == "cuda" else "cpu",
-            )
+
+            # H100 최적화 설정
+            if device == "cuda":
+                # 4bit 양자화 설정
+                bnb_config = BitsAndBytesConfig(
+                    load_in_4bit=True,
+                    bnb_4bit_quant_type="nf4",
+                    bnb_4bit_compute_dtype=torch.bfloat16,
+                    bnb_4bit_use_double_quant=True,
+                )
+                logger.debug("4bit quantization config: nf4, bfloat16, double_quant=True")
+
+                # Flash Attention 2 지원 여부 확인
+                attn_impl = None
+                try:
+                    import flash_attn  # noqa: F401
+                    attn_impl = "flash_attention_2"
+                    logger.info("Flash Attention 2 detected, enabling FA2")
+                except ImportError:
+                    logger.warning("flash-attn not installed, using default attention")
+
+                model_kwargs = {
+                    "token": hf_token,
+                    "trust_remote_code": True,
+                    "quantization_config": bnb_config,
+                    "torch_dtype": torch.bfloat16,
+                    "device_map": "auto",
+                }
+                if attn_impl:
+                    model_kwargs["attn_implementation"] = attn_impl
+
+                self._model = AutoModelForCausalLM.from_pretrained(
+                    self.model_name,
+                    **model_kwargs,
+                )
+
+                self._device = "cuda"
+
+                # 적용된 최적화 로그
+                logger.info(
+                    f"Model loaded: quantization=4bit, dtype=bfloat16, "
+                    f"attn={attn_impl or 'default'}, device_map=auto"
+                )
+            else:
+                # CPU fallback (양자화/FA2 미지원)
+                self._model = AutoModelForCausalLM.from_pretrained(
+                    self.model_name,
+                    token=hf_token,
+                    trust_remote_code=True,
+                    torch_dtype=torch.float32,
+                    low_cpu_mem_usage=True,
+                )
+                self._device = "cpu"
+                logger.info("Model loaded: CPU mode, dtype=float32")
+
             logger.info("GenerativeAgentsLLM loaded successfully")
         except Exception as e:
             logger.warning(f"Failed to load LLM ({e}). Falling back to rule-based.")
@@ -82,8 +130,9 @@ class GenerativeAgentsLLM:
                 return_dict=True,
                 return_tensors="pt",
             )
-            input_ids = encoded["input_ids"].to(self._model.device)
-            attention_mask = encoded["attention_mask"].to(self._model.device)
+            # 양자화 모델은 .device 접근 불가 → 저장된 _device 사용
+            input_ids = encoded["input_ids"].to(self._device)
+            attention_mask = encoded["attention_mask"].to(self._device)
 
             # pad_token_id 가 없으면 eos_token_id 로 대체
             pad_token_id = self._tokenizer.pad_token_id
