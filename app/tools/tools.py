@@ -11,6 +11,7 @@ from app.loader import ScenarioAssets
 from app.models import NightResult, ToolResult, WorldState
 
 from app.llm import LLM_Engine, build_prompt, parse_response
+from app.llm.config import DEFAULT_MODEL
 
 logger = logging.getLogger(__name__)
 
@@ -150,7 +151,7 @@ def _get_llm() -> LLM_Engine:
     """LLM 엔진 싱글턴 (transformers 기반)"""
     global _llm_instance
     if _llm_instance is None:
-        model_name = os.environ.get("LLM_MODEL", "Qwen/Qwen3-8B")
+        model_name = os.environ.get("LLM_MODEL", DEFAULT_MODEL)
         _llm_instance = LLM_Engine(model_name=model_name)
     return _llm_instance
 
@@ -160,7 +161,7 @@ def _get_langchain_engine():
     global _langchain_engine_instance
     if _langchain_engine_instance is None:
         from app.llm import LangChainEngine
-        model = os.environ.get("LANGCHAIN_MODEL", "Qwen/Qwen2.5-7B-Instruct")
+        model = os.environ.get("LANGCHAIN_MODEL", DEFAULT_MODEL)
         _langchain_engine_instance = LangChainEngine(model=model)
     return _langchain_engine_instance
 
@@ -477,7 +478,7 @@ if __name__ == "__main__":
 
     # 3. 환경변수 확인
     import os
-    langchain_model = os.environ.get("LANGCHAIN_MODEL", "Qwen/Qwen2.5-7B-Instruct")
+    langchain_model = os.environ.get("LANGCHAIN_MODEL", DEFAULT_MODEL)
     hf_token = os.environ.get("HF_TOKEN", "")
     print(f"\n[3] 환경변수 확인:")
     print(f"    LANGCHAIN_MODEL: {langchain_model}")
