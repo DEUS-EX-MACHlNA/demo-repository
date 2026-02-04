@@ -16,204 +16,258 @@ if str(project_root) not in sys.path:
 from app.database import SessionLocal
 from app.db_models.scenario import Scenario
 from app.db_models.game import Games, GameStatus
+from app.schemas.npc_info import NpcSchema, NpcCollectionSchema
+from app.schemas.player_info import PlayerSchema, PlayerMemoSchema
+from app.schemas.world_meta_data import (
+    WorldDataSchema,
+    ScenarioSchema,
+    StoryGraphSchema,
+    ItemsCollectionSchema,
+    LockSchema,
+    LocksSchemaList,
+    CurrentStateSchema,
+    ScenarioSchema,
+    StoryNodeSchema,
+    EndingSchema,
+    )
+from app.schemas.item_info import ItemSchema
 import json
 import copy
+from typing import Dict, Any
 
 
-def extract_initial_npc_data(world_data: dict) -> dict:
-	"""
-	world_data에서 NPC 초기 상태 데이터를 추출합니다.
-	"""
-	
-	source_npcs = world_data.get("npcs", {}).get("npcs", [])
-	
-	# 시나리오의 시작 위치 (예: "act1_open") 가져오기
-	# world_data 구조: { "scenario": { "opening_scene_id": "...", ... }, ... }
-	default_start_node = world_data.get("scenario", {}).get("opening_scene_id")
-	
-	initial_npc_data = {}
-	
-	for npc in source_npcs:
-		npc_id = npc["npc_id"]
-		
-		initial_npc_data[npc_id] = {
-			# 1. Stats
-			"stats": npc.get("stats", {}),
+def extract_initial_npc_data(world_data: Dict[str, Any]) -> dict:
+    """
+    world_data(JSON)에서 NPC 데이터를 추출하여 
+    NpcCollectionSchema 규격에 맞는 딕셔너리 형태로 변환합니다.
+    """
+    
+    # 1. 원본 데이터 가져오기 (없으면 빈 리스트)
+    source_npcs = world_data.get("npcs", {}).get("npcs", [])
+    
+    valid_npc_list = []
+    
+    for npc_data in source_npcs:
+        # 2. Pydantic 스키마로 데이터 매핑 및 검증
+        # - 스키마에 없는 필드(current_node 등)는 자동으로 걸러집니다.
+        # - 필수 필드(npc_id, name 등)가 없으면 여기서 에러가 발생해 안전합니다.
+        
+        npc_obj = NpcSchema(
+            npc_id=npc_data["npc_id"],
+            name=npc_data["name"],
+            role=npc_data["role"],
+            user_id=npc_data.get("user_id"), # 템플릿 스트링("{user_id}")이거나 None
+            
+            # stats: JSON에 있는 그대로 가져오되, 없으면 빈 dict
+            stats=npc_data.get("stats", {}),
+            
+            # persona: JSON에 있는 그대로 가져오기
+            persona=npc_data.get("persona", {}),
 			
-			# 2. Status & Memory
-			"status": "active",
-			"memory": {},
-			
-			# 3. Persona
-			"persona": npc.get("persona", {}),
-			
-			# 4. 현재 위치 (Current Node)
-			# YAML에 'start_node'라고 적어뒀다면 그걸 쓰고,
-			# 없으면 시나리오 오프닝 장소에 배치
-			"current_node": npc.get("start_node", default_start_node)
-		}
-		
-	return initial_npc_data
+            #npc 현재 위치 
+			current_node="",
+            
+            # memory: 초기 상태니 빈 dict로 시작
+            memory={} 
+        )
+        
+        valid_npc_list.append(npc_obj)
 
+    # 3. Collection 스키마로 감싸기
+    # 구조: { "npcs": [ NpcSchema(...), NpcSchema(...) ] }
+    collection = NpcCollectionSchema(npcs=valid_npc_list)
+    
+    # 4. DB(JSONB) 저장을 위해 딕셔너리로 변환하여 반환
+    # Pydantic v2: collection.model_dump()
+    # Pydantic v1: collection.dict()
+    return collection.dict()
 
-def extract_initial_player_data(world_data: dict) -> dict:
-	"""
-	Scenario 데이터(world_data)를 기반으로 
-	Game 생성 시점의 초기 'player_data' JSON을 생성합니다.
-	
-	Args:
-		world_data: scenario.default_world_data (JSONB)
-	
-	Returns:
-		dict: {current_node, inventory, memo, history, objective}
-	"""
-	
-	# 1. 안전하게 데이터 접근
-	scenario_meta = world_data.get("scenario", {})
-	items_source = world_data.get("items", {}).get("items", [])
-	
-	# [1] 시작 위치 (current_node)
-	# 시나리오에 정의된 오프닝 씬 ID를 가져옵니다.
-	start_node = scenario_meta.get("opening_scene_id", "act1_open")
-	
-	# [2] 초기 인벤토리 (inventory)
-	# 아이템 목록 중 획득 조건(acquire.method)이 'start'인 것만 골라냅니다.
-	start_inventory = [
-		item["item_id"]
-		for item in items_source
-		if item.get("acquire", {}).get("method") == "start"
-	]
-	
-	# [3] 초기 메모 (memo)
-	# 게임 시작 시점엔 기본적으로 빈 리스트입니다.
-	# 시나리오에 'initial_memos'가 정의되어 있다면 추가합니다. (튜토리얼용 등)
-	initial_memos = []
-	
-	if "initial_memos" in scenario_meta:
-		for idx, memo_text in enumerate(scenario_meta["initial_memos"], 1):
-			initial_memos.append({
-				"id": idx,
-				"text": memo_text,
-				"created_at_turn": 0  # 0턴(시작 전)에 생성됨
-			})
+def extract_initial_player_data(world_data: Dict[str, Any]) -> dict:
+    """
+    Scenario 데이터(world_data)를 기반으로 
+    PlayerSchema 규격에 맞는 초기 플레이어 데이터를 생성합니다.
+    """
+    
+    # 1. 시나리오 데이터와 아이템 소스 안전하게 가져오기
+    scenario_meta = world_data.get("scenario", {})
+    items_source = world_data.get("items", {}).get("items", [])
+    
+    # [1] 시작 위치 (current_node)
+    start_node = scenario_meta.get("opening_scene_id", "act1_open")
+    
+    # [2] 초기 인벤토리 (inventory)
+    # 💡 요청하신 부분: 전체 객체가 아니라 'item_id' 문자열만 추출합니다.
+    start_inventory = [
+        item["item_id"]
+        for item in items_source
+        if item.get("acquire", {}).get("method") == "start"
+    ]
+    
+    # [3] 초기 메모 (memo)
+    initial_memos = []
+    raw_memos = scenario_meta.get("initial_memos", [])
+    
+    for idx, memo_text in enumerate(raw_memos, 1):
+        initial_memos.append(
+            PlayerMemoSchema(
+                id=idx,
+                text=memo_text,
+                created_at_turn=0
+            )
+        )
 
-	
-	# -------------------------------------------------------
-	# [5] 최종 결과 반환
-	# -------------------------------------------------------
-	return {
-		"current_node": start_node,
-		"inventory": start_inventory,
-		"memo": initial_memos,
-	}
+    # [4] PlayerSchema 객체 생성
+    # memory는 빈 딕셔너리로 초기화
+    player_data = PlayerSchema(
+        current_node=start_node,
+        inventory=start_inventory, # -> ["item_id_1", "item_id_2"] 형태
+        memo=initial_memos,
+        memory={}
+    )
+    
+    # [5] 딕셔너리로 변환하여 반환 (DB 저장용)
+    return player_data.dict()
 
+def extract_initial_world_data(world_data: Dict[str, Any]) -> dict:
+    """
+    Scenario 원본 데이터(world_data)를 기반으로
+    WorldDataSchema 규격에 맞는 초기 월드 데이터를 생성합니다.
+    
+    Args:
+        world_data: scenario.default_world_data (JSONB)
+    
+    Returns:
+        dict: WorldDataSchema.dict() 형태 (DB 저장용)
+    """
+    
+    # 1. 원본 데이터 안전하게 접근
+    scenario_meta = world_data.get("scenario", {})
+    state_schema = scenario_meta.get("state_schema", {})
+    source_items = world_data.get("items", {}).get("items", [])
+    source_locks = world_data.get("extras", {}).get("locks", {}).get("locks", [])
+    source_nodes = world_data.get("story_graph", {}).get("nodes", [])
 
-def extract_initial_world_snapshot(world_data: dict) -> dict:
-	"""
-	Scenario 원본 데이터(world_data)를 기반으로
-	게임 실행에 필요한 모든 데이터와 상태를 포함한 'Full Snapshot'을 생성합니다.
-	
-	Args:
-		world_data: scenario.default_world_data (JSONB)
-	
-	Returns:
-		dict: {meta, state, definitions, rules, content}
-	"""
-	
-	# 원본 데이터 접근 (안전하게 get 사용)
-	scenario_meta = world_data.get("scenario", {})
-	state_schema = scenario_meta.get("state_schema", {})
-	
-	# =========================================================
-	# 1. [State] 변하는 상태값 초기화 (Vars, Flags, System)
-	# =========================================================
-	
-	# (1) Vars: 스키마의 default 값으로 초기화
-	initial_vars = {}
-	if "vars" in state_schema:
-		for key, spec in state_schema["vars"].items():
-			initial_vars[key] = spec.get("default", 0)
-			
-	# (2) Flags: 스키마의 default 값으로 초기화
-	initial_flags = {}
-	if "flags" in state_schema:
-		for key, spec in state_schema["flags"].items():
-			initial_flags[key] = spec.get("default", None)
-			
-	# [중요] Act는 로직상 1로 시작하도록 강제 설정
-	initial_flags["act"] = 1
-	
-	# (3) System: 턴 정보 초기화
-	initial_system = {
-		"turn": state_schema.get("system", {}).get("turn", {}).get("default", 1),
-		"turn_limit": scenario_meta.get("turn_limit", 12)
-	}
+    # =========================================================
+    # 1. [Scenario] 시나리오 메타 및 규칙 (Static)
+    # =========================================================
+    
+    # Endings 리스트 변환
+    endings_list = []
+    for end in scenario_meta.get("endings", []):
+        endings_list.append(EndingSchema(
+            ending_id=end["ending_id"],
+            name=end["name"],
+            epilogue_prompt=end["epilogue_prompt"],
+            condition=end["condition"],
+            on_enter_events=end.get("on_enter_events", [])
+        ))
 
-	# =========================================================
-	# 2. [Definitions] 정적 데이터 박제 (Items, Locks)
-	#    - 검색 속도를 위해 List -> Dict {id: data} 변환 저장
-	# =========================================================
-	
-	definitions = {}
-	
-	# (1) Items: 아이템 ID를 키로 변환
-	source_items = world_data.get("items", {}).get("items", [])
-	definitions["items"] = {}
-	for item in source_items:
-		# 원본 오염 방지를 위해 deepcopy
-		item_copy = copy.deepcopy(item)
-		definitions["items"][item["item_id"]] = item_copy
-		
-	# (2) Locks: 락 ID를 키로 변환 + 초기 상태(is_unlocked) 설정
-	source_locks = world_data.get("extras", {}).get("locks", {}).get("locks", [])
-	definitions["locks"] = {}
-	for lock in source_locks:
-		lock_copy = copy.deepcopy(lock)
-		# 스냅샷 생성 시점엔 무조건 잠김 상태로 시작
-		lock_copy["is_unlocked"] = False
-		definitions["locks"][lock["info_id"]] = lock_copy
+    scenario_obj = ScenarioSchema(
+        id=scenario_meta["id"],
+        title=scenario_meta["title"],
+        genre=scenario_meta["genre"],
+        tone=scenario_meta["tone"],
+        pov=scenario_meta["pov"],
+        turn_limit=scenario_meta["turn_limit"],
+        global_rules=scenario_meta.get("global_rules", []),
+        victory_conditions=scenario_meta.get("victory_conditions", []),
+        failure_conditions=scenario_meta.get("failure_conditions", []),
+        endings=endings_list,
+        state_schema=state_schema # 통으로 Dict 처리
+    )
 
-	# =========================================================
-	# 3. [Rules & Meta] 규칙 및 메타데이터 복사
-	# =========================================================
-	
-	# 승리/패배 조건 및 엔딩 정의
-	rules = {
-		"victory_conditions": scenario_meta.get("victory_conditions", []),
-		"failure_conditions": scenario_meta.get("failure_conditions", []),
-		"endings": scenario_meta.get("endings", []),
-		# AI 기억 조작 룰 (memory_rules가 scenario 안에 있다고 가정)
-		"memory_rules": scenario_meta.get("memory_rules", {}) 
-	}
-	
-	# 게임 메타 정보 (타이틀, 장르, 절대 규칙 등)
-	meta = {
-		"title": scenario_meta.get("title", ""),
-		"genre": scenario_meta.get("genre", ""),
-		"global_rules": scenario_meta.get("global_rules", [])
-	}
+    # =========================================================
+    # 2. [Story Graph] 스토리 구조 (Static)
+    # =========================================================
+    
+    nodes_list = []
+    for node in source_nodes:
+        nodes_list.append(StoryNodeSchema(
+            node_id=node["node_id"],
+            summary=node["summary"],
+            exit_branches=node.get("exit_branches", [])
+        ))
+        
+    story_graph_obj = StoryGraphSchema(nodes=nodes_list)
 
-	# =========================================================
-	# 4. [Content] 스토리 그래프 (Map Structure)
-	# =========================================================
-	content = {
-		"story_graph": world_data.get("story_graph", {}).get("nodes", [])
-	}
+    # =========================================================
+    # 3. [Items] 아이템 도감 (Static)
+    # =========================================================
+    
+    items_list = []
+    for item in source_items:
+        items_list.append(ItemSchema(
+            item_id=item["item_id"],
+            name=item["name"],
+            type=item["type"],
+            description=item["description"],
+            acquire=item["acquire"],
+            use=item["use"]
+        ))
+        
+    items_obj = ItemsCollectionSchema(items=items_list)
 
-	# =========================================================
-	# 5. 최종 조립 및 반환
-	# =========================================================
-	return {
-		"meta": meta,
-		"state": {
-			"system": initial_system,
-			"vars": initial_vars,
-			"flags": initial_flags
-		},
-		"definitions": definitions,
-		"rules": rules,
-		"content": content
-	}
+    # =========================================================
+    # 4. [Locks] 잠금 정보 (Static)
+    #    - 전개형(Flattened) 스키마 적용
+    # =========================================================
+    
+    locks_list = []
+    for lock in source_locks:
+        locks_list.append(LockSchema(
+            info_id=lock["info_id"],
+            info_title=lock["info_title"],
+            description=lock["description"],
+            is_unlocked=False, # 초기 상태는 항상 잠금
+            linked_info_id=lock.get("linked_info_id"),
+            unlock_condition=lock.get("unlock_condition"),
+            reveal_trigger=lock.get("reveal_trigger"),
+            access=lock.get("access", {})
+        ))
+        
+    locks_obj = LocksSchemaList(locks=locks_list)
+
+    # =========================================================
+    # 5. [State] 초기 동적 상태 (Dynamic)
+    # =========================================================
+    
+    # (1) Vars 초기화
+    initial_vars = {}
+    if "vars" in state_schema:
+        for key, spec in state_schema["vars"].items():
+            initial_vars[key] = spec.get("default", 0)
+            
+    # (2) Flags 초기화
+    initial_flags = {}
+    if "flags" in state_schema:
+        for key, spec in state_schema["flags"].items():
+            initial_flags[key] = spec.get("default", None)
+    
+    # [중요] 초기화 플래그 강제 설정
+    initial_flags["act"] = 1
+    
+    # (3) Current State 생성
+    current_state_obj = CurrentStateSchema(
+        turn=state_schema.get("system", {}).get("turn", {}).get("default", 1),
+        vars=initial_vars,
+        flags=initial_flags,
+        active_events=[]
+    )
+
+    # =========================================================
+    # 6. 최종 조립 및 반환 (Pydantic 검증 완료)
+    # =========================================================
+    
+    full_world_data = WorldDataSchema(
+        state=current_state_obj,
+        scenario=scenario_obj,
+        story_graph=story_graph_obj,
+        locks=locks_obj,
+        items=items_obj
+    )
+    
+    # DB 저장을 위해 dict로 변환
+    return full_world_data.dict()
 
 
 def get_scenario_json(scenario_id: int) -> dict:
@@ -272,10 +326,13 @@ def create_game_for_scenario(scenario_id: int, user_id: int = 1) -> int:
 		default_world = scenario.default_world_data or {}
 		npc_data = extract_initial_npc_data(default_world)
 		player_data = extract_initial_player_data(default_world)
-		world_snapshot = extract_initial_world_snapshot(default_world)
+		world_snapshot = extract_initial_world_data(default_world)
 		
 		# TODO 여기에 summary 생성 로직 추가
+		
 		#summary = 여기에 summary 생성 로직 추가
+		
+        # TODO 해당 정보를 가지고 모델을 로드
 		
 		game = Games(
 			scenarios_id=scenario.id,
@@ -286,37 +343,10 @@ def create_game_for_scenario(scenario_id: int, user_id: int = 1) -> int:
 			summary={},  # TODO: 이 부분은 추후 LLM에 넣어 둘 내용을 의미
 			status=GameStatus.LIVE,
 		)
+      
 		db.add(game)
 		db.commit()
 		db.refresh(game)
 		return game.id
 	finally:
 		db.close()
-
-
-
-
-# if __name__ == "__main__":
-# 	# 게임 생성 테스트
-	
-# 	try:
-# 		print("=" * 60)
-# 		print("게임 생성 테스트 시작")
-# 		print("=" * 60)
-		
-# 		# 시나리오 ID 1로 게임 생성
-# 		game_id = create_game_for_scenario(scenario_id=1, user_id=1)
-		
-# 		print(f"\n✓ 게임 생성 성공!")
-# 		print(f"생성된 Game ID: {game_id}")
-# 		print("\n게임이 DB에 저장되었습니다.")
-# 		print("저장된 데이터:")
-# 		print(f"  - npc_data: NPC 초기 상태 데이터")
-# 		print(f"  - player_data: 플레이어 초기 상태 (위치, 인벤토리, 메모)")
-# 		print(f"  - world_data_snapshot: 게임 월드 전체 스냅샷 (state, definitions, rules, content)")
-# 		print(f"  - status: {GameStatus.LIVE}")
-		
-# 	except Exception as e:
-# 		print(f"✗ 게임 생성 실패: {e}")
-# 		import traceback
-# 		traceback.print_exc()

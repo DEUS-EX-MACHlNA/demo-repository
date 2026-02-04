@@ -32,6 +32,12 @@ from app.state import get_world_state_manager
 from app.tools import execute_tool, tool_4_night_comes
 from app.services.scenario import create_game_for_scenario
 
+from app.api.routes.v1 import game as v1_game_router
+from app.api.routes.v1 import scenario as v1_scenario_router
+
+from app.config import SCENARIOS_BASE_PATH
+
+
 # ============================================================
 # 로깅 설정
 # ============================================================
@@ -74,12 +80,11 @@ class StateResponse(BaseModel):
     scenario_id: str
     state: dict[str, Any]
 
-
 # ============================================================
 # 애플리케이션 설정
 # ============================================================
 # 시나리오 기본 경로 (환경변수나 설정 파일로 변경 가능)
-SCENARIOS_BASE_PATH = Path(__file__).parent.parent / "scenarios"
+
 
 
 @asynccontextmanager
@@ -106,6 +111,10 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
+
+# API 라우터 포함
+app.include_router(v1_game_router.router, prefix="/api/v1/game", tags=["game"])
+app.include_router(v1_scenario_router.router, prefix="/api/v1/scenario", tags=["scenario"])
 
 
 # ============================================================
@@ -383,21 +392,6 @@ async def reset_user_state(scenario_id: str, user_id: str) -> dict:
     wsm = get_world_state_manager()
     wsm.reset_state(user_id, scenario_id)
     return {"status": "ok", "message": f"State reset for user={user_id}, scenario={scenario_id}"}
-
-
-@app.get("/v1/scenarios", summary="사용 가능한 시나리오 목록")
-async def list_scenarios() -> dict:
-    """사용 가능한 모든 시나리오 목록 반환"""
-    loader = get_loader(SCENARIOS_BASE_PATH)
-    scenarios = loader.list_scenarios()
-    return {"scenarios": scenarios}
-
-
-#해당 시나리오로 시작
-@app.get("/v1/scenarios/start/{scenario_id}", summary="시나리오 시작")
-async def start_scenario(scenario_id: int, user_id: int) -> int:
-    """시나리오 시작"""
-    return create_game_for_scenario(scenario_id, user_id)
 
 @app.get("/health", summary="헬스 체크")
 async def health_check() -> dict:
