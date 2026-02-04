@@ -53,6 +53,7 @@ class LangChainEngine:
         # 사용 중인 모델 정보 출력
         print(f"[LangChainEngine.generate] 모델: {self.model}")
         print(f"[LangChainEngine.generate] base_url: {self.base_url}")
+        print(f"[LangChainEngine.generate] self_model: {self.llm }")
         logger.info(f"generate 호출 - 모델: {self.model}, base_url: {self.base_url}")
 
         messages: list[Any] = []

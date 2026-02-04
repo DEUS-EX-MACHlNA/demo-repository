@@ -63,7 +63,7 @@ def test_langchain_engine():
     print("1. LangChainEngine 테스트")
     print("=" * 60)
 
-    from app.llm.langchain_engine import LangChainEngine
+    from app.llm import LangChainEngine
 
     print("\n[1.1] LangChainEngine 초기화...")
     engine = LangChainEngine()
@@ -108,8 +108,8 @@ def test_tool_functions():
     print("2. Tool 함수 테스트 (tools_langchain.py)")
     print("=" * 60)
 
-    from app.llm.langchain_engine import LangChainEngine
-    from app.tools_langchain import (
+    from app.llm import LangChainEngine
+    from app.tools.tools_langchain import (
         set_tool_context,
         tool_talk,
         tool_action,

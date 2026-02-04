@@ -11,7 +11,7 @@ import logging
 import random
 from typing import Any
 
-from app.agents.llm import GenerativeAgentsLLM
+from app.llm import GenerativeAgentsLLM
 from app.agents.memory import MEMORY_DIALOGUE, MemoryEntry, add_memory
 from app.agents.retrieval import retrieve_memories, score_importance
 from app.agents.utils import format_emotion, format_persona, parse_stat_changes_text

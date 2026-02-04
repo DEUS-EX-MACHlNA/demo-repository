@@ -14,7 +14,7 @@ import logging
 import re
 from typing import Any
 
-from app.agents.llm import GenerativeAgentsLLM
+from app.llm import GenerativeAgentsLLM
 from app.agents.memory import (
     MEMORY_REFLECTION,
     MemoryEntry,

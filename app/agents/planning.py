@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from app.agents.llm import GenerativeAgentsLLM
+from app.llm import GenerativeAgentsLLM
 from app.agents.memory import MEMORY_PLAN, MemoryEntry, add_memory
 from app.agents.retrieval import retrieve_memories, score_importance
 from app.agents.utils import format_emotion, format_persona
