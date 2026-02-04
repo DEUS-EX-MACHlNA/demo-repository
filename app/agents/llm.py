@@ -74,29 +74,39 @@ class GenerativeAgentsLLM:
             import torch
 
             messages = [{"role": "user", "content": prompt}]
-            input_ids = self._tokenizer.apply_chat_template(
+
+            encoded = self._tokenizer.apply_chat_template(
                 messages,
                 tokenize=True,
                 add_generation_prompt=True,
+                return_dict=True,
                 return_tensors="pt",
-            ).to(self._model.device)
+            )
+            input_ids = encoded["input_ids"].to(self._model.device)
+            attention_mask = encoded["attention_mask"].to(self._model.device)
+
+            # pad_token_id 가 없으면 eos_token_id 로 대체
+            pad_token_id = self._tokenizer.pad_token_id
+            if pad_token_id is None:
+                pad_token_id = self._tokenizer.eos_token_id
 
             with torch.no_grad():
                 outputs = self._model.generate(
                     input_ids,
+                    attention_mask=attention_mask,
                     max_new_tokens=max_tokens,
                     do_sample=True,
                     temperature=temperature,
                     top_p=top_p,
                     eos_token_id=self._tokenizer.eos_token_id,
-                    pad_token_id=self._tokenizer.pad_token_id,
+                    pad_token_id=pad_token_id,
                 )
 
-            generated = outputs[0][input_ids.shape[1]:]
+            generated = outputs[0][input_ids.shape[-1]:]
             return self._tokenizer.decode(generated, skip_special_tokens=True).strip()
 
         except Exception as e:
-            logger.error(f"LLM generation failed: {e}")
+            logger.error(f"LLM generation failed: {e}", exc_info=True)
             return ""
 
     @property
