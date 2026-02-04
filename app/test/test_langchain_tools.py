@@ -109,7 +109,7 @@ def test_tool_functions():
     print("=" * 60)
 
     from app.llm import LangChainEngine
-    from app.tools_langchain import (
+    from app.tools.tools_langchain import (
         set_tool_context,
         tool_talk,
         tool_action,

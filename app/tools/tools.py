@@ -184,7 +184,7 @@ def tool_turn_resolution_v2(
     """
     from langchain_core.messages import SystemMessage, HumanMessage
 
-    from app.tools_langchain import (
+    from app.tools.tools_langchain import (
         AVAILABLE_TOOLS,
         set_tool_context,
         tool_talk,
