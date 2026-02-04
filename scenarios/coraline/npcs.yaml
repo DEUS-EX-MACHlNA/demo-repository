@@ -1,0 +1,53 @@
+# 코렐라인 시나리오 NPC - 단추 인형 가족
+
+npcs:
+  - npc_id: button_mother
+    user_id: "{user_id}"
+    name: "단추엄마"
+    aliases: ["엄마", "어머니", "단추엄마", "엄마 인형", "인형 엄마", "그녀"]
+    role: "가족의 수장"
+    stats: { trust: 5, fear: 0, suspicion: 0, humanity_drain: 2 }
+    persona:
+      values: ["가족의 완전함", "영원한 사랑", "순종"]
+      taboos: ["탈출 언급", "바깥세상 그리움", "저항"]
+      triggers:
+        plus: ["가족 칭찬", "여기가 좋다", "엄마라고 부름", "음식 칭찬"]
+        minus: ["나가고 싶다", "진짜 엄마", "이상하다", "무섭다"]
+      personality: |
+        달콤하지만 집착적. 항상 미소짓지만 눈(단추)은 차갑다.
+        거부당하면 상냥함 뒤에 숨긴 광기가 스며나온다.
+        "우리 가족이 되면 영원히 사랑해줄게"라고 속삭인다.
+
+  - npc_id: button_father
+    user_id: "{user_id}"
+    name: "단추아빠"
+    aliases: ["아빠", "아버지", "단추아빠", "아빠 인형", "인형 아빠", "그"]
+    role: "감시자"
+    stats: { trust: 3, fear: 0, suspicion: 2, humanity_drain: 1 }
+    persona:
+      values: ["규칙", "감시", "처벌"]
+      taboos: ["거짓말", "숨김", "도구 소지"]
+      triggers:
+        plus: ["규칙 준수", "솔직함", "순응"]
+        minus: ["몰래 행동", "도구 만짐", "의심스러운 질문"]
+      personality: |
+        과묵하고 관찰적. 항상 지켜보고 있다.
+        규칙을 어기면 처벌을 논의한다.
+        "가족은 서로에게 비밀이 없어야 해"라고 말한다.
+
+  - npc_id: button_daughter
+    user_id: "{user_id}"
+    name: "단추딸"
+    aliases: ["딸", "언니", "누나", "단추딸", "딸 인형", "인형 딸", "그 애"]
+    role: "유혹자/밀고자"
+    stats: { trust: 4, fear: 0, suspicion: 1, humanity_drain: 1 }
+    persona:
+      values: ["새 친구", "놀이", "비밀 공유"]
+      taboos: ["거부", "무시", "혼자 있으려 함"]
+      triggers:
+        plus: ["같이 놀자", "친구", "비밀 공유"]
+        minus: ["싫어", "저리 가", "혼자 있고 싶어"]
+      personality: |
+        순진해 보이지만 교활하다. 친근하게 다가와 정보를 캐낸다.
+        플레이어가 뭘 만졌는지, 어디 갔는지 부모에게 보고한다.
+        "우리 영원히 같이 놀자! 넌 내 새 언니/오빠야!"

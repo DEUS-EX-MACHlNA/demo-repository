@@ -1,0 +1,111 @@
+# 코렐라인 시나리오 아이템 - 탈출 도구들
+
+items:
+  - item_id: kitchen_knife
+    name: "부엌칼"
+    aliases: ["칼", "부엌칼", "식칼", "나이프", "흉기"]
+    type: "weapon"
+    description: "날카로운 부엌칼. 손잡이가 닳아 있다. 누군가 자주 썼던 것 같다."
+    suspicion_on_touch: 3
+    acquire:
+      method: "interact"
+      condition: "true"
+    use:
+      actions:
+        - action_id: attack
+          label: "공격"
+          allowed_when: "vars.weapon_ready == 1"
+          effects:
+            - { type: var_add, key: vars.family_eliminated, value: 1 }
+            - { type: var_add, key: vars.total_suspicion, value: 5 }
+          notes: "인형 가족 중 한 명을 제거한다. 들키면 위험하다."
+
+  - item_id: matches
+    name: "성냥"
+    aliases: ["성냥", "불", "성냥갑", "라이터"]
+    type: "tool"
+    description: "낡은 성냥갑. 몇 개비 남아있다. 불은 인형에게 치명적이다."
+    suspicion_on_touch: 2
+    acquire:
+      method: "interact"
+      condition: "true"
+    use:
+      actions:
+        - action_id: ignite
+          label: "불 붙이기"
+          allowed_when: "true"
+          effects:
+            - { type: var_add, key: vars.family_eliminated, value: 1 }
+            - { type: var_add, key: vars.total_suspicion, value: 4 }
+          notes: "인형을 태울 수 있다."
+
+  - item_id: sewing_needle
+    name: "바늘"
+    aliases: ["바늘", "재봉바늘", "침", "뾰족한 것"]
+    type: "weapon"
+    description: "길고 날카로운 재봉바늘. 단추 눈을 꿰매는 데 쓰인 것 같다."
+    suspicion_on_touch: 2
+    acquire:
+      method: "interact"
+      condition: "true"
+    use:
+      actions:
+        - action_id: stab
+          label: "찌르기"
+          allowed_when: "true"
+          effects:
+            - { type: var_add, key: vars.family_eliminated, value: 1 }
+          notes: "조용히 처리할 수 있다."
+
+  - item_id: mirror_shard
+    name: "거울 조각"
+    aliases: ["거울", "조각", "유리", "거울 파편"]
+    type: "tool"
+    description: "깨진 거울 조각. 비친 모습이 이상하다. 네 눈이... 단추처럼 보인다."
+    suspicion_on_touch: 1
+    acquire:
+      method: "interact"
+      condition: "true"
+    use:
+      actions:
+        - action_id: check_self
+          label: "자신을 비춰보기"
+          allowed_when: "true"
+          effects:
+            - { type: var_add, key: vars.humanity, value: 1 }
+          notes: "자신을 상기시켜 인간성을 회복한다."
+
+  - item_id: button_box
+    name: "단추 상자"
+    aliases: ["단추", "상자", "단추함", "단추 통"]
+    type: "story"
+    description: "검은 단추들이 가득한 상자. 각 단추마다 희미한 눈동자 무늬가 있다. 이전 '가족'들의 눈인가."
+    suspicion_on_touch: 0
+    acquire:
+      method: "interact"
+      condition: "true"
+    use:
+      actions:
+        - action_id: examine
+          label: "살펴보기"
+          allowed_when: "true"
+          effects:
+            - { type: var_add, key: vars.humanity, value: -1 }
+          notes: "진실을 알게 되지만 공포로 인간성이 깎인다."
+
+  - item_id: family_photo
+    name: "가족사진"
+    aliases: ["사진", "액자", "가족 사진"]
+    type: "story"
+    description: "행복해 보이는 가족 사진. 하지만 모든 얼굴에 단추 눈이 꿰매져 있다."
+    suspicion_on_touch: 0
+    acquire:
+      method: "interact"
+      condition: "true"
+    use:
+      actions:
+        - action_id: look
+          label: "바라보기"
+          allowed_when: "true"
+          effects: []
+          notes: "그들이 원하는 '완벽한 가족'의 모습."

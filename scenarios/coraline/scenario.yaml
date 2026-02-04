@@ -1,0 +1,67 @@
+# 코렐라인 - 단추 인형 가족의 집
+
+id: coraline
+title: "코렐라인: 단추 눈의 저택"
+genre: "호러 / 탈출"
+tone: "불안하고 기괴, 점점 섬뜩"
+pov: "2nd"
+turn_limit: 10
+opening_scene_id: trapped_in_house
+
+global_rules:
+  - "플레이어는 단추 인형 가족의 집에 갇힌 인간이다"
+  - "낮에 오브젝트를 만지면 밤에 가족 회의에서 논의된다"
+  - "호감도가 높아지면 인간성이 떨어진다 (인형이 되어간다)"
+  - "인간성이 0이 되면 완전한 인형이 된다"
+  - "탈출하려면 무기를 확보하고 가족을 제거해야 한다"
+
+victory_conditions:
+  - "ending == 'escape'"
+
+failure_conditions:
+  - "ending == 'become_doll'"
+  - "ending == 'killed'"
+
+endings:
+  - ending_id: escape
+    name: "탈출"
+    condition: "vars.family_eliminated >= 3"
+    on_enter_events:
+      - { type: flag_set, key: ending, value: escape }
+    epilogue_prompt: "피 묻은 손으로 문을 열고 나간다. 뒤를 돌아보지 마라."
+
+  - ending_id: become_doll
+    name: "인형화"
+    condition: "vars.humanity <= 0"
+    on_enter_events:
+      - { type: flag_set, key: ending, value: become_doll }
+    epilogue_prompt: "네 눈에서 광채가 사라진다. 단추가 꿰매진다. 이제 넌 가족이야."
+
+  - ending_id: killed
+    name: "처형"
+    condition: "vars.total_suspicion >= 15"
+    on_enter_events:
+      - { type: flag_set, key: ending, value: killed }
+    epilogue_prompt: "그들은 네가 진짜 가족이 될 생각이 없다는 걸 알아챘다. 가위가 번뜩인다."
+
+  - ending_id: trapped
+    name: "영원한 포로"
+    condition: "turn == turn_limit and ending == null"
+    on_enter_events:
+      - { type: flag_set, key: ending, value: trapped }
+    epilogue_prompt: "시간이 멈춘다. 넌 영원히 이 집에 있을 것이다."
+
+state_schema:
+  vars:
+    humanity: {default: 10, min: 0, max: 10}
+    weapon_ready: {default: 0, min: 0, max: 1}
+    family_eliminated: {default: 0, min: 0, max: 3}
+    total_suspicion: {default: 0, min: 0, max: 20}
+    knife_touched: {default: 0}
+    match_touched: {default: 0}
+    needle_touched: {default: 0}
+    mirror_touched: {default: 0}
+  flags:
+    ending: {default: null}
+  system:
+    turn: {default: 1, min: 1}

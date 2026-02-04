@@ -71,6 +71,7 @@ class NPCState:
     trust: int = 0
     fear: int = 0
     suspicion: int = 0
+    humanity: int = 10  # 인간성 (0이면 인형화)
     # 추가 커스텀 필드를 위한 extras
     extras: dict[str, Any] = field(default_factory=dict)
 
@@ -80,18 +81,20 @@ class NPCState:
             "trust": self.trust,
             "fear": self.fear,
             "suspicion": self.suspicion,
+            "humanity": self.humanity,
             **self.extras
         }
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> NPCState:
-        known_keys = {"npc_id", "trust", "fear", "suspicion"}
+        known_keys = {"npc_id", "trust", "fear", "suspicion", "humanity"}
         extras = {k: v for k, v in data.items() if k not in known_keys}
         return cls(
             npc_id=data.get("npc_id", "unknown"),
             trust=data.get("trust", 0),
             fear=data.get("fear", 0),
             suspicion=data.get("suspicion", 0),
+            humanity=data.get("humanity", 10),
             extras=extras
         )
 
