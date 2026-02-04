@@ -163,10 +163,15 @@ class ToolResult:
 
 @dataclass
 class NightResult:
-    """NightController 실행 결과"""
+    """NightController 실행 결과
+
+    ※ night_description은 GameLoop에서 NarrativeLayer를 통해 생성됨
+    NightController는 빈 문자열로 반환하고, extras에 night_events 등 추가 정보 포함
+    """
     night_delta: dict[str, Any]
     night_conversation: list[list[dict[str, str]]]  # [[{speaker, text}, ...], ...]  대화쌍별
-    night_description: str
+    night_description: str  # GameLoop에서 NarrativeLayer로 채움
+    extras: dict[str, Any] = field(default_factory=dict)  # night_events, conversation_pairs 등
 
 
 # ============================================================

@@ -7,9 +7,9 @@ NightController — Generative Agents (Park et al. 2023) 기반 밤 페이즈
 2. 계획 수립
 3. NPC간 대화 (랜덤 2명 × 2회)
 4. 대화 영향 분석
-5. 밤 설명 생성
 을 수행하고 NightResult를 반환한다.
 
+※ 밤 설명(night_description)은 GameLoop에서 NarrativeLayer를 통해 생성.
 관찰 기록은 낮(ScenarioController)에서 이미 처리된 상태로 들어온다.
 """
 from __future__ import annotations
@@ -87,24 +87,32 @@ class NightController:
         # Phase 4: 대화 영향 분석
         self._analyze_impacts(all_conversations, assets, llm, night_delta)
 
-        # Phase 5: 밤 설명(내러티브) 생성
-        night_description = self._generate_description(
-            world_snapshot, assets, all_conversations, night_events, llm,
-        )
-
         # night_conversation: 대화쌍별 중첩 리스트
+        # (npc1_id, npc2_id도 함께 저장하여 NarrativeLayer에서 활용)
         night_conversation: list[list[dict[str, str]]] = [
             conv for _npc1_id, _npc2_id, conv in all_conversations
         ]
+
+        # night_events도 저장 (NarrativeLayer에서 활용)
+        # extras에 추가 정보 저장
+        extras = {
+            "night_events": night_events,
+            "conversation_pairs": [
+                (npc1_id, npc2_id) for npc1_id, npc2_id, _ in all_conversations
+            ],
+        }
 
         logger.info(
             f"[NightController] done: dialogue_rounds={len(all_conversations)}"
         )
 
+        # ※ night_description은 빈 문자열로 반환
+        # GameLoop에서 NarrativeLayer.render_night()를 호출하여 생성
         return NightResult(
             night_delta=night_delta,
             night_conversation=night_conversation,
-            night_description=night_description,
+            night_description="",  # GameLoop에서 NarrativeLayer로 생성
+            extras=extras,
         )
 
     # ── Phase 1: 성찰 ────────────────────────────────────────
@@ -231,77 +239,6 @@ class NightController:
                     night_delta["npc_stats"][npc_id][stat] = (
                         night_delta["npc_stats"][npc_id].get(stat, 0) + val
                     )
-
-    # ── Phase 5: 밤 설명 생성 ─────────────────────────────────
-    @staticmethod
-    def _generate_description(
-        world_snapshot: WorldState,
-        assets: ScenarioAssets,
-        conversations: list[tuple[str, str, list[dict[str, str]]]],
-        events: list[str],
-        llm: GenerativeAgentsLLM,
-    ) -> str:
-        turn = world_snapshot.turn
-        turn_limit = assets.get_turn_limit()
-        tone = assets.scenario.get("tone", "")
-
-        event_text = "\n".join(f"- {e}" for e in events) if events else "- 특별한 사건 없음"
-
-        conv_summaries: list[str] = []
-        for npc1_id, npc2_id, conv in conversations:
-            n1 = (assets.get_npc_by_id(npc1_id) or {}).get("name", npc1_id)
-            n2 = (assets.get_npc_by_id(npc2_id) or {}).get("name", npc2_id)
-            if conv:
-                last_line = conv[-1]["text"][:40]
-                conv_summaries.append(f"- {n1}과(와) {n2}: \"{last_line}...\"")
-
-        conv_text = "\n".join(conv_summaries) if conv_summaries else "- 대화 없음"
-
-        if llm.available:
-            prompt = (
-                f"다음은 턴 {turn}/{turn_limit}의 밤에 일어난 일들입니다.\n\n"
-                f"사건:\n{event_text}\n\n"
-                f"대화:\n{conv_text}\n\n"
-                f"시나리오 톤: {tone}\n\n"
-                "이 내용을 바탕으로 분위기 있고 간결한 밤 내러티브를 2~3문장으로 작성하세요.\n\n"
-                "내러티브:"
-            )
-            narrative = llm.generate(prompt, max_tokens=150)
-            if narrative:
-                return narrative.strip()
-
-        return NightController._fallback_description(turn, turn_limit, events)
-
-    # ── fallback 내러티브 ─────────────────────────────────────
-    @staticmethod
-    def _fallback_description(
-        turn: int, turn_limit: int, events: list[str]
-    ) -> str:
-        if turn <= 3:
-            base = random.choice([
-                "하루가 저문다. 아직 시간은 있다.",
-                "첫날 밤. 조각들이 서서히 모이기 시작한다.",
-            ])
-        elif turn <= 7:
-            base = random.choice([
-                "밤이 깊어간다. 진실과 조작의 경계가 흐려진다.",
-                "시간이 흐른다. 당신의 질문들이 세계를 바꾸고 있다.",
-            ])
-        elif turn <= 10:
-            base = random.choice([
-                "시간이 얼마 남지 않았다. 결론을 향해 달려가고 있다.",
-                "밤공기가 무겁다. 끝이 가까워지고 있다.",
-            ])
-        else:
-            base = random.choice([
-                "마지막 밤. 모든 것이 곧 끝난다.",
-                "최후의 순간이 다가온다.",
-            ])
-
-        if events:
-            base += " " + events[0]
-        return base
-
 
 # ── 싱글턴 ────────────────────────────────────────────────────
 _night_controller_instance: Optional[NightController] = None

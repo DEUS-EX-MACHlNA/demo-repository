@@ -68,12 +68,12 @@ class GenerativeAgentsLLM:
                 model_kwargs = {
                     "token": hf_token,
                     "trust_remote_code": True,
-                    "quantization_config": bnb_config,
-                    # "torch_dtype": torch.bfloat16,
-                    # "device_map": "auto",
+                    # "quantization_config": bnb_config,
+                    "torch_dtype": torch.bfloat16,
+                    "device_map": "auto",
                 }
-                if attn_impl:
-                    model_kwargs["attn_implementation"] = attn_impl
+                # if attn_impl:
+                #     model_kwargs["attn_implementation"] = attn_impl
 
                 self._model = AutoModelForCausalLM.from_pretrained(
                     self.model_name,
