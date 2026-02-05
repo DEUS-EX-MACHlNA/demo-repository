@@ -26,7 +26,8 @@ from app.models import (
 )
 from app.narrative import get_narrative_layer
 from app.state import get_world_state_manager
-from app.tools import tool_turn_resolution, tool_4_night_comes, _get_llm
+from app.day_controller import get_day_controller
+from app.night_controller import get_night_controller
 
 # ============================================================
 # 로깅 설정
@@ -117,8 +118,8 @@ async def execute_pipeline(
     파이프라인:
     1) loader로 assets 로드
     2) world_before = wsm.get_state(...)
-    3) tool_turn_resolution(user_text, ...) - LLM 단일 호출
-    4) night = tool_4_night_comes(world_before, assets)
+    3) DayController.execute_turn() - 낮 턴 실행
+    4) NightController.run() - 밤 페이즈 실행
     5) world_after = wsm.apply_delta(...) + narrative.render(...)
     6) response 반환
 
@@ -158,18 +159,17 @@ async def execute_pipeline(
         })
 
         # ============================================================
-        # Step 3: Tool 실행 (LLM 단일 호출로 처리)
+        # Step 3: 낮 턴 실행 (DayController)
         # ============================================================
         step_start = time.time()
-        llm = _get_llm()
-        tool_result: ToolResult = tool_turn_resolution(
+        day_controller = get_day_controller()
+        tool_result: ToolResult = day_controller.execute_turn(
             user_text,
             world_before,
             assets,
-            llm
         )
         debug["steps"].append({
-            "step": "tool_turn_resolution",
+            "step": "day_turn",
             "duration_ms": (time.time() - step_start) * 1000,
             "state_delta_keys": list(tool_result.state_delta.keys()),
         })
