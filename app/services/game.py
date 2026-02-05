@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.db_models.game import Games
 from typing import Any, Dict
 from app.crud import game as crud_game
+from app.redis_client import get_redis_client
 
 # 정의하신 스키마들 import
 from app.schemas.llm_payload_input import (
@@ -327,11 +328,23 @@ class GameService:
             except:
                  print(f"DEBUG: First NPC str: {str(first_npc)}")
         
-        # 4. 최종 통합 스키마 생성
         client_sync_data = GameClientSyncSchema(
             world=world_obj,
             player=player_obj,
             npcs=npcs_obj
         )
+
+        try:
+            # 5. Redis에 캐싱 (Key: game:{game_id})
+            redis_client = get_redis_client()
+            redis_key = f"game:{game_id}"
+            
+            # Pydantic 모델을 JSON 문자열로 변환하여 저장
+            # 1시간(3600초) 만료 시간 설정
+            redis_client.setex(redis_key, 3600, client_sync_data.json())
+            print(f"DEBUG: Game state cached in Redis. Key: {redis_key}")
+        except Exception as e:
+            # Redis 연결 실패 등 예외 발생 시 로그만 찍고 진행
+            print(f"ERROR: Failed to cache game state in Redis. Error: {e}")
 
         return client_sync_data

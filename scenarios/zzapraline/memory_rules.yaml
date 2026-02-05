@@ -1,0 +1,42 @@
+# 플레이어의 발화 및 행동이 인형의 집 세계를 변화시키는 업데이트 규칙
+
+# 유저 입력을 Intent로 파싱: [investigate(조사) / obey(복종) / rebel(반항) / reveal(진실폭로)]
+rewrite_rules:
+  - rule_id: investigate_increase_suspicion
+    when: "intent == 'investigate'"
+    effects:
+      - { type: npc_memory_rewrite, npc: __active__, field: observation, mode: notice_unusual_behavior }
+      - { type: var_add, key: vars.suspicion_level, value: 2 }
+      - { type: var_add, key: vars.humanity, value: 1 } # 진실을 쫓을수록 인간성 회복
+    notes: "조사 행위는 인간성을 유지해주지만, 가족들의 감시망을 자극함."
+
+  - rule_id: obey_and_assimilate
+    when: "intent == 'obey'"
+    effects:
+      - { type: npc_stat_add, npc: __active__, stat: affection, value: 5 }
+      - { type: var_sub, key: vars.humanity, value: 3 }
+      - { type: var_sub, key: vars.suspicion_level, value: 1 }
+    notes: "인형처럼 행동하여 의심을 피하지만, 서서히 자아(인간성)를 잃게 됨."
+
+  - rule_id: rebel_and_confront
+    when: "intent == 'rebel'"
+    effects:
+      - { type: npc_stat_sub, npc: __active__, stat: affection, value: 10 }
+      - { type: var_add, key: vars.suspicion_level, value: 5 }
+      - { type: npc_memory_rewrite, npc: stepmother, field: treatment_plan, mode: escalate_surgery_priority }
+    notes: "강한 반항은 감시자들의 '개조(수술)' 욕구를 자극하여 게임 오버 시점을 앞당김."
+
+  - rule_id: reveal_truth_unlock_humanity
+    when: "intent == 'reveal' and has_item(real_family_photo)"
+    effects:
+      - { type: npc_stat_add, npc: __active__, stat: humanity, value: 15 }
+      - { type: npc_memory_rewrite, npc: __active__, field: identity, mode: remember_past_human_self }
+      - { type: var_add, key: flags.truth_revealed, value: true }
+    notes: "단서를 활용한 진실 폭로는 NPC의 인간성을 깨우지만, 새엄마와의 갈등을 돌이킬 수 없게 만듦."
+
+  - rule_id: summarize_day_reflection
+    when: "intent == 'summarize' and system.node_id == 'player_room_night'"
+    effects:
+      - { type: var_add, key: vars.humanity, value: 2 }
+      - { type: trigger_event, event_id: "night_simulation_start" }
+    notes: "하루를 정리하는 회상은 자아를 고정시켜 인간성을 보존하고, NPC들의 '밤의 대화'를 트리거함."

@@ -1,0 +1,132 @@
+items:
+  - item_id: real_family_photo
+    name: "진짜 가족사진"
+    type: "lore_clue"
+    description: "인형이 되기 전, 가족들의 진짜 얼굴이 담긴 빛바랜 사진."
+    acquire:
+      method: "unlock"
+      condition: "area.hallway.frame_inspected == true or area.garden.doghouse_dug == true"
+    use:
+      actions:
+        - action_id: show_to_npc
+          label: "과거 상기시키기"
+          allowed_when: "npc.target.id != 'stepmother'"
+          effects:
+            - { type: stat_add, target: "npc.target.humanity", value: 30 }
+            - { type: stat_sub, target: "npc.target.affection", value: 10 } # 혼란으로 인한 호감도 일시 하락
+          notes: "새아빠와 동생의 인형 본능에 균열을 내는 핵심 트리거."
+
+  - item_id: warm_black_tea
+    name: "따뜻한 홍차"
+    type: "consumable"
+    description: "새엄마가 매일 정성스레 준비하는 차. 달콤하지만 끝맛이 비리다."
+    acquire:
+      method: "start"
+      condition: "system.time == 'morning' or system.time == 'evening'"
+    use:
+      actions:
+        - action_id: drink
+          label: "차 마시기"
+          allowed_when: "true"
+          effects:
+            - { type: stat_add, target: "player.stamina", value: 20 }
+            - { type: stat_sub, target: "player.humanity", value: 5, permanent: true }
+          notes: "기력을 회복시켜주지만 서서히 인간성을 잃게 만드는 함정 아이템."
+
+  - item_id: dried_herbs
+    name: "말린 허브 뭉치"
+    type: "consumable"
+    description: "강한 향을 내는 약초 뭉치. 정신을 맑게 해주는 효능이 있다."
+    acquire:
+      method: "unlock"
+      condition: "area.garden.searched == true or area.basement.shelf_inspected == true"
+    use:
+      actions:
+        - action_id: inhale_scent
+          label: "향기 들이마시기"
+          allowed_when: "player.humanity < 100"
+          effects:
+            - { type: stat_add, target: "player.humanity", value: 5 }
+          notes: "인형화를 늦추는 유일한 정화 수단."
+
+  - item_id: dog_treat
+    name: "강아지 간식"
+    type: "gift"
+    description: "바론이 가장 좋아하는 육포. 주방 찬장에 숨겨져 있었다."
+    acquire:
+      method: "unlock"
+      condition: "area.kitchen.cabinet_searched == true"
+    use:
+      actions:
+        - action_id: feed_baron
+          label: "바론에게 주기"
+          allowed_when: "area.current == 'garden'"
+          effects:
+            - { type: stat_add, target: "npc.baron.affection", value: 25 }
+            - { type: trigger_event, event_id: "baron_alert_active" }
+          notes: "호감도 상승 시 바론이 감시자(새엄마/새아빠)의 위치를 소리로 알려줌."
+
+  - item_id: industrial_sedative
+    name: "공업용 수면제"
+    type: "tool"
+    description: "강력한 진정 효과가 있는 액체 약물. 주의가 필요하다."
+    acquire:
+      method: "reward" # 훔치기 성공 시
+      condition: "area.kitchen.locked_cabinet.unlocked == true"
+    use:
+      actions:
+        - action_id: spike_food
+          label: "음식에 타기"
+          allowed_when: "system.phase == 'evening_prep'"
+          effects:
+            - { type: set_state, target: "npc.target.status", value: "sleeping", duration: 3 }
+          notes: "특정 NPC를 3턴간 무력화하여 자유로운 탐색 기회를 확보."
+
+  - item_id: oil_and_lighter
+    name: "기름병과 라이터"
+    type: "quest_item"
+    description: "불을 붙일 수 있는 도구 세트. 위험한 상황을 초래할 수 있다."
+    acquire:
+      method: "unlock"
+      condition: "has_item(oil_bottle) and has_item(lighter)"
+    use:
+      actions:
+        - action_id: start_fire
+          label: "방화하기"
+          allowed_when: "area.current == 'living_room' or area.current == 'kitchen'"
+          effects:
+            - { type: set_env, key: "house_status", value: "chaos" }
+            - { type: unlock_ending, ending_id: "chaotic_breakout" }
+          notes: "혼돈의 밤 엔딩 진입을 위한 필수 행동."
+
+  - item_id: lubricant_oil
+    name: "윤활유"
+    type: "tool"
+    description: "기계 마찰을 줄여주는 기름. 삐걱거리는 곳에 효과적이다."
+    acquire:
+      method: "unlock"
+      condition: "area.backyard.storage_searched == true"
+    use:
+      actions:
+        - action_id: apply_to_door
+          label: "기름칠하기"
+          allowed_when: "true"
+          effects:
+            - { type: var_add, key: "stealth_bonus", value: 15 }
+          notes: "야간 행동 시 NPC에게 들킬 확률(소음 발생률)을 크게 낮춤."
+
+  - item_id: mothers_key
+    name: "엄마의 열쇠"
+    type: "key"
+    description: "새엄마의 목에 걸려 있던 정교한 열쇠. 개구멍의 자물쇠와 맞는다."
+    acquire:
+      method: "reward"
+      condition: "npc.stepmother.status == 'sleeping' or npc.brother.affection == 100"
+    use:
+      actions:
+        - action_id: unlock_exit
+          label: "탈출구 개방"
+          allowed_when: "area.current == 'player_room' and target == 'dog_hole'"
+          effects:
+            - { type: change_scene, target: "ending_sequence" }
+          notes: "개구멍을 통해 현실 세계로 돌아가는 문을 여는 최종 아이템."

@@ -22,8 +22,3 @@ class PlayerSchema(BaseModel):
     )
 
     memory: Dict[str, Any] = Field(default_factory=dict, description="LLM용 기억 데이터")
-    
-    # memory: Optional[dict] = Field(
-    #     default_factory=dict,
-    #     description="LLM용 기억 데이터"
-    # )
