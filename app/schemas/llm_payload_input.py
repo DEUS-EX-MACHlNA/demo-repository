@@ -62,7 +62,7 @@ class LogicContextSchema(BaseModel):
     meta: Dict[str, Any] 
     
     # State는 중요 변수들이라 최소한의 타입 체크
-    state: Dict[str, Dict[str, Any]] # {"vars": {...}, "system": {...}}
+    state: Dict[str, Any] # {"vars": {...}, "system": {...}}
     
     # Rules(엔딩, 승리조건)는 너무 복잡하므로 통으로 dict 처리
     rules: Dict[str, Any]

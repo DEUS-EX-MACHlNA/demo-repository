@@ -1,12 +1,14 @@
 
 # 여기는 특정 시나리오로 실행하게 되면 DB에 접근해서 게임을 실행시켜 달라는 api를 호출하는 곳입니다.
-from app.services.game import transform_game_state
+from app.services.game import GameService
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.db_models.game import Games, GameStatus
 from app.db_models.scenario import Scenario  
+from app.db_models.scenario import Scenario  
+from app.schemas.client_sync import GameClientSyncSchema
 
 
 router = APIRouter(tags=["game"])
@@ -58,7 +60,22 @@ def step_game(game_id: int, request: StepRequestSchema, db: Session = Depends(ge
     if not game:
         raise HTTPException(status_code=404, detail="게임을 찾을 수 없습니다.")
     
-    result = transform_game_state(db, game_id, request.dict(), game)
+    if not game:
+        raise HTTPException(status_code=404, detail="게임을 찾을 수 없습니다.")
+    
+    result = GameService.process_turn(db, game_id, request.dict(), game)
     
     return result
+
+# 게임 id를 받아서 진행된 게임을 불러오기
+@router.get("start/{game_id}", summary="진행중인 게임 시작", response_model=dict)
+def get_game(game_id: int, db: Session = Depends(get_db)) -> GameClientSyncSchema:
+    try:
+        game = GameService.start_game(db, game_id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="게임을 찾을 수 없습니다.")
+    
+    return game
+
 # 밤에 대화 시작
+

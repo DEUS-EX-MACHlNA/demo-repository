@@ -1,11 +1,13 @@
+from app.schemas.client_sync import GameClientSyncSchema
 from app.loader import get_loader
-from app.services.scenario import create_game_for_scenario
+from app.services.scenario import ScenarioService
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.db_models.game import Games, GameStatus
 from app.db_models.scenario import Scenario  
 from app.config import SCENARIOS_BASE_PATH
+from app.schemas.client_sync import GameClientSyncSchema
 
 
 router = APIRouter(tags=["scenario"])
@@ -38,7 +40,7 @@ def list_scenarios() -> dict:
 #해당 시나리오로 시작
 
 @router.get("/start/{scenario_id}", summary="시나리오 시작")
-def start_scenario(scenario_id: int, user_id: int) -> int:
+def start_scenario(scenario_id: int, user_id: int) -> GameClientSyncSchema:
     """시나리오 시작"""
-    game = create_game_for_scenario(scenario_id, user_id)
+    game = ScenarioService.create_game(scenario_id, user_id)
     return game

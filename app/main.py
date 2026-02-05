@@ -30,7 +30,7 @@ from app.narrative import get_narrative_layer
 from app.parser import get_parser
 from app.state import get_world_state_manager
 from app.tools import execute_tool, tool_4_night_comes
-from app.services.scenario import create_game_for_scenario
+
 
 from app.api.routes.v1 import game as v1_game_router
 from app.api.routes.v1 import scenario as v1_scenario_router
