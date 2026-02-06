@@ -8,7 +8,6 @@ from app.schemas import (
     Intent,
     NightResult,
     NPCState,
-    ParsedInput,
     StateDelta,
     StepRequest,
     StepResponse,
@@ -30,7 +29,7 @@ __all__ = [
     "load_scenario_assets",
     # Models
     "Intent",
-    "ParsedInput",
+    # "ParsedInput",
     "WorldState",
     "NPCState",
     "ToolCall",

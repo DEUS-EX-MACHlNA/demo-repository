@@ -19,6 +19,25 @@ class UserInputSchema(BaseModel):
     npc_name: Optional[str] = None
     item_name: Optional[str] = None
 
+    def to_combined_string(self) -> str:
+        """
+        UserInputSchema를 단일 문자열로 변환합니다.
+
+        chat_input에 npc_name, item_name 정보를 자연스럽게 결합합니다.
+
+        Returns:
+            결합된 문자열
+        """
+        parts = [self.chat_input]
+
+        if self.npc_name:
+            parts.append(f"(대상 NPC: {self.npc_name})")
+
+        if self.item_name:
+            parts.append(f"(대상 아이템: {self.item_name})")
+
+        return " ".join(parts)
+
 
 class WorldInfoSchema(BaseModel):
     """월드 정보 (LLM에 전달)"""
