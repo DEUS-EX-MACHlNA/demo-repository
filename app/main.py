@@ -26,7 +26,10 @@ from app.models import (
 )
 from app.narrative import get_narrative_layer
 from app.state import get_world_state_manager
-from app.tools import execute_tool, tool_4_night_comes
+from app.day_controller import get_day_controller
+from app.night_controller import get_night_controller
+from app.lock_manager import get_lock_manager
+from app.ending_checker import check_ending, EndingCheckResult
 
 
 from app.api.routes.v1 import game as v1_game_router
