@@ -195,7 +195,9 @@ wsm.get_state(
   "vars": {
     "clue_count": 0,
     "identity_match_score": 0,
-    "fabrication_score": 0
+    "fabrication_score": 0,
+    "last_mentioned_npc_id": "",
+    "last_used_item_id": ""
   }
 }
 ```
@@ -211,45 +213,89 @@ wsm.get_state(
 | `locks`     | `object` | 잠금/해금 상태                   |
 | `vars`      | `object` | 시나리오 변수                    |
 
+**vars 주요 필드:**
+
+| 필드                      | 타입    | 설명                                                     |
+| ------------------------- | ------- | -------------------------------------------------------- |
+| `clue_count`            | `int` | 단서 개수 (0~10)                                         |
+| `identity_match_score`  | `int` | 자기 동일성 점수 (0~10)                                  |
+| `fabrication_score`     | `int` | 조작 점수 (0~10)                                         |
+| `last_mentioned_npc_id` | `str` | 최근 언급된 NPC ID ("아까 걔", "너" 등 파싱용)           |
+| `last_used_item_id`     | `str` | 최근 사용한 아이템 ID ("다시 사용", "또 써봐" 등 파싱용) |
+
 ---
 
 ## 3. PromptParser
 
-사용자 입력을 분석하여 의도와 대상 추출
+사용자 입력을 분석하여 의도(intent)와 대상(target_npc_id, item_id) 추출
+
+### Parsing Strategy (2단계)
+
+1. **Rule-based Extraction**:
+
+   - `target_npc_id` / `item_id`가 이미 제공되면 그대로 사용
+   - 제공되지 않았으면 `user_input`에서 추출 시도:
+     - `assets`의 NPC/Item aliases와 매칭
+     - `world_snapshot`의 최근 언급/사용 기록 활용 ("아까 걔", "너", "다시 사용" 등)
+2. **LM-based Extraction** (Rule-based 실	패 시):
+
+   - 작은 LM 모델 (EXAONE-3.5-2.4B-Instruct) 호출
+   - 환경변수 `HF_TOKEN` 필요 (HuggingFace 토큰)
+   - 모델은 lazy loading으로 첫 호출 시에만 로드
+   - LM 로딩 실패 시 자동으로 None 반환 (graceful degradation)
 
 ### Input
 
 ```python
 parser.parse(
-    text="그러니까 범인은 현장에 있었던 거 맞지?",
+    user_input="그러니까 범인은 현장에 있었던 거 맞지?",
+    target_npc_id="",  # Optional, ""이면 user_input에서 추출
+    item_id="",        # Optional, ""이면 user_input에서 추출
     assets=scenario_assets,
     world_snapshot=world_before
 )
 ```
 
-| 파라미터           | 타입               | 설명               |
-| ------------------ | ------------------ | ------------------ |
-| `text`           | `str`            | 사용자 입력 텍스트 |
-| `assets`         | `ScenarioAssets` | 시나리오 에셋      |
-| `world_snapshot` | `WorldState`     | 현재 월드 상태     |
+| 파라미터           | 타입               | 필수 | 설명                                                        |
+| ------------------ | ------------------ | ---- | ----------------------------------------------------------- |
+| `user_input`     | `str`            | ✅   | 사용자 입력 텍스트                                          |
+| `target_npc_id`  | `str`            | ❌   | 타겟 NPC ID (미리 지정 가능, ""이면 user_input에서 추출)    |
+| `item_id`        | `str`            | ❌   | 타겟 아이템 ID (미리 지정 가능, ""이면 user_input에서 추출) |
+| `assets`         | `ScenarioAssets` | ✅   | 시나리오 에셋 (NPC/아이템 aliases 포함)                     |
+| `world_snapshot` | `WorldState`     | ✅   | 현재 월드 상태 (최근 언급/사용 기록 포함)                   |
+
+**왜 `assets`와 `world_snapshot`이 필요한가?**
+
+- **`assets`**:
+  - NPC/아이템 aliases를 통한 이름 → ID 매칭 (예: "피해자 가족" → `"family"`)
+  - npcs.yaml의 `aliases` 필드: `["피해자 가족", "유가족", "가족"]`
+  - items.yaml의 `aliases` 필드: `["사건 브리핑", "브리핑", "케이스 파일"]`
+- **`world_snapshot`**:
+  - 최근 언급 NPC (`vars.last_mentioned_npc_id`) / 최근 사용 아이템 (`vars.last_used_item_id`) 기록
+  - "아까 걔", "너", "그 사람", "다시 사용", "또 써봐" 등의 지시대명사 해석용
+  - 인벤토리 검증 (소유하지 않은 아이템은 사용 불가)
 
 ### Output: ParsedInput
 
 ```json
 {
   "intent": "leading",
-  "target": "family",
+  "target_npc_id": "family",
+  "item_id": "",
   "content": "그러니까 범인은 현장에 있었던 거 맞지?",
-  "raw": "그러니까 범인은 현장에 있었던 거 맞지?"
+  "raw": "그러니까 범인은 현장에 있었던 거 맞지?",
+  "extraction_method": "rule_based"
 }
 ```
 
-| 필드        | 타입           | 설명                                                                             |
-| ----------- | -------------- | -------------------------------------------------------------------------------- |
-| `intent`  | `str`        | 감지된 의도 (`leading`, `neutral`, `empathic`, `summarize`, `unknown`) |
-| `target`  | `str \| null` | 대상 (NPC ID 또는 item ID)                                                       |
-| `content` | `str`        | 정제된 내용                                                                      |
-| `raw`     | `str`        | 원본 텍스트                                                                      |
+| 필드                  | 타입    | 설명                                                                             |
+| --------------------- | ------- | -------------------------------------------------------------------------------- |
+| `intent`            | `str` | 감지된 의도 (`leading`, `neutral`, `empathic`, `summarize`, `unknown`) |
+| `target_npc_id`     | `str` | 타겟 NPC ID (빈 문자열이면 NPC 대상 아님)                                        |
+| `item_id`           | `str` | 타겟 아이템 ID (빈 문자열이면 아이템 사용 아님)                                  |
+| `content`           | `str` | 정제된 내용                                                                      |
+| `raw`               | `str` | 원본 텍스트                                                                      |
+| `extraction_method` | `str` | 추출 방법 (`rule_based` / `lm_based` / `prespecified`)                     |
 
 **Intent 타입:**
 
@@ -371,14 +417,14 @@ execute_tool(
       "fabrication_score": 1
     }
   },
-  "text_fragment": "피해자 가족이(가) 잠시 망설이다가 고개를 끄덕인다. \"...그렇게 생각하신다면요.\""
+  "event_description": "피해자 가족이(가) 잠시 망설이다가 고개를 끄덕인다. \"...그렇게 생각하신다면요.\""
 }
 ```
 
-| 필드              | 타입       | 설명                 |
-| ----------------- | ---------- | -------------------- |
-| `state_delta`   | `object` | 상태 변경 델타       |
-| `text_fragment` | `str`    | 내러티브 텍스트 조각 |
+| 필드                  | 타입       | 설명           |
+| --------------------- | ---------- | -------------- |
+| `state_delta`       | `object` | 상태 변경 델타 |
+| `event_description` | `str`    | 생성 결과      |
 
 ---
 
@@ -543,46 +589,89 @@ world_after = wsm.apply_delta(
 
 최종 사용자 출력 텍스트 조립
 
+### 렌더링 모드
+
+- **lm=False**: 텍스트 블록 단순 조합 (테스트용)
+- **lm=True**: LM을 사용한 소설 형식 생성 (EXAONE-3.5-7.8B-Instruct)
+- **lm=None** (기본값): CUDA 사용 가능 시 자동으로 LM 활성화
+
 ### Input
 
 ```python
 dialogue = narrative.render(
+<<<<<<< HEAD
+    event_description=[
+        "피해자 가족이 고개를 끄덕인다. \"그랬어요...\"",
+        "당신은 메모를 확인한다."
+    ],
+    night_description=[
+        "밤이 깊어간다. 진실과 조작의 경계가 흐려진다.",
+        "...누군가 당신의 로그를 확인했다."
+    ],
+    assets=scenario_assets,
+    is_observed=True,  # 밤 변화 관찰 여부
+    lm=None  # CUDA 사용 가능 여부로 자동 결정
+=======
     text_fragment="피해자 가족이 고개를 끄덕인다...",
     night_dialogue="밤이 깊어간다...",
-    world_before=world_before,
-    world_after=world_after,
     assets=scenario_assets
+>>>>>>> 5d5100e3048e703abdf190e770d42391cfb2e698
 )
 ```
 
-| 파라미터           | 타입               | 설명                  |
-| ------------------ | ------------------ | --------------------- |
-| `text_fragment`  | `str`            | Tool 실행 결과 텍스트 |
-| `night_dialogue` | `str`            | 밤 내러티브           |
-| `world_before`   | `WorldState`     | 액션 전 상태          |
-| `world_after`    | `WorldState`     | 액션 후 상태          |
-| `assets`         | `ScenarioAssets` | 시나리오 에셋         |
+| 파라미터              | 타입               | 필수 | 설명                                                     |
+| --------------------- | ------------------ | ---- | -------------------------------------------------------- |
+| `event_description` | `list[str]`      | ✅   | 턴 이벤트 설명 문자열 리스트                             |
+| `night_description` | `list[str]`      | ✅   | 밤 변화 문자열 리스트 (항상 제공됨)                      |
+| `assets`            | `ScenarioAssets` | ✅   | 시나리오 에셋 (장르, 톤 정보 활용)                       |
+| `is_observed`       | `bool`           | ❌   | 밤 변화 관찰 여부 (True일 때만 렌더링, 기본값:`False`) |
+| `lm`                | `bool \| None`    | ❌   | LM 사용 여부 (None이면 CUDA 자동 감지, 기본값:`None`)  |
 
 ### Output: dialogue (string)
 
+**단순 조합 모드 (lm=False 또는 CUDA 없음) + is_observed=False:**
+
 ```
-피해자 가족이(가) 잠시 망설이다가 고개를 끄덕인다. "...그렇게 생각하신다면요."
-세계가 당신의 관점에 맞춰 조정되었다.
+피해자 가족이 고개를 끄덕인다. "그랬어요..."
+당신은 메모를 확인한다.
+```
+
+**단순 조합 모드 (lm=False 또는 CUDA 없음) + is_observed=True:**
+
+```
+피해자 가족이 고개를 끄덕인다. "그랬어요..."
+당신은 메모를 확인한다.
 
 ---
 밤이 깊어간다. 진실과 조작의 경계가 흐려진다.
+...누군가 당신의 로그를 확인했다.
+```
 
-[턴 2/12]
+**LM 생성 모드 (lm=True 또는 CUDA 사용 가능) + is_observed=True:**
+
+```
+피해자 가족의 눈빛이 흔들린다. "그랬어요..." 떨리는 목소리가
+어둠 속으로 흩어진다. 당신은 메모 패드를 꺼내 들었다.
+기록된 패턴들이 점점 선명해진다.
+
+밤이 깊어간다. 진실과 조작의 경계선이 희미하게 흔들린다.
+어디선가 시선이 느껴진다. 누군가 당신의 로그를 확인하고 있다.
 ```
 
 **렌더링 구조:**
 
-1. `text_fragment` (Tool 결과)
-2. 상태 변화 묘사 (선택적)
-3. `---` 구분선
-4. `night_dialogue`
-5. 턴 정보 `[턴 X/Y]`
-6. 엔딩 메시지 (조건 충족 시)
+**단순 조합 모드:**
+
+1. `event_description` 항목들 (각 줄로 출력)
+2. `---` 구분선 (`is_observed=True`이고 `night_description`이 있을 경우)
+3. `night_description` 항목들 (각 줄로 출력, `is_observed=True`일 때만)
+
+**LM 생성 모드:**
+
+1. 이벤트와 밤 변화를 바탕으로 LM이 소설 형식으로 재구성
+2. 시나리오 장르와 톤을 반영한 분위기 있는 서술
+3. 긴장감과 몰입감을 높이는 표현
+4. `is_observed=False`이면 밤 변화는 프롬프트에 포함하지 않음
 
 ---
 
@@ -745,7 +834,8 @@ Request
   → WorldState {turn: 2, npcs: {...}, vars: {fabrication_score: 1, ...}}
 
 9. render
-  → dialogue: "피해자 가족이 고개를 끄덕인다...\n\n---\n밤이 깊어간다...\n\n[턴 2/12]"
+  → event_description: ["피해자 가족이 고개를 끄덕인다..."], night_description: ["밤이 깊어간다..."], is_observed: false
+  → dialogue: "피해자 가족이 고개를 끄덕인다..." (단순 조합 또는 LM 생성, 밤 변화는 렌더링 안 됨)
 
 Response
   → {dialogue: "...", is_observed: false, debug: {...}}

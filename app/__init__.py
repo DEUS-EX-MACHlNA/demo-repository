@@ -17,6 +17,8 @@ from app.models import (
     ToolResult,
     WorldState,
 )
+from app.day_controller import DayController, get_day_controller
+from app.night_controller import NightController, get_night_controller
 from app.state import WorldStateManager
 
 __version__ = "0.1.0"
@@ -38,6 +40,11 @@ __all__ = [
     "StateDelta",
     "StepRequest",
     "StepResponse",
+    # Controllers
+    "DayController",
+    "get_day_controller",
+    "NightController",
+    "get_night_controller",
     # State
     "WorldStateManager",
 ]

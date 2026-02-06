@@ -1,0 +1,74 @@
+# 프로젝트: 인형의 집 - 시나리오 메타데이터 및 엔딩 로직
+
+id: project_puppet_home
+title: "인형의 집 (Puppet Home)"
+genre: "AI 기반 자유 서술 심리 스릴러"
+tone: "기괴하고 상냥한, 서서히 조여오는 압박감"
+pov: "2nd"              # "당신은 눈을 뜹니다", "당신의 손이 떨립니다" 등 몰입감 강화
+turn_limit: 50          # 5일간, 일일 10턴 기준
+opening_scene_id: day1_morning
+
+global_rules:
+  - "플레이어의 모든 자유 서술은 현재 '상태(결박/위치)'와 '현실성' 검증을 거친 후 판정"
+  - "NPC는 '밤의 대화'를 통해 플레이어의 낮 행동을 공유하고 다음 날의 태도를 결정"
+  - "인간성(Humanity)이 0이 되는 즉시 모든 행동 우선권을 상실하고 엔딩 시퀀스로 강제 진입"
+  - "엔진이 확정한 '저택의 비밀' 외에 플레이어가 임의로 가공의 탈출구를 생성하는 것 금지"
+
+victory_conditions:
+  - "ending == 'stealth_exit'"
+  - "ending == 'chaotic_breakout'"
+  - "ending == 'sibling_sacrifice'"
+
+failure_conditions:
+  - "ending == 'unfinished_doll'"
+  - "ending == 'eternal_dinner'"
+
+endings:
+  - ending_id: stealth_exit
+    name: "완벽한 기만 (The Stealth Exit)"
+    condition: "has_item(industrial_sedative) and has_item(mothers_key) and npc.stepmother.status == 'sleeping' and system.turn >= 40"
+    on_enter_events:
+      - { type: flag_set, key: ending, value: stealth_exit }
+    epilogue_prompt: "조용하고 서늘하게, 뒤도 돌아보지 않고 안개 속으로 사라지는 주인공을 묘사하라."
+
+  - ending_id: chaotic_breakout
+    name: "혼돈의 밤 (The Chaotic Breakout)"
+    condition: "has_item(oil_and_lighter) and vars.house_on_fire == true and npc.grandmother.humanity >= 50"
+    on_enter_events:
+      - { type: flag_set, key: ending, value: chaotic_breakout }
+    epilogue_prompt: "타오르는 저택의 불길과 인형들의 비명, 파괴를 통한 자유의 희열을 묘사하라."
+
+  - ending_id: sibling_sacrifice
+    name: "조력자의 희생 (The Sibling's Help)"
+    condition: "npc.brother.affection >= 90 and npc.brother.humanity >= 70 and vars.day == 5"
+    on_enter_events:
+      - { type: flag_set, key: ending, value: sibling_sacrifice }
+    epilogue_prompt: "동생의 슬픈 미소와 주인공의 죄책감, 눈물 젖은 탈출을 감성적으로 묘사하라."
+
+  - ending_id: unfinished_doll
+    name: "불완전한 박제 (The Unfinished Doll)"
+    condition: "vars.humanity <= 0"
+    on_enter_events:
+      - { type: flag_set, key: ending, value: unfinished_doll }
+    epilogue_prompt: "자아를 잃고 눈동자가 단추로 변해가는 과정과 새엄마의 기쁜 바느질 소리를 묘사하라."
+
+  - ending_id: eternal_dinner
+    name: "영원한 식사 시간 (The Eternal Dinner)"
+    condition: "system.turn == turn_limit and flags.ending == null"
+    on_enter_events:
+      - { type: flag_set, key: ending, value: eternal_dinner }
+    epilogue_prompt: "맛이 느껴지지 않는 고기를 씹으며 가짜 가족들과 영원히 웃고 있는 비극을 묘사하라."
+
+state_schema:
+  vars:
+    humanity: {default: 100, min: 0, max: 100}      # 플레이어의 인간성
+    suspicion_level: {default: 0, min: 0, max: 100} # 가족들의 전체 의심도
+    day: {default: 1, min: 1, max: 5}               # 생존 일수
+    house_on_fire: {default: false}                 # 화재 발생 여부
+  flags:
+    ending: {default: null}
+    basement_unlocked: {default: false}
+    truth_revealed: {default: false}                # 할머니를 통해 진실을 알았는지 여부
+  system:
+    turn: {default: 1}
+    node_id: {default: "day1_morning"}

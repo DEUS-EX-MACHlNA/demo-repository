@@ -46,9 +46,22 @@ class Intent(str, Enum):
 class ParsedInput:
     """파서의 출력 결과"""
     intent: str  # Intent enum value
-    target: Optional[str]  # NPC ID 또는 item ID
+    target_npc_ids: list[str]  # NPC ID 리스트 (빈 리스트면 NPC 대상 아님)
+    item_id: str  # item ID (빈 문자열이면 아이템 사용 아님)
     content: str  # 정제된 내용
     raw: str  # 원본 텍스트
+    extraction_method: str = "rule_based"  # rule_based | lm_based | prespecified
+
+    # 하위 호환성을 위한 프로퍼티들
+    @property
+    def target_npc_id(self) -> str:
+        """하위 호환성: 첫 번째 NPC ID 반환 (없으면 빈 문자열)"""
+        return self.target_npc_ids[0] if self.target_npc_ids else ""
+
+    @property
+    def target(self) -> Optional[str]:
+        """하위 호환성: target_npc_id 또는 item_id 반환"""
+        return self.target_npc_id if self.target_npc_id else (self.item_id if self.item_id else None)
 
 
 # ============================================================
@@ -61,6 +74,7 @@ class NPCState:
     trust: int = 0
     fear: int = 0
     suspicion: int = 0
+    humanity: int = 10  # 인간성 (0이면 인형화)
     # 추가 커스텀 필드를 위한 extras
     extras: dict[str, Any] = field(default_factory=dict)
 
@@ -70,18 +84,20 @@ class NPCState:
             "trust": self.trust,
             "fear": self.fear,
             "suspicion": self.suspicion,
+            "humanity": self.humanity,
             **self.extras
         }
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> NPCState:
-        known_keys = {"npc_id", "trust", "fear", "suspicion"}
+        known_keys = {"npc_id", "trust", "fear", "suspicion", "humanity"}
         extras = {k: v for k, v in data.items() if k not in known_keys}
         return cls(
             npc_id=data.get("npc_id", "unknown"),
             trust=data.get("trust", 0),
             fear=data.get("fear", 0),
             suspicion=data.get("suspicion", 0),
+            humanity=data.get("humanity", 10),
             extras=extras
         )
 
@@ -145,15 +161,17 @@ class ToolCall:
 class ToolResult:
     """Tool 실행 결과"""
     state_delta: dict[str, Any]  # WorldState에 적용할 델타
-    text_fragment: str  # 내러티브에서 사용할 텍스트 조각
+    event_description: list[str]  # 발생 사건들의 묘사 리스트
 
 
 @dataclass
 class NightResult:
-    """tool_4_night_comes 결과"""
+    """NightController 실행 결과
+
+    NPC 3명이 함께 나누는 그룹 대화를 담아 반환.
+    """
     night_delta: dict[str, Any]
-    night_dialogue: str
-    is_observed: bool
+    night_conversation: list[dict[str, str]]  # [{speaker, text}, ...] 그룹 대화
 
 
 # ============================================================

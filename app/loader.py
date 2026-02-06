@@ -112,6 +112,16 @@ class ScenarioAssets:
         """상태 스키마 반환"""
         return self.scenario.get("state_schema", {})
 
+    def export_for_prompt(self) -> list[str]:
+        """프롬프트용 NPC 컨텍스트 문자열 목록 반환"""
+        result: list[str] = []
+        for npc in self.npcs.get("npcs", []):
+            nid = npc.get("npc_id", "")
+            name = npc.get("name", "")
+            role = npc.get("role", "")
+            result.append(f"{nid}: {name} - {role}")
+        return result
+
 
 # ============================================================
 # ScenarioLoader: YAML 파일을 로드하는 로더
