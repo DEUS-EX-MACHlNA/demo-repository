@@ -65,7 +65,7 @@ def call_tool(
     assets: ScenarioAssets,
 ) -> Dict[str, Any]:
     """
-    LLM을 호출하여 적절한 tool과 args를 선택합니다.
+    LLM을 호출하여 적절한 tool, args, intent를 선택합니다.
 
     Args:
         user_input: 사용자 입력 텍스트
@@ -76,6 +76,7 @@ def call_tool(
         {
             "tool_name": "interact" | "action" | "use",
             "args": dict,  # tool에 전달할 인자
+            "intent": "investigate" | "obey" | "rebel" | "reveal" | "summarize" | "neutral",
         }
     """
     # 1. LLM 엔진 가져오기 및 Tool context 설정
@@ -108,9 +109,9 @@ def call_tool(
                 "name": item.get("name", item_id),
             })
 
-    # 3. Tool calling 프롬프트 생성
+    # 3. Tool calling 프롬프트 생성 (intent 포함)
     prompt = f"""당신은 텍스트 어드벤처 게임의 Tool 선택기입니다.
-사용자의 입력을 분석하여 적절한 tool과 인자를 선택하세요.
+사용자의 입력을 분석하여 적절한 tool, 인자, 그리고 행동 의도(intent)를 선택하세요.
 
 ## 사용 가능한 Tools
 
@@ -124,6 +125,17 @@ def call_tool(
 3. **use**: 아이템 사용
    - item: 아이템 ID (필수)
    - action: 사용 방법 (필수)
+
+## Intent (행동 의도) 분류
+
+플레이어의 행동이 어떤 의도인지 판단하세요:
+
+- **investigate**: 조사, 탐색, 정보 수집 (예: "주변을 살펴본다", "서랍을 뒤진다", "수상한 곳을 조사한다")
+- **obey**: 복종, 순응, 가족의 지시 따르기 (예: "엄마 말대로 한다", "시키는 대로 한다", "착하게 행동한다")
+- **rebel**: 반항, 저항, 규칙 어기기 (예: "거부한다", "반항한다", "도망치려 한다", "공격한다")
+- **reveal**: 진실 폭로, 과거 상기시키기 (예: "진짜 가족사진을 보여준다", "정체를 폭로한다")
+- **summarize**: 하루 정리, 회상, 일기 쓰기 (예: "오늘 하루를 정리한다", "일기를 쓴다")
+- **neutral**: 위 어느 것에도 해당하지 않는 일반 행동
 
 ## 현재 상황
 
@@ -141,14 +153,15 @@ NPC 목록:
 ```json
 {{
   "tool_name": "interact" | "action" | "use",
-  "args": {{ ... }}
+  "args": {{ ... }},
+  "intent": "investigate" | "obey" | "rebel" | "reveal" | "summarize" | "neutral"
 }}
 ```
 
 예시:
-- "엄마에게 말을 건다" → {{"tool_name": "interact", "args": {{"target": "button_mother", "interact": "엄마에게 말을 건다"}}}}
-- "부엌을 둘러본다" → {{"tool_name": "action", "args": {{"action": "부엌을 둘러본다"}}}}
-- "칼을 사용한다" → {{"tool_name": "use", "args": {{"item": "kitchen_knife", "action": "칼을 사용한다"}}}}
+- "엄마에게 순순히 인사한다" → {{"tool_name": "interact", "args": {{"target": "stepmother", "interact": "엄마에게 순순히 인사한다"}}, "intent": "obey"}}
+- "몰래 부엌을 뒤진다" → {{"tool_name": "action", "args": {{"action": "몰래 부엌을 뒤진다"}}, "intent": "investigate"}}
+- "진짜 가족사진을 아빠에게 보여준다" → {{"tool_name": "use", "args": {{"item": "real_family_photo", "action": "아빠에게 보여준다"}}, "intent": "reveal"}}
 """
 
     # 4. LLM 호출
@@ -157,7 +170,7 @@ NPC 목록:
 
     # 5. JSON 파싱
     result = _parse_tool_call_response(raw_output, user_input)
-    logger.info(f"[call_tool] 선택된 tool: {result['tool_name']}, args={result['args']}")
+    logger.info(f"[call_tool] 선택된 tool: {result['tool_name']}, intent: {result.get('intent', 'neutral')}, args={result['args']}")
 
     return result
 
@@ -192,8 +205,10 @@ def _parse_tool_call_response(raw_output: str, fallback_input: str) -> Dict[str,
         fallback_input: 파싱 실패 시 action으로 사용할 입력
 
     Returns:
-        {"tool_name": str, "args": dict}
+        {"tool_name": str, "args": dict, "intent": str}
     """
+    VALID_INTENTS = ("investigate", "obey", "rebel", "reveal", "summarize", "neutral")
+
     # JSON 블록 추출
     json_match = re.search(r'```json\s*(.*?)\s*```', raw_output, re.DOTALL)
     if json_match:
@@ -208,28 +223,37 @@ def _parse_tool_call_response(raw_output: str, fallback_input: str) -> Dict[str,
             return {
                 "tool_name": "action",
                 "args": {"action": fallback_input},
+                "intent": "neutral",
             }
 
     try:
         data = json.loads(json_str)
         tool_name = data.get("tool_name", "action")
         args = data.get("args", {})
+        intent = data.get("intent", "neutral")
 
-        # 유효성 검사
+        # tool 유효성 검사
         if tool_name not in ("interact", "action", "use"):
             logger.warning(f"[call_tool] 알 수 없는 tool: {tool_name}, fallback to action")
             return {
                 "tool_name": "action",
                 "args": {"action": fallback_input},
+                "intent": "neutral",
             }
 
-        return {"tool_name": tool_name, "args": args}
+        # intent 유효성 검사
+        if intent not in VALID_INTENTS:
+            logger.warning(f"[call_tool] 알 수 없는 intent: {intent}, fallback to neutral")
+            intent = "neutral"
+
+        return {"tool_name": tool_name, "args": args, "intent": intent}
 
     except json.JSONDecodeError as e:
         logger.warning(f"[call_tool] JSON 디코드 실패: {e}, fallback to action")
         return {
             "tool_name": "action",
             "args": {"action": fallback_input},
+            "intent": "neutral",
         }
 
 
