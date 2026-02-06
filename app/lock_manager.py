@@ -8,10 +8,11 @@ Lock Manager - locks.yaml 기반 정보 해금 시스템
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Set
 
-from app.models import WorldState
+from pydantic import BaseModel, Field
+
+from app.schemas import WorldState
 from app.condition_eval import evaluate_condition
 
 logger = logging.getLogger(__name__)
@@ -21,23 +22,21 @@ MEMORY_TYPE_SECRET = "unlocked_secret"
 SECRET_IMPORTANCE_SCORE = 9.5  # 매우 높은 중요도 (최대 10)
 
 
-@dataclass
-class UnlockedInfo:
+class UnlockedInfo(BaseModel):
     """해금된 정보"""
     info_id: str
     info_title: str
     description: str
     reveal_trigger: str
     linked_info_id: Optional[str] = None
-    allowed_npcs: List[str] = field(default_factory=list)
+    allowed_npcs: List[str] = Field(default_factory=list)
 
 
-@dataclass
-class LockCheckResult:
+class LockCheckResult(BaseModel):
     """Lock 체크 결과"""
-    newly_unlocked: List[UnlockedInfo]  # 이번 턴에 새로 해금된 정보
-    all_unlocked_ids: Set[str]  # 현재까지 해금된 모든 정보 ID
-    triggered_events: List[str]  # 발생해야 할 reveal_trigger 이벤트
+    newly_unlocked: List[UnlockedInfo]
+    all_unlocked_ids: Set[str]
+    triggered_events: List[str]
 
 
 class LockManager:
@@ -193,7 +192,7 @@ class LockManager:
             )
 
             # NPC의 메모리 스트림에 추가
-            add_memory(npc_state.extras, memory_entry)
+            add_memory(npc_state.memory, memory_entry)
             injected_npcs.append(npc_id)
 
             logger.info(

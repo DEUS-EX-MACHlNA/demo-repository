@@ -12,7 +12,7 @@ import logging
 from typing import Optional
 
 from app.loader import ScenarioAssets
-from app.models import ToolResult, WorldState
+from app.schemas import ToolResult, WorldState
 
 logger = logging.getLogger(__name__)
 
@@ -134,7 +134,7 @@ get_controller = get_day_controller
 if __name__ == "__main__":
     from pathlib import Path
     from app.loader import ScenarioLoader
-    from app.models import WorldState, NPCState
+    from app.schemas import WorldState, NPCState
 
     print("=" * 60)
     print("DAY CONTROLLER 테스트")
@@ -152,13 +152,22 @@ if __name__ == "__main__":
     assets = loader.load(scenarios[0])
     print(f"\n[1] 시나리오 로드됨: {assets.scenario.get('title')}")
 
-    # 테스트용 월드 상태
+    # 테스트용 월드 상태 (stats Dict 기반)
     world = WorldState(
         turn=1,
         npcs={
-            "button_mother": NPCState(npc_id="button_mother", trust=3, fear=0, suspicion=4),
-            "button_father": NPCState(npc_id="button_father", trust=2, fear=0, suspicion=5),
-            "button_daughter": NPCState(npc_id="button_daughter", trust=3, fear=0, suspicion=3),
+            "button_mother": NPCState(
+                npc_id="button_mother",
+                stats={"trust": 3, "fear": 0, "suspicion": 4}
+            ),
+            "button_father": NPCState(
+                npc_id="button_father",
+                stats={"trust": 2, "fear": 0, "suspicion": 5}
+            ),
+            "button_daughter": NPCState(
+                npc_id="button_daughter",
+                stats={"trust": 3, "fear": 0, "suspicion": 3}
+            ),
         },
         inventory=[],
         vars={"humanity": 10, "total_suspicion": 0}

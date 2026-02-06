@@ -117,7 +117,7 @@ def test_tool_functions():
         AVAILABLE_TOOLS,
     )
     from app.loader import ScenarioLoader
-    from app.models import WorldState, NPCState
+    from app.schemas import WorldState, NPCState
 
     # 시나리오 로드
     print("\n[2.1] 시나리오 로드...")
@@ -220,7 +220,7 @@ def test_tool_turn_resolution_v2():
 
     from app.tools import tool_turn_resolution_v2
     from app.loader import ScenarioLoader
-    from app.models import WorldState, NPCState
+    from app.schemas import WorldState, NPCState
 
     # 시나리오 로드
     print("\n[3.1] 시나리오 로드...")

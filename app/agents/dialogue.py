@@ -25,9 +25,12 @@ MAX_PAIRS = 2
 # ── 대화 쌍 결정 ─────────────────────────────────────────────
 def determine_dialogue_pairs(
     npc_ids: list[str],
-    npc_extras_map: dict[str, dict[str, Any]],
+    npc_memory_map: dict[str, dict[str, Any]],
 ) -> list[tuple[str, str]]:
     """이번 턴에 대화할 NPC 쌍 결정.
+
+    Args:
+        npc_memory_map: {npc_id: NPCState.memory dict} 매핑 (이전의 npc_extras_map)
 
     현재는 단순 전략: 계획에 다른 NPC 언급이 있으면 우선, 없으면 랜덤 1쌍.
     """
@@ -39,12 +42,12 @@ def determine_dialogue_pairs(
     # 계획 기반 매칭
     for i, npc_a in enumerate(npc_ids):
         plan_text = (
-            npc_extras_map.get(npc_a, {})
+            npc_memory_map.get(npc_a, {})
             .get("current_plan", {})
             .get("plan_text", "")
         )
         for npc_b in npc_ids[i + 1:]:
-            if npc_b in plan_text or npc_a in npc_extras_map.get(npc_b, {}).get(
+            if npc_b in plan_text or npc_a in npc_memory_map.get(npc_b, {}).get(
                 "current_plan", {}
             ).get("plan_text", ""):
                 pairs.append((npc_a, npc_b))
@@ -63,7 +66,7 @@ def _generate_utterance(
     speaker_id: str,
     speaker_name: str,
     speaker_persona: dict[str, Any],
-    speaker_extras: dict[str, Any],
+    speaker_memory: dict[str, Any],
     speaker_trust: int,
     speaker_fear: int,
     speaker_suspicion: int,
@@ -72,15 +75,20 @@ def _generate_utterance(
     llm: GenerativeAgentsLLM,
     current_turn: int = 1,
 ) -> str:
+    """단일 발화 생성.
+
+    Args:
+        speaker_memory: NPCState.memory dict (이전의 speaker_extras)
+    """
     persona_str = format_persona(speaker_persona)
     emotion_str = format_emotion(speaker_trust, speaker_fear, speaker_suspicion)
 
     # 관련 기억 검색
     query = f"{listener_name}와(과) 대화"
-    memories = retrieve_memories(speaker_extras, query, llm, current_turn=current_turn, k=3)
+    memories = retrieve_memories(speaker_memory, query, llm, current_turn=current_turn, k=3)
     mem_ctx = "\n".join(f"- {m.description}" for m in memories) if memories else "(관련 기억 없음)"
 
-    plan_text = speaker_extras.get("current_plan", {}).get("plan_text", "")
+    plan_text = speaker_memory.get("current_plan", {}).get("plan_text", "")
 
     # 대화 이력
     history = "\n".join(f"{h['speaker']}: {h['text']}" for h in conversation_history[-4:])
@@ -108,14 +116,14 @@ def generate_dialogue(
     npc1_id: str,
     npc1_name: str,
     npc1_persona: dict[str, Any],
-    npc1_extras: dict[str, Any],
+    npc1_memory: dict[str, Any],
     npc1_trust: int,
     npc1_fear: int,
     npc1_suspicion: int,
     npc2_id: str,
     npc2_name: str,
     npc2_persona: dict[str, Any],
-    npc2_extras: dict[str, Any],
+    npc2_memory: dict[str, Any],
     npc2_trust: int,
     npc2_fear: int,
     npc2_suspicion: int,
@@ -123,13 +131,17 @@ def generate_dialogue(
     current_turn: int = 1,
     max_turns: int = MAX_DIALOGUE_TURNS,
 ) -> list[dict[str, str]]:
-    """두 NPC의 대화를 생성. [{speaker, text}, ...] 반환."""
+    """두 NPC의 대화를 생성. [{speaker, text}, ...] 반환.
+
+    Args:
+        npc1_memory, npc2_memory: NPCState.memory dict (이전의 npc1_extras, npc2_extras)
+    """
     conversation: list[dict[str, str]] = []
 
     for _ in range(max_turns):
         # NPC1 발화
         u1 = _generate_utterance(
-            npc1_id, npc1_name, npc1_persona, npc1_extras,
+            npc1_id, npc1_name, npc1_persona, npc1_memory,
             npc1_trust, npc1_fear, npc1_suspicion,
             npc2_name, conversation, llm, current_turn,
         )
@@ -137,7 +149,7 @@ def generate_dialogue(
 
         # NPC2 발화
         u2 = _generate_utterance(
-            npc2_id, npc2_name, npc2_persona, npc2_extras,
+            npc2_id, npc2_name, npc2_persona, npc2_memory,
             npc2_trust, npc2_fear, npc2_suspicion,
             npc1_name, conversation, llm, current_turn,
         )
@@ -155,12 +167,16 @@ def store_dialogue_memories(
     npc_name: str,
     other_name: str,
     conversation: list[dict[str, str]],
-    npc_extras: dict[str, Any],
+    npc_memory: dict[str, Any],
     persona_summary: str,
     llm: GenerativeAgentsLLM,
     current_turn: int = 1,
 ) -> None:
-    """대화 내용을 해당 NPC의 Memory Stream에 dialogue 기억으로 저장."""
+    """대화 내용을 해당 NPC의 Memory Stream에 dialogue 기억으로 저장.
+
+    Args:
+        npc_memory: NPCState.memory dict (이전의 npc_extras)
+    """
     # 상대 발화를 요약하여 저장
     other_utterances = [c["text"] for c in conversation if c["speaker"] == other_name]
     summary = f"{other_name}와(과) 대화함. 상대 발언: " + "; ".join(other_utterances[:3])
@@ -175,7 +191,7 @@ def store_dialogue_memories(
         current_turn=current_turn,
         memory_type=MEMORY_DIALOGUE,
     )
-    add_memory(npc_extras, entry)
+    add_memory(npc_memory, entry)
 
 
 # ── 대화 영향 분석 ───────────────────────────────────────────

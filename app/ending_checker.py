@@ -7,31 +7,30 @@ Ending Checker - scenario.yaml의 endings 조건 평가
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
-from app.models import WorldState
+from pydantic import BaseModel, Field
+
+from app.schemas import WorldState
 from app.loader import ScenarioAssets
 from app.condition_eval import EvalContext, get_condition_evaluator
 
 logger = logging.getLogger(__name__)
 
 
-@dataclass
-class EndingInfo:
+class EndingInfo(BaseModel):
     """도달한 엔딩 정보"""
     ending_id: str
     name: str
     epilogue_prompt: str
-    on_enter_events: List[Dict[str, Any]] = field(default_factory=list)
+    on_enter_events: List[Dict[str, Any]] = Field(default_factory=list)
 
 
-@dataclass
-class EndingCheckResult:
+class EndingCheckResult(BaseModel):
     """엔딩 체크 결과"""
-    reached: bool  # 엔딩 도달 여부
-    ending: Optional[EndingInfo] = None  # 도달한 엔딩 정보
-    triggered_delta: Dict[str, Any] = field(default_factory=dict)  # on_enter_events로 인한 상태 변화
+    reached: bool
+    ending: Optional[EndingInfo] = None
+    triggered_delta: Dict[str, Any] = Field(default_factory=dict)
 
 
 class EndingChecker:

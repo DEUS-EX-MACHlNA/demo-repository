@@ -33,19 +33,24 @@ MAX_QUESTIONS = 3
 
 
 # ── 트리거 판정 ──────────────────────────────────────────────
-def should_reflect(npc_extras: dict[str, Any]) -> bool:
-    acc = npc_extras.get("accumulated_importance", 0.0)
-    threshold = npc_extras.get("reflection_threshold", REFLECTION_THRESHOLD)
+def should_reflect(npc_memory: dict[str, Any]) -> bool:
+    """성찰이 필요한지 판정.
+
+    Args:
+        npc_memory: NPCState.memory dict (이전의 npc_extras)
+    """
+    acc = npc_memory.get("accumulated_importance", 0.0)
+    threshold = npc_memory.get("reflection_threshold", REFLECTION_THRESHOLD)
     return acc >= threshold
 
 
 # ── 후보 기억 수집 ───────────────────────────────────────────
 def _get_reflection_candidates(
-    npc_extras: dict[str, Any],
+    npc_memory: dict[str, Any],
     current_turn: int,
     window_turns: int = REFLECTION_WINDOW_TURNS,
 ) -> list[MemoryEntry]:
-    stream = get_memory_stream(npc_extras)
+    stream = get_memory_stream(npc_memory)
     cutoff = current_turn - window_turns
     candidates = [
         m for m in stream
@@ -109,14 +114,18 @@ def _generate_insights(
 # ── 성찰 수행 (통합) ─────────────────────────────────────────
 def perform_reflection(
     npc_id: str,
-    npc_extras: dict[str, Any],
+    npc_memory: dict[str, Any],
     npc_name: str,
     persona: dict[str, Any],
     llm: GenerativeAgentsLLM,
     current_turn: int,
 ) -> list[str]:
-    """성찰 전 과정 수행. 생성된 통찰 문자열 리스트 반환."""
-    candidates = _get_reflection_candidates(npc_extras, current_turn)
+    """성찰 전 과정 수행. 생성된 통찰 문자열 리스트 반환.
+
+    Args:
+        npc_memory: NPCState.memory dict (이전의 npc_extras)
+    """
+    candidates = _get_reflection_candidates(npc_memory, current_turn)
     if not candidates:
         logger.debug(f"reflection: npc={npc_id} — no candidates")
         return []
@@ -140,11 +149,11 @@ def perform_reflection(
             current_turn=current_turn,
             memory_type=MEMORY_REFLECTION,
         )
-        add_memory(npc_extras, entry)
+        add_memory(npc_memory, entry)
 
     # 누적 중요도 리셋
-    npc_extras["accumulated_importance"] = 0.0
-    npc_extras["last_reflection_turn"] = current_turn
+    npc_memory["accumulated_importance"] = 0.0
+    npc_memory["last_reflection_turn"] = current_turn
 
     logger.info(f"reflection: npc={npc_id} generated {len(insights)} insights")
     return insights

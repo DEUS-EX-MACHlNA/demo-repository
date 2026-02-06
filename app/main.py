@@ -19,7 +19,7 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
 from app.loader import ScenarioAssets, get_loader, load_scenario_assets
-from app.models import (
+from app.schemas import (
     NightResult,
     ToolResult,
     WorldState,

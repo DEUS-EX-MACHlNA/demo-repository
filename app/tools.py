@@ -14,7 +14,7 @@ import re
 from typing import Any, Dict, Optional
 
 from app.loader import ScenarioAssets
-from app.models import WorldState
+from app.schemas import WorldState
 from app.llm import UnifiedLLMEngine
 
 logger = logging.getLogger(__name__)
@@ -294,12 +294,12 @@ def interact(target: str, interact: str) -> Dict[str, Any]:
             "npc_id": target,
         }
 
-    # 2. 메모리 검색
+    # 2. 메모리 검색 (NPCState.memory 사용)
     retrieved_memories = []
     if npc_state:
         try:
             retrieved_memories = retrieve_memories(
-                npc_extras=npc_state.extras,
+                npc_memory=npc_state.memory,
                 query=interact,
                 llm=llm_engine,
                 current_turn=world_state.turn,
@@ -460,10 +460,12 @@ def _final_values_to_delta(
 
     LLM은 "trust: 5"처럼 최종값을 출력하는데,
     실제 delta 적용 시에는 현재값과의 차이를 계산해야 합니다.
+
+    NPCState.stats Dict 기반으로 수정됨.
     """
     result = {}
 
-    # npc_stats 처리
+    # npc_stats 처리 (stats Dict 기반)
     if "npc_stats" in raw_delta:
         result["npc_stats"] = {}
         for npc_id, stats in raw_delta["npc_stats"].items():
@@ -472,10 +474,13 @@ def _final_values_to_delta(
             npc_state = world_state.npcs[npc_id]
             result["npc_stats"][npc_id] = {}
             for stat, final_value in stats.items():
-                if hasattr(npc_state, stat):
-                    current = getattr(npc_state, stat)
+                # stats Dict에서 현재값 조회
+                current = npc_state.stats.get(stat, 0)
+                if isinstance(current, (int, float)) and isinstance(final_value, (int, float)):
                     # 최종값 - 현재값 = delta
                     result["npc_stats"][npc_id][stat] = final_value - current
+                else:
+                    result["npc_stats"][npc_id][stat] = final_value
 
     # vars 처리
     if "vars" in raw_delta:

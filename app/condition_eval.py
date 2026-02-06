@@ -8,24 +8,20 @@ from __future__ import annotations
 
 import logging
 import re
-from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Union
 
-from app.models import WorldState
+from pydantic import BaseModel, Field
+
+from app.schemas import WorldState
 
 logger = logging.getLogger(__name__)
 
 
-@dataclass
-class EvalContext:
+class EvalContext(BaseModel):
     """조건 평가에 필요한 컨텍스트"""
     world_state: WorldState
-    turn_limit: int = 50  # 시나리오의 turn_limit
-    extra_vars: Dict[str, Any] = None  # 추가 변수 (필요 시)
-
-    def __post_init__(self):
-        if self.extra_vars is None:
-            self.extra_vars = {}
+    turn_limit: int = 50
+    extra_vars: Dict[str, Any] = Field(default_factory=dict)
 
 
 class ConditionEvaluator:
@@ -97,10 +93,10 @@ class ConditionEvaluator:
             if not npc_state:
                 return False
 
-            # NPCState의 속성 또는 extras에서 조회
-            current = getattr(npc_state, stat, None)
+            # NPCState의 stats에서 조회
+            current = npc_state.stats.get(stat)
             if current is None:
-                current = npc_state.extras.get(stat, "")
+                current = npc_state.memory.get(stat, "")
             return str(current) == expected
 
         # 3. npc.{npc_id}.{stat} {op} {value} 패턴 (숫자 비교)
@@ -118,10 +114,8 @@ class ConditionEvaluator:
             if not npc_state:
                 return False
 
-            # NPCState의 속성 또는 extras에서 조회
-            current = getattr(npc_state, stat, None)
-            if current is None:
-                current = npc_state.extras.get(stat, 0)
+            # NPCState의 stats에서 조회
+            current = npc_state.stats.get(stat, 0)
             return self._compare(current, op, value)
 
         # 4. vars.{var_name} == true/false 패턴 (불리언)

@@ -11,21 +11,20 @@ from typing import Any, Dict
 from app.crud import game as crud_game
 from app.redis_client import get_redis_client
 
-# 정의하신 스키마들 import
-from app.schemas.llm_payload_input import (
-    LLMInputPayload, 
-    UserInputSchema, 
-    WorldInfoSchema, 
-    PlayerSchema as LLMPlayerSchema, 
-    ItemCollectionSchema,
-    LogicContextSchema, 
+# 스키마 import
+from app.schemas.llm_payload import (
+    LLMInputPayload,
+    UserInputSchema,
+    WorldInfoSchema,
+    LogicContextSchema,
     ModelConfigSchema,
 )
 from app.schemas.client_sync import GameClientSyncSchema
-from app.schemas.world_meta_data import WorldDataSchema
-from app.schemas.npc_info import NpcCollectionSchema
-from app.schemas.player_info import PlayerSchema
-from app.schemas.llm_response_schema import LLMResponseSchema
+from app.schemas.world_data import WorldDataSchema
+from app.schemas.npc import NpcCollectionSchema
+from app.schemas.player import PlayerSchema
+from app.schemas.item import ItemsCollectionSchema
+from app.schemas.llm_response import LLMResponseSchema
 
 # (가상의 LLM 호출 함수 import - 나중에 구현 필요)
 # from app.services.llm_client import call_llm_api 
@@ -77,7 +76,7 @@ class GameService:
         if "memo" in raw_player_data:
             del raw_player_data["memo"] # LLM에게 메모장은 보여주지 않음 (토큰 절약 & 역할 분리)
             
-        player_obj = LLMPlayerSchema(
+        player_obj = PlayerSchema(
             current_node=raw_player_data.get("current_node", "start"),
             inventory=raw_player_data.get("inventory", []),
             memory=raw_player_data.get("memory", {}) # 없으면 빈 dict
@@ -92,7 +91,7 @@ class GameService:
         # [Items] Snapshot 안에 있는 items 가져오기
         # snapshot 구조: { "items": { "items": [...] }, ... }
         items_source = snapshot.get("items", {"items": []})
-        items_obj = ItemCollectionSchema(**items_source)
+        items_obj = ItemsCollectionSchema(**items_source)
 
         # Arg 2 래퍼 생성
         arg2 = WorldInfoSchema(

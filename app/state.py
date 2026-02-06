@@ -4,6 +4,8 @@ World State Manager
 
 월드 상태의 조회, 델타 적용, 영속화를 담당합니다.
 현재는 in-memory 저장소로 구현되어 있으며, 추후 Redis/DB로 교체 가능합니다.
+
+NPCState가 stats Dict 기반으로 변경됨.
 """
 from __future__ import annotations
 
@@ -12,13 +14,13 @@ import logging
 from typing import Any, Optional
 
 from app.loader import ScenarioAssets
-from app.models import NPCState, StateDelta, WorldState
+from app.schemas import NPCState, StateDelta, WorldState
 
 logger = logging.getLogger(__name__)
 
 
 # ============================================================
-# In-Memory 저장소 (추후 Redis/DB로 교체 가능) -> 해야지해야지 당연히 해야지
+# In-Memory 저장소 (추후 Redis/DB로 교체 가능)
 # ============================================================
 class InMemoryStateStore:
     """인메모리 상태 저장소"""
@@ -91,17 +93,19 @@ class WorldStateManager:
     ) -> WorldState:
         """시나리오 에셋 기반으로 초기 상태 생성"""
 
-        # NPC 초기 상태 생성
+        # NPC 초기 상태 생성 (stats Dict 기반)
         npcs: dict[str, NPCState] = {}
         for npc_data in assets.npcs.get("npcs", []):
             npc_id = npc_data.get("npc_id")
             if npc_id:
-                stats = npc_data.get("stats", {})
+                # 시나리오에서 정의된 stats 사용
+                stats = npc_data.get("stats", {}).copy()
+                memory = npc_data.get("memory", {}).copy()
+
                 npcs[npc_id] = NPCState(
                     npc_id=npc_id,
-                    trust=stats.get("trust", 0),
-                    fear=stats.get("fear", 0),
-                    suspicion=stats.get("suspicion", 0),
+                    stats=stats,
+                    memory=memory,
                 )
 
         # 초기 인벤토리
@@ -178,7 +182,7 @@ class WorldStateManager:
         델타 규칙:
         - 숫자 스탯: +n 델타 지원, 0~100 클램프
         - bool/str: 덮어쓰기
-        - list: append 또는 remove (TODO: 더 정교한 규칙)
+        - list: append 또는 remove
         - unknown key: debug에 기록
 
         Args:
@@ -196,16 +200,16 @@ class WorldStateManager:
         # StateDelta 형식으로 변환
         stat_delta = StateDelta.from_dict(delta)
 
-        # 1. NPC 스탯 적용
+        # 1. NPC 스탯 적용 (stats Dict 기반)
         for npc_id, stat_changes in stat_delta.npc_stats.items():
             if npc_id in state.npcs:
                 npc = state.npcs[npc_id]
                 for stat_name, delta_value in stat_changes.items():
-                    old_value = getattr(npc, stat_name, None)
-                    if old_value is not None and isinstance(old_value, (int, float)):
+                    old_value = npc.stats.get(stat_name, 0)
+                    if isinstance(old_value, (int, float)) and isinstance(delta_value, (int, float)):
                         # 숫자면 델타 적용 + 클램프(0~100)
                         new_value = max(0, min(100, old_value + delta_value))
-                        setattr(npc, stat_name, new_value)
+                        npc.stats[stat_name] = new_value
                         debug_entries.append({
                             "type": "npc_stat",
                             "npc_id": npc_id,
@@ -215,12 +219,12 @@ class WorldStateManager:
                             "new": new_value
                         })
                     else:
-                        # extras에 저장
-                        npc.extras[stat_name] = delta_value
+                        # 숫자가 아니면 덮어쓰기
+                        npc.stats[stat_name] = delta_value
                         debug_entries.append({
-                            "type": "npc_extra",
+                            "type": "npc_stat_set",
                             "npc_id": npc_id,
-                            "key": stat_name,
+                            "stat": stat_name,
                             "value": delta_value
                         })
             else:
@@ -243,7 +247,7 @@ class WorldStateManager:
 
         # 3. 인벤토리 추가
         for item_id in stat_delta.inventory_add:
-            if item_id not in state.inventory:
+            if item_id and item_id not in state.inventory:
                 state.inventory.append(item_id)
                 debug_entries.append({
                     "type": "inventory_add",
@@ -291,7 +295,7 @@ class WorldStateManager:
 
                 state.vars[key] = new_value
             else:
-                # TODO: bool/str은 덮어쓰기
+                # bool/str은 덮어쓰기
                 state.vars[key] = value
                 new_value = value
 
@@ -313,6 +317,17 @@ class WorldStateManager:
                 "increment": stat_delta.turn_increment,
                 "new": state.turn
             })
+
+        # 8. 메모리 업데이트 적용
+        for npc_id, memory_data in stat_delta.memory_updates.items():
+            if npc_id in state.npcs:
+                npc = state.npcs[npc_id]
+                npc.memory.update(memory_data)
+                debug_entries.append({
+                    "type": "memory_update",
+                    "npc_id": npc_id,
+                    "data": memory_data
+                })
 
         # 디버그 로그 저장
         self._store.log_debug({
@@ -386,7 +401,7 @@ if __name__ == "__main__":
     scenarios = loader.list_scenarios()
 
     if not scenarios:
-        print("❌ 시나리오가 없습니다!")
+        print("시나리오가 없습니다!")
         exit(1)
 
     assets = loader.load(scenarios[0])
@@ -407,6 +422,10 @@ if __name__ == "__main__":
     print(f"    - vars: {state.vars}")
     print(f"    - flags: {state.flags}")
 
+    # NPC 스탯 확인 (Dict 기반)
+    for npc_id, npc in state.npcs.items():
+        print(f"    - {npc_id} stats: {npc.stats}")
+
     # 델타 적용 테스트
     print(f"\n[3] 델타 적용 테스트")
 
@@ -421,8 +440,8 @@ if __name__ == "__main__":
 
     print(f"\n[4] 적용 후 상태:")
     print(f"    - turn: {state_after.turn}")
-    print(f"    - family.trust: {state_after.npcs['family'].trust}")
-    print(f"    - family.fear: {state_after.npcs['family'].fear}")
+    if "family" in state_after.npcs:
+        print(f"    - family stats: {state_after.npcs['family'].stats}")
     print(f"    - vars: {state_after.vars}")
 
     # 클램프 테스트
@@ -432,8 +451,9 @@ if __name__ == "__main__":
         "vars": {"clue_count": -100}  # 음수
     }
     state_clamped = wsm.apply_delta(user_id, scenario_id, delta2, assets)
-    print(f"    - trust +200 → {state_clamped.npcs['family'].trust} (max 100)")
-    print(f"    - clue_count -100 → {state_clamped.vars['clue_count']} (min 0)")
+    if "family" in state_clamped.npcs:
+        print(f"    - trust +200 → {state_clamped.npcs['family'].stats.get('trust')} (max 100)")
+    print(f"    - clue_count -100 → {state_clamped.vars.get('clue_count')} (min 0)")
 
     # 영속화 테스트
     print(f"\n[6] 영속화 테스트")
@@ -448,5 +468,5 @@ if __name__ == "__main__":
     print(f"    리셋 후: turn={fresh_state.turn}, vars={fresh_state.vars}")
 
     print("\n" + "=" * 60)
-    print("✅ STATE MANAGER 테스트 완료")
+    print("STATE MANAGER 테스트 완료")
     print("=" * 60)

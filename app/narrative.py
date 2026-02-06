@@ -24,7 +24,7 @@ from dotenv import load_dotenv
 from app.loader import ScenarioAssets
 
 if TYPE_CHECKING:
-    from app.models import WorldState
+    from app.schemas import WorldState
 
 # 환경변수 로드
 load_dotenv()
@@ -879,13 +879,16 @@ class NarrativeLayer:
         inventory = world_state.inventory if world_state.inventory else []
         inventory_text = ", ".join(inventory) if inventory else "(없음)"
 
-        # NPC 상태 요약
+        # NPC 상태 요약 (stats Dict 기반)
         npc_summary = []
         for npc_id, npc_state in world_state.npcs.items():
             npc_data = assets.get_npc_by_id(npc_id)
             npc_name = npc_data.get("name", npc_id) if npc_data else npc_id
+            trust = npc_state.stats.get("trust", 0)
+            fear = npc_state.stats.get("fear", 0)
+            suspicion = npc_state.stats.get("suspicion", 0)
             npc_summary.append(
-                f"- {npc_name}: 신뢰 {npc_state.trust}, 두려움 {npc_state.fear}, 의심 {npc_state.suspicion}"
+                f"- {npc_name}: 신뢰 {trust}, 두려움 {fear}, 의심 {suspicion}"
             )
         npc_summary_text = "\n".join(npc_summary) if npc_summary else "(없음)"
 
@@ -944,7 +947,7 @@ def get_narrative_layer() -> NarrativeLayer:
 if __name__ == "__main__":
     from pathlib import Path
     from app.loader import ScenarioLoader
-    from app.models import WorldState, NPCState
+    from app.schemas import WorldState, NPCState
 
     print("=" * 60)
     print("NARRATIVE 컴포넌트 테스트")
@@ -968,7 +971,7 @@ if __name__ == "__main__":
     # 테스트용 월드 상태
     world_state = WorldState(
         turn=3,
-        npcs={"button_mother": NPCState(npc_id="button_mother", trust=3, fear=0, suspicion=2)},
+        npcs={"button_mother": NPCState(npc_id="button_mother", stats={"trust": 3, "fear": 0, "suspicion": 2})},
         vars={"humanity": 8, "total_suspicion": 2},
     )
 

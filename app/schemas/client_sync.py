@@ -1,7 +1,13 @@
+"""
+app/schemas/client_sync.py
+클라이언트 동기화 스키마
+"""
 from pydantic import BaseModel, Field
-from app.schemas.npc_info import NpcCollectionSchema
-from app.schemas.player_info import PlayerSchema
-from app.schemas.world_meta_data import WorldDataSchema
+
+from app.schemas.npc import NpcCollectionSchema
+from app.schemas.player import PlayerSchema
+from app.schemas.world_data import WorldDataSchema
+
 
 class GameClientSyncSchema(BaseModel):
     world: WorldDataSchema = Field(..., description="정적 세계 데이터 및 현재 월드 상태 (시나리오, 맵, 턴 등)")
