@@ -283,6 +283,43 @@ class GameService:
         # TODO : 실제 LLM 호출 로직으로 교체 필요
         llm_response_obj = cls.mock_llm_process(input_dict.dict())
 
+        # # 대충 이렇게 나왔다 칩시다
+        # mock_day_controller_result = {
+        #     "event_description": [
+        #         "플레이어가 단추 엄마에게 말을 걸었습니다.",
+        #         "단추 엄마는 경계하는 눈빛을 보였습니다."
+        #     ],
+        #     "state_delta": {
+        #         "npc_stats": {
+        #             "button_mother": {
+        #                 "trust": 2,
+        #                 "suspicion": 5
+        #             },
+        #             "button_daughter": {
+        #                 "fear": -1
+        #             }
+        #         },
+        #         "flags": {
+        #             "met_mother": True,
+        #             "heard_rumor": True
+        #         },
+        #         "inventory_add": [
+        #             "old_key",
+        #             "strange_note"
+        #         ],
+        #         "inventory_remove": [
+        #             "apple"
+        #         ],
+        #         "locks": {
+        #             "basement_door": False
+        #         },
+        #         "vars": {
+        #             "investigation_progress": 10
+        #         },
+        #         "turn_increment": 1
+        #     }
+        # }
+
 
         # 3. 수정된 내용을 적용
         cls.apply_llm_response_to_game(game, llm_response_obj)
@@ -290,7 +327,7 @@ class GameService:
         # 4. 저장 및 결과 반환
         crud_game.update_game(db, game)
         
-        return input_dict
+        return input_dict.dict()
 
     # 게임 id를 받아서 진행된 게임을 불러오기
     @staticmethod

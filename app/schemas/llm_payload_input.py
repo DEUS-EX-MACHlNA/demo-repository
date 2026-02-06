@@ -14,24 +14,8 @@ class UserInputSchema(BaseModel):
 # 2. [Arg 2] 월드 정보 (World Info) - 뼈대만 검증
 # =========================================================
 
-# --- Player ---
-class PlayerSchema(BaseModel):
-    current_node: str
-    inventory: List[str]  # ["item_id_1", "item_id_2"]
-    memory: Dict[str, Any] = Field(default_factory=dict) # 내부는 자유롭게
-
-# --- NPC ---
-class NpcSchema(BaseModel):
-    npc_id: str
-    name: str
-    role: str
-    stats: Dict[str, int]       # {"trust": 0, "fear": 0} - 키는 자유, 값은 숫자
-    persona: Dict[str, Any]    # 내부는 복잡하니까 dict로 퉁침
-    memory: Optional[dict]
-    # 필요한 경우 user_id 등 추가
-
-class NpcCollectionSchema(BaseModel):
-    npcs: List[NpcSchema]
+from app.schemas.npc_info import NpcCollectionSchema
+from app.schemas.player_info import PlayerSchema
 
 # --- Items ---
 class ItemSchema(BaseModel):

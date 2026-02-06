@@ -18,8 +18,8 @@ class LLMResponseSchema(BaseModel):
     items_to_remove: List[str] = []    # 예: ["old_receipt"]
     
     # 4. 메모/기억 업데이트
-    new_memo: Optional[str] = None     # 예: "범인은 왼손잡이다."
-    update_memory: Dict[str, Any] = {} # LLM 전용 기억 업데이트
+    # new_memo: Optional[str] = None     # 예: "범인은 왼손잡이다."
+    # update_memory: Dict[str, Any] = {} # LLM 전용 기억 업데이트
     
-    # 5. 스토리 이동 (선택)
-    next_node: Optional[str] = None    # 예: "act2_scene1" (None이면 현재 위치 유지)
+    # # 5. 스토리 이동 (선택)
+    # next_node: Optional[str] = None    # 예: "act2_scene1" (None이면 현재 위치 유지)
