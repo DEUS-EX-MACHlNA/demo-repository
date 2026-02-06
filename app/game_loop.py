@@ -32,8 +32,8 @@ from typing import Any, Optional
 from app.loader import ScenarioLoader, ScenarioAssets
 from app.models import WorldState, NPCState, NightResult
 from app.narrative import get_narrative_layer, NarrativeLayer
-from app.agents.generative_night import get_night_controller, NightController
-from app.tools import tool_turn_resolution
+from app.night_controller import get_night_controller, NightController
+from app.day_controller import get_day_controller, DayController
 
 logger = logging.getLogger(__name__)
 
@@ -153,12 +153,9 @@ class GameLoop:
         if self._is_night:
             logger.warning("[GameLoop] day_turn called during night phase")
 
-        # Tool 실행
-        from app.llm import LLM_Engine
-        if llm is None:
-            llm = LLM_Engine()
-
-        result = tool_turn_resolution(user_input, self._world, self._assets, llm)
+        # DayController로 턴 실행
+        day_controller = get_day_controller()
+        result = day_controller.execute_turn(user_input, self._world, self._assets)
 
         # 상태 적용
         self._apply_state_delta(result.state_delta)
@@ -188,11 +185,10 @@ class GameLoop:
         밤 페이즈 실행
 
         1. NightController.run() → night_conversation, night_delta 생성
-        2. NarrativeLayer.render_night() → night_description (몬스터 소설화)
-        3. NightResult 반환
+        2. 상태 적용
 
         Returns:
-            NightResult: 완성된 밤 결과 (night_description 포함)
+            NightResult: 밤 결과 (night_conversation 포함)
         """
         self._is_night = True
         logger.info(f"[GameLoop] night_phase start: turn={self._world.turn}")
@@ -200,18 +196,7 @@ class GameLoop:
         # Step 1: NightController 실행 (대화 + 스탯 변화)
         night_result = self._night_controller.run(self._world, self._assets)
 
-        # Step 2: NarrativeLayer로 몬스터 소설화
-        night_description = self._narrative_layer.render_night(
-            world_snapshot=self._world,
-            assets=self._assets,
-            night_conversation=night_result.night_conversation,
-            extras=night_result.extras,
-        )
-
-        # Step 3: night_description 채우기
-        night_result.night_description = night_description
-
-        # Step 4: 상태 적용
+        # Step 2: 상태 적용
         self._apply_night_delta(night_result.night_delta)
 
         # 로그 기록
@@ -360,11 +345,12 @@ if __name__ == "__main__":
     night_result = loop.night_phase()
 
     print(f"\n[밤 결과]")
-    print(f"  대화 라운드: {len(night_result.night_conversation)}")
+    print(f"  발화 수: {len(night_result.night_conversation)}")
     print(f"  night_delta: {night_result.night_delta}")
-    print(f"\n[몬스터 소설화된 나레이션]")
+    print(f"\n[그룹 대화]")
     print("-" * 40)
-    print(night_result.night_description)
+    for utt in night_result.night_conversation:
+        print(f"  {utt['speaker']}: {utt['text']}")
     print("-" * 40)
 
     # 엔딩 체크

@@ -1,0 +1,67 @@
+# # 프로젝트: 인형의 집 - 구역 기반 시나리오 노드 (Map)
+
+nodes:
+  - node_id: player_room
+    summary: "주인공의 방. 화려하지만 창문이 봉쇄된 감옥. 자아 성찰과 하루의 시작/끝이 이루어지는 곳."
+    location_logic:
+      - "인간성이 30 이하일 경우, 거울 속 모습이 기괴하게 변하는 연출 강제 발생"
+      - "밤(Night) 페이즈에만 '일기장 기록'을 통해 인간성 소폭 회복 가능"
+    connected_nodes:
+      - { next_node_id: hallway, condition: "true" }
+      - { next_node_id: basement, condition: "has_item(mothers_key) and intent == 'escape'" } # 개구멍 통로
+
+  - node_id: hallway
+    summary: "저택의 중심 복도. 수많은 가족사진이 감시하듯 플레이어를 따라다님."
+    location_logic:
+      - "이동 시 소음 발생 확률 존재. 윤활유 미사용 시 의심도(suspicion) 증가 판정"
+      - "괘종시계를 조사하여 현재 남은 턴(Turn) 확인 가능"
+    connected_nodes:
+      - { next_node_id: player_room, condition: "true" }
+      - { next_node_id: living_room, condition: "true" }
+      - { next_node_id: kitchen, condition: "true" }
+      - { next_node_id: brother_room, condition: "true" }
+      - { next_node_id: basement, condition: "vars.day >= 2" } # 2일차부터 계단 해금
+
+  - node_id: living_room
+    summary: "거실. 새아빠가 신문을 보며 상주하는 구역. 벽난로가 타오르는 완벽한 쇼룸."
+    location_logic:
+      - "새아빠가 있을 때 '조사' 행동 시 높은 확률로 제지당함"
+      - "벽난로에 기름병 사용 시 'chaos' 상태 트리거 발생 가능"
+    connected_nodes:
+      - { next_node_id: hallway, condition: "true" }
+      - { next_node_id: garden, condition: "system.time == 'day'" } # 낮에만 정원 출입 가능
+
+  - node_id: kitchen
+    summary: "주방 및 식당. 새엄마의 영역. 달콤한 냄새와 비린 소독약 냄새가 공존함."
+    location_logic:
+      - "식사 이벤트 시 '따뜻한 홍차' 강제 섭취 트리거 존재"
+      - "잠긴 찬장 조사 시 'Lockpicking' 미니게임 혹은 높은 의심도 감수 필요"
+    connected_nodes:
+      - { next_node_id: hallway, condition: "true" }
+
+  - node_id: brother_room
+    summary: "동생 루카스의 놀이방. 장난감들이 기괴하게 배치된 글리치 공간."
+    location_logic:
+      - "동생과 대화 시 '인형의 집 모형'을 통해 저택의 숨겨진 아이템 위치 힌트 획득 가능"
+      - "벽장 안에 숨기(Hide) 액션 시 감시자의 추적을 1턴간 회피 가능"
+    connected_nodes:
+      - { next_node_id: hallway, condition: "true" }
+
+  - node_id: basement
+    summary: "지하실 및 할머니의 방. 폐기된 부품과 수술대가 놓인 저택의 가장 깊은 진실."
+    location_logic:
+      - "진입 시 공포(Fear) 수치 자동 증가"
+      - "할머니에게 '생기'를 주는 상호작용은 여기서만 가능"
+      - "수술대 조사 시 자신의 시리얼 넘버 발견 가능(locks 해금)"
+    connected_nodes:
+      - { next_node_id: hallway, condition: "true" }
+      - { next_node_id: player_room, condition: "intent == 'crawl'" }
+
+  - node_id: garden
+    summary: "뒷마당과 정원. 짙은 안개로 가로막힌 외부 세계와의 경계."
+    location_logic:
+      - "바론(강아지)과 상호작용하여 땅속 아이템 발굴 가능"
+      - "담벼락 조사 시 '안개 너머의 진실' 정보 해금 가능"
+    connected_nodes:
+      - { next_node_id: living_room, condition: "true" }
+      - { next_node_id: END, condition: "has_item(mothers_key) and intent == 'escape_final'" }

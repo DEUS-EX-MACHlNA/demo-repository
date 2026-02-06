@@ -1,13 +1,42 @@
 """
 app/loader.py
 YAML 파일 로더 및 ScenarioAssets 데이터클래스
+
+
+손 볼 부분
+yaml 파일을 로드해서 Json으로 변하는 부분은 오캐이, 하지만 추후에 새로운 yaml규칙을 추가하거나 수정을 할 경우 어찌 할 것이냐?
+새로운 시나리오가 있다 -> 기존대로 파싱한다 -> DB에 새로운 시나리오를 추가한다
+기존 시나리오를 업데이트 할 것이다 -> 기존대로 파싱한다 -> DB에 업데이트 된 내용을 반영한다
+-> 그럼 실제 배포시에는 어떻게 할 것이냐?
+1. 최초로 서버(모델)이 실행되면 여기서 리스트를 다 읽는다
+2. 그 리스트를 루프문을 돌려서 DB에 merge형식으로 저장시킨다
+3. 만약에 디버깅/테스트용으로 출력을 하게 된다면 안에서 루프 돌면서 쓰면 되겠지
+
+
+
+1. 그래서 리스트는 어차피 DB에서 리스트화가 되어 있으니
+2. 이렇게 로드를 했으니, 이걸 DB에 넣는거, 그리고 새로운 게임을 시작할때, scenario_id를 받아서 games에 넣는 파일을 생성
+
+
+
 """
 from __future__ import annotations
+import sys
+from pathlib import Path
+
+# 프로젝트 루트를 sys.path에 추가 (직접 실행시 필요)
+project_root = Path(__file__).parent.parent
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
 
 import logging
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Any, Optional
+from datetime import datetime
+from sqlalchemy.orm import Session
+
+from app.db_models.scenario import Scenario
+from app.database import get_db, SessionLocal
 
 import yaml
 
@@ -272,39 +301,8 @@ def clear_assets_cache(scenario_id: Optional[str] = None):
     else:
         _assets_cache.clear()
 
-
-# ============================================================
-# 독립 실행 테스트
-# ============================================================
-if __name__ == "__main__":
-    import json
-    from pathlib import Path
-
-    print("=" * 60)
-    print("LOADER 컴포넌트 테스트")
-    print("=" * 60)
-
-    # 시나리오 경로 설정
-    base_path = Path(__file__).parent.parent / "scenarios"
-    print(f"\n[1] 시나리오 기본 경로: {base_path}")
-
-    # 로더 생성
-    loader = ScenarioLoader(base_path)
-
-    # 사용 가능한 시나리오 목록
-    scenarios = loader.list_scenarios()
-    print(f"\n[2] 사용 가능한 시나리오: {scenarios}")
-
-    if not scenarios:
-        print("❌ 시나리오가 없습니다!")
-        exit(1)
-
-    # 첫 번째 시나리오 로드
-    scenario_id = scenarios[0]
-    print(f"\n[3] 시나리오 로드: {scenario_id}")
-
-    assets = loader.load(scenario_id)
-
+# 로드된 json 출력
+def print_assets(assets: ScenarioAssets):
     print(f"\n[4] 로드 결과:")
     print(f"    - scenario_id: {assets.scenario_id}")
     print(f"    - title: {assets.scenario.get('title', 'N/A')}")
@@ -336,3 +334,126 @@ if __name__ == "__main__":
     print("\n" + "=" * 60)
     print("✅ LOADER 테스트 완료")
     print("=" * 60)
+
+    # assets 데이터를 json타입으로 출력
+    # print("\n[10] ScenarioAssets JSON 출력:")
+    # print(json.dumps(assets.__dict__, indent=4, ensure_ascii=False))
+
+# JSON을 DB에 저장
+# sqlalchemy ORM을 사용하여 저장
+def save_assets_to_db(assets: ScenarioAssets):
+    """
+    ScenarioAssets를 DB의 scenarios 테이블에 저장
+    
+    Args:
+        assets: 파싱된 ScenarioAssets 데이터
+    """
+    
+    db = SessionLocal()
+    try:
+        # 1. base_system_prompt 추출
+        #    scenario 블록 내 title, genre, tone, pov, turn_limit, global_rules, memory_rules만 추출
+        base_system_prompt = {}
+        scenario_data = assets.scenario
+        
+        fields_to_extract = ["title", "genre", "tone", "pov", "turn_limit", "global_rules", "memory_rules"]
+        for field in fields_to_extract:
+            if field in scenario_data:
+                base_system_prompt[field] = scenario_data[field]
+        
+        # 2. default_world_data 생성
+        #    assets의 모든 데이터 중 base_system_prompt에 포함된 항목은 제외
+        default_world_data = {
+            "scenario": assets.scenario,
+            "story_graph": assets.story_graph,
+            "npcs": assets.npcs,
+            "items": assets.items,
+            "locks": assets.locks if hasattr(assets, 'locks') else {},
+        }
+
+        # 추가 필드 (있으면 추가) - memory_rules는 base_system_prompt으로 이동하므로 제외
+        for key, value in assets.__dict__.items():
+            if key not in ["scenario_id", "scenario", "story_graph", "npcs", "items", "memory_rules", "locks"]:
+                default_world_data[key] = value
+
+        # 2.1 memory_rules를 base_system_prompt으로 옮김 (assets.memory_rules 우선)
+        if assets.memory_rules:
+            base_system_prompt["memory_rules"] = assets.memory_rules
+        # 만약 scenario 블록에 중복된 memory_rules가 있다면 scenario의 값을 우선 사용
+        if "memory_rules" in scenario_data and scenario_data.get("memory_rules"):
+            base_system_prompt["memory_rules"] = scenario_data.get("memory_rules")
+        
+        # 3. 현재 시간
+        now = datetime.utcnow()
+        
+        # 4. 기존 데이터 확인 (title으로 검색)
+        existing_scenario = db.query(Scenario).filter(Scenario.title == assets.scenario_id).first()
+        
+        if existing_scenario:
+            # 기존 데이터 수정
+            existing_scenario.base_system_prompt = base_system_prompt
+            existing_scenario.default_world_data = default_world_data
+            existing_scenario.update_time = now
+            db.merge(existing_scenario)
+            logger.info(f"✓ Scenario updated: {assets.scenario_id}")
+        else:
+            # 새로운 데이터 생성 (id는 autoincrement)
+            new_scenario = Scenario(
+                title=assets.scenario_id,
+                base_system_prompt=base_system_prompt,
+                default_world_data=default_world_data,
+                create_time=now,
+                update_time=now,
+            )
+            db.add(new_scenario)
+            logger.info(f"✓ Scenario created: {assets.scenario_id}")
+        
+        db.commit()
+        logger.info(f"✓ Database saved: {assets.scenario_id}")
+        
+    except Exception as e:
+        db.rollback()
+        logger.error(f"✗ Failed to save scenario {assets.scenario_id}: {str(e)}")
+        raise
+    finally:
+        db.close()
+
+
+
+
+
+
+# ============================================================
+# 독립 실행 테스트
+# ============================================================
+if __name__ == "__main__":
+    import json
+    from pathlib import Path
+
+    print("=" * 60)
+    print("LOADER 컴포넌트 테스트")
+    print("=" * 60)
+
+    # 시나리오 경로 설정
+    base_path = Path(__file__).parent.parent / "scenarios"
+    print(f"\n[1] 시나리오 기본 경로: {base_path}")
+
+    # 로더 생성
+    loader = ScenarioLoader(base_path)
+
+    # 사용 가능한 시나리오 목록
+    scenarios = loader.list_scenarios()
+    print(f"\n[2] 사용 가능한 시나리오: {scenarios}")
+
+    if not scenarios:
+        print("❌ 시나리오가 없습니다!")
+        exit(1)
+
+    # 루프를 돌면서 시나리오를 로드
+    for scenario_id in scenarios:
+        print(f"\n[3] 시나리오 로드: {scenario_id}")
+        assets = loader.load(scenario_id)
+        print_assets(assets)
+        save_assets_to_db(assets)
+        # 여기서 DB에 저장하는 로직 추가 
+    

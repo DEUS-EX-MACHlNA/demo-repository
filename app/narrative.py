@@ -57,91 +57,63 @@ class NarrativeLayer:
         self._lm_tokenizer = None
         self._lm_loaded = False
 
-    def render(
+    def render_day(
         self,
-        text_fragment: str | list[str],
-        night_dialogue: str,
-        world_before: WorldState,
-        world_after: WorldState,
-        assets: ScenarioAssets
+        event_description: list[str],
+        state_delta: dict[str, Any],
+        world_state: "WorldState",
+        assets: ScenarioAssets,
     ) -> str:
         """
-        최종 dialogue 조립
+        낮 페이즈 최종 dialogue 조립
 
         Args:
-            text_fragment: tool 실행 결과 텍스트 (str 또는 event_description list)
-            night_dialogue: night_comes 결과 텍스트
-            world_before: 액션 전 월드 상태
-            world_after: 액션 후 월드 상태
+            event_description: tool 실행 결과 텍스트 리스트
+            state_delta: 변화된 상태 델타 (변한 값만 포함)
+            world_state: 현재 월드 상태 (턴 정보 등)
             assets: 시나리오 에셋
-            is_observed: 밤 변화 관찰 여부 (True일 때만 night_description 렌더링)
-            lm: LM 기반 생성 사용 여부 (None이면 CUDA 사용 가능 시 자동 활성화)
 
         Returns:
             str: 최종 사용자 출력 텍스트
         """
-        logger.info("Rendering narrative")
+        logger.info("Rendering narrative (day phase)")
 
-        parts = []
+        # CUDA 사용 가능 여부로 LM 사용 결정
+        import torch
+        use_lm = self._enable_lm and torch.cuda.is_available()
 
-        # 1. 메인 텍스트 (tool 결과 - event_description list 지원)
-        if text_fragment:
-            if isinstance(text_fragment, list):
-                event_text = "\n".join(s for s in text_fragment if s)
-            else:
-                event_text = str(text_fragment)
-            if event_text:
-                parts.append(event_text)
-
-        # 2. 상태 변화 묘사 (선택적)
-        state_change_text = self._describe_state_changes(world_before, world_after, assets)
-        if state_change_text:
-            parts.append(state_change_text)
-
-        # 3. 밤 내러티브
-        if night_dialogue:
-            parts.append("")  # 빈 줄로 구분
-            parts.append("---")
-            parts.append(night_dialogue)
-
-        # 4. 턴 정보 (선택적)
-        turn_info = self._get_turn_info(world_after, assets)
-        if turn_info:
-            parts.append("")
-            parts.append(turn_info)
-
-        # LM 기반 생성
         if use_lm:
-            dialogue = self._render_with_lm(event_description, night_description, assets, is_observed)
+            dialogue = self._render_with_lm_day(event_description, state_delta, world_state, assets)
         else:
-            # 단순 텍스트 조합 (테스트용)
-            dialogue = self._render_simple(event_description, night_description, is_observed)
+            dialogue = self._render_simple_day(event_description, state_delta, world_state, assets)
 
         # 렌더 로그 기록
         self._render_log.append({
+            "phase": "day",
             "event_count": len(event_description),
-            "night_count": len(night_description),
+            "state_delta_keys": list(state_delta.keys()),
             "dialogue_length": len(dialogue),
-            "is_observed": is_observed,
             "used_lm": use_lm,
         })
 
         logger.debug(f"Rendered dialogue: {len(dialogue)} chars")
         return dialogue
 
-    def _render_simple(
+    def _render_simple_day(
         self,
         event_description: list[str],
-        night_description: list[str],
-        is_observed: bool
+        state_delta: dict[str, Any],
+        world_state: "WorldState",
+        assets: ScenarioAssets,
     ) -> str:
         """
-        단순 텍스트 조합 (테스트용)
+        낮 페이즈 단순 텍스트 조합 (non-CUDA 환경용)
 
         Args:
             event_description: 이벤트 설명 리스트
-            night_description: 밤 변화 리스트
-            is_observed: 밤 변화 관찰 여부
+            state_delta: 변화된 상태 델타
+            world_state: 현재 월드 상태
+            assets: 시나리오 에셋
 
         Returns:
             str: 조합된 텍스트
@@ -152,13 +124,115 @@ class NarrativeLayer:
         if event_description:
             parts.extend(event_description)
 
-        # 2. 밤 내러티브 (관찰된 경우에만)
-        if is_observed and night_description:
-            parts.append("")  # 빈 줄로 구분
-            parts.append("---")
-            parts.extend(night_description)
+        # 2. 상태 변화 묘사
+        state_change_text = self._describe_state_delta(state_delta, assets)
+        if state_change_text:
+            parts.append("")
+            parts.append(state_change_text)
+
+        # 3. 턴 정보
+        turn_info = self._get_turn_info(world_state, assets)
+        if turn_info:
+            parts.append("")
+            parts.append(turn_info)
 
         return "\n".join(parts)
+
+    def _describe_state_delta(
+        self,
+        state_delta: dict[str, Any],
+        assets: ScenarioAssets,
+    ) -> str:
+        """
+        state_delta를 파싱하여 상태 변화 묘사 텍스트 생성
+
+        Args:
+            state_delta: 변화된 상태 델타
+            assets: 시나리오 에셋
+
+        Returns:
+            str: 상태 변화 묘사 텍스트
+        """
+        if not state_delta:
+            return ""
+
+        changes = []
+
+        # NPC 상태 변화
+        if "npcs" in state_delta:
+            for npc_id, npc_delta in state_delta["npcs"].items():
+                npc_info = assets.get_npc_by_id(npc_id)
+                npc_name = npc_info.get("name", npc_id) if npc_info else npc_id
+
+                if "trust" in npc_delta:
+                    delta = npc_delta["trust"]
+                    if delta > 0:
+                        changes.append(f"{npc_name}의 신뢰가 상승했다. (+{delta})")
+                    elif delta < 0:
+                        changes.append(f"{npc_name}의 신뢰가 하락했다. ({delta})")
+
+                if "suspicion" in npc_delta:
+                    delta = npc_delta["suspicion"]
+                    if delta > 0:
+                        changes.append(f"{npc_name}이(가) 의심을 품기 시작했다. (+{delta})")
+                    elif delta < 0:
+                        changes.append(f"{npc_name}의 의심이 줄어들었다. ({delta})")
+
+                if "fear" in npc_delta:
+                    delta = npc_delta["fear"]
+                    if delta > 0:
+                        changes.append(f"{npc_name}이(가) 두려움을 느낀다. (+{delta})")
+                    elif delta < 0:
+                        changes.append(f"{npc_name}의 두려움이 줄어들었다. ({delta})")
+
+        # 변수 변화
+        if "vars" in state_delta:
+            for var_name, delta in state_delta["vars"].items():
+                if var_name == "humanity":
+                    if delta > 0:
+                        changes.append(f"인간성이 회복되었다. (+{delta})")
+                    elif delta < 0:
+                        changes.append(f"인간성이 감소했다. ({delta})")
+                elif var_name == "total_suspicion":
+                    if delta > 0:
+                        changes.append(f"전체 의심도가 상승했다. (+{delta})")
+
+        # 인벤토리 변화
+        if "inventory_add" in state_delta:
+            for item in state_delta["inventory_add"]:
+                changes.append(f"'{item}'을(를) 획득했다.")
+
+        if "inventory_remove" in state_delta:
+            for item in state_delta["inventory_remove"]:
+                changes.append(f"'{item}'을(를) 잃었다.")
+
+        return "\n".join(changes)
+
+    def _get_turn_info(
+        self,
+        world_state: "WorldState",
+        assets: ScenarioAssets,
+    ) -> str:
+        """
+        턴 정보 텍스트 생성
+
+        Args:
+            world_state: 현재 월드 상태
+            assets: 시나리오 에셋
+
+        Returns:
+            str: 턴 정보 텍스트
+        """
+        turn = world_state.turn
+        turn_limit = assets.get_turn_limit()
+        remaining = turn_limit - turn
+
+        if remaining <= 2:
+            return f"[턴 {turn}/{turn_limit}] 시간이 얼마 남지 않았다..."
+        elif remaining <= 5:
+            return f"[턴 {turn}/{turn_limit}]"
+        else:
+            return ""
 
     def _load_lm_model(self):
         """LM 모델 로드 (lazy loading)"""
@@ -209,21 +283,21 @@ class NarrativeLayer:
             self._lm_model = None
             self._lm_tokenizer = None
 
-    def _render_with_lm(
+    def _render_with_lm_day(
         self,
         event_description: list[str],
-        night_description: list[str],
+        state_delta: dict[str, Any],
+        world_state: "WorldState",
         assets: ScenarioAssets,
-        is_observed: bool
     ) -> str:
         """
-        LM을 사용한 소설 형식 텍스트 생성
+        낮 페이즈 LM을 사용한 소설 형식 텍스트 생성
 
         Args:
             event_description: 이벤트 설명 리스트
-            night_description: 밤 변화 리스트
+            state_delta: 변화된 상태 델타
+            world_state: 현재 월드 상태
             assets: 시나리오 에셋
-            is_observed: 밤 변화 관찰 여부
 
         Returns:
             str: LM이 생성한 소설 형식 텍스트
@@ -234,19 +308,22 @@ class NarrativeLayer:
         # 모델 로드 실패 시 단순 조합으로 폴백
         if self._lm_model is None or self._lm_tokenizer is None:
             logger.warning("LM model not available, falling back to simple composition")
-            return self._render_simple(event_description, night_description, is_observed)
+            return self._render_simple_day(event_description, state_delta, world_state, assets)
 
         # 시나리오 정보 추출
         scenario_title = assets.scenario.get("title", "")
         scenario_genre = assets.scenario.get("genre", "")
+        scenario_tone = assets.scenario.get("tone", "")
 
         # 프롬프트 구성
-        prompt = self._build_narrative_prompt(
+        prompt = self._build_day_narrative_prompt(
             event_description,
-            night_description,
+            state_delta,
+            world_state,
             scenario_title,
             scenario_genre,
-            is_observed
+            scenario_tone,
+            assets,
         )
 
         # LM 생성
@@ -258,25 +335,29 @@ class NarrativeLayer:
             logger.error(f"LM generation failed: {e}")
             logger.error(f"Traceback:\n{traceback.format_exc()}")
             logger.warning("Falling back to simple composition")
-            return self._render_simple(event_description, night_description, is_observed)
+            return self._render_simple_day(event_description, state_delta, world_state, assets)
 
-    def _build_narrative_prompt(
+    def _build_day_narrative_prompt(
         self,
         event_description: list[str],
-        night_description: list[str],
+        state_delta: dict[str, Any],
+        world_state: "WorldState",
         scenario_title: str,
         scenario_genre: str,
-        is_observed: bool
+        scenario_tone: str,
+        assets: ScenarioAssets,
     ) -> str:
         """
-        내러티브 생성 프롬프트 구성
+        낮 페이즈 내러티브 생성 프롬프트 구성
 
         Args:
             event_description: 이벤트 설명 리스트
-            night_description: 밤 변화 리스트
+            state_delta: 변화된 상태 델타
+            world_state: 현재 월드 상태
             scenario_title: 시나리오 제목
             scenario_genre: 시나리오 장르
-            is_observed: 밤 변화 관찰 여부
+            scenario_tone: 시나리오 톤
+            assets: 시나리오 에셋
 
         Returns:
             str: 구성된 프롬프트
@@ -284,32 +365,31 @@ class NarrativeLayer:
         # 이벤트 텍스트 구성
         events_text = "\n".join(f"- {event}" for event in event_description) if event_description else "(없음)"
 
-        # 밤 변화는 관찰된 경우에만 프롬프트에 포함
-        if is_observed and night_description:
-            night_text = "\n".join(f"- {night}" for night in night_description)
-            night_section = f"""
-[밤의 변화]
-{night_text}
-"""
-        else:
-            night_section = ""
+        # 상태 변화 텍스트 구성
+        state_change_text = self._describe_state_delta(state_delta, assets)
+        state_section = f"\n[상태 변화]\n{state_change_text}" if state_change_text else ""
+
+        # 턴 정보
+        turn = world_state.turn
+        turn_limit = assets.get_turn_limit()
 
         prompt = f"""당신은 {scenario_genre} 장르의 소설 작가입니다.
 다음 이벤트들을 바탕으로 몰입감 있고 분위기 있는 텍스트를 작성하세요.
 
 [시나리오: {scenario_title}]
+[톤: {scenario_tone}]
+[현재 턴: {turn}/{turn_limit}]
 
 [이벤트]
-{events_text}{night_section}
+{events_text}{state_section}
+
 [지시사항]
 - 위 정보를 바탕으로 자연스럽고 분위기 있는 서술을 작성하세요.
 - 장르의 특성을 살려 긴장감과 몰입감을 높이세요.
-- 간결하면서도 임팩트 있게 작성하세요."""
+- 간결하면서도 임팩트 있게 작성하세요 (3~5문장).
+- 상태 변화가 있다면 자연스럽게 녹여내세요.
 
-        if is_observed:
-            prompt += "\n- 이벤트와 밤의 변화를 자연스럽게 연결하세요."
-
-        prompt += "\n\n[출력]"
+[출력]"""
 
         return prompt
 
@@ -375,426 +455,473 @@ class NarrativeLayer:
     # ============================================================
     def render_night(
         self,
-        world_snapshot: "WorldState",
+        world_state: "WorldState",
         assets: ScenarioAssets,
-        night_conversation: list[list[dict[str, str]]],
-        extras: dict[str, Any] | None = None,
+        night_conversation: list[dict[str, str]],
     ) -> str:
         """
         밤 페이즈 나레이션 생성 (GameLoop에서 호출)
 
-        night_conversation을 받아서 몬스터 소설 형식으로 변환합니다.
+        night_conversation(몬스터들의 대화)을 소설 형식으로 변환합니다.
+        대화를 인용하고 서술을 붙여 몬스터 소설을 만듭니다.
 
         Args:
-            world_snapshot: 현재 월드 상태
+            world_state: 현재 월드 상태
             assets: 시나리오 에셋
-            night_conversation: 대화 리스트 [[{speaker, text}, ...], ...]
-            extras: NightResult.extras (night_events, conversation_pairs 등)
+            night_conversation: 대화 리스트 [{speaker, text}, ...]
 
         Returns:
             str: 몬스터 소설화된 밤 나레이션 텍스트
         """
-        extras = extras or {}
-        night_events = extras.get("night_events", [])
-        conversation_pairs = extras.get("conversation_pairs", [])
+        logger.info("Rendering narrative (night phase)")
 
-        turn = world_snapshot.turn
-        turn_limit = assets.get_turn_limit()
-        tone = assets.scenario.get("tone", "")
-        scenario_id = assets.scenario.get("id", "")
+        # CUDA 사용 가능 여부로 LM 사용 결정
+        import torch
+        use_lm = self._enable_lm and torch.cuda.is_available()
 
-        # 만진 오브젝트 추출
-        touched_objects = self._extract_touched_objects(world_snapshot)
-
-        # 시나리오별 특수 처리
-        if scenario_id == "coraline":
-            return self._render_night_coraline(
-                world_snapshot, assets, night_conversation, conversation_pairs,
-                night_events, touched_objects, turn, turn_limit, tone
-            )
-
-        # 일반 밤 나레이션
-        return self._render_night_generic(
-            world_snapshot, assets, night_conversation, conversation_pairs,
-            night_events, turn, turn_limit, tone
-        )
-
-    def _extract_touched_objects(self, world_snapshot: "WorldState") -> list[str]:
-        """월드 상태에서 만진 오브젝트 목록 추출"""
-        touched = []
-        vars_ = world_snapshot.vars
-
-        # 오브젝트 매핑 (코렐라인 등)
-        object_map = {
-            "knife_touched": "부엌칼",
-            "match_touched": "성냥",
-            "needle_touched": "바늘",
-            "mirror_touched": "거울",
-            "button_box_touched": "단추 상자",
-            "photo_touched": "가족사진",
-        }
-
-        for var_name, object_name in object_map.items():
-            if vars_.get(var_name):
-                touched.append(object_name)
-
-        return touched
-
-    def _render_night_generic(
-        self,
-        world_snapshot: "WorldState",
-        assets: ScenarioAssets,
-        night_conversation: list[list[dict[str, str]]],
-        conversation_pairs: list[tuple[str, str]],
-        night_events: list[str],
-        turn: int,
-        turn_limit: int,
-        tone: str,
-    ) -> str:
-        """일반 시나리오용 밤 나레이션"""
-        event_text = "\n".join(f"- {e}" for e in night_events) if night_events else "- 특별한 사건 없음"
-
-        # 대화 요약
-        conv_summaries = []
-        for i, conv in enumerate(night_conversation):
-            if conv and i < len(conversation_pairs):
-                npc1_id, npc2_id = conversation_pairs[i]
-                n1 = (assets.get_npc_by_id(npc1_id) or {}).get("name", npc1_id)
-                n2 = (assets.get_npc_by_id(npc2_id) or {}).get("name", npc2_id)
-                last_line = conv[-1]["text"][:40] if conv else ""
-                conv_summaries.append(f"{n1}과(와) {n2}: \"{last_line}...\"")
-
-        conv_text = "\n".join(f"- {s}" for s in conv_summaries) if conv_summaries else "- 대화 없음"
-
-        # LM 사용 가능하면 LM 생성
-        if self._enable_lm:
-            self._load_lm_model()
-            if self._lm_model is not None:
-                prompt = (
-                    f"다음은 턴 {turn}/{turn_limit}의 밤에 일어난 일들입니다.\n\n"
-                    f"사건:\n{event_text}\n\n"
-                    f"대화:\n{conv_text}\n\n"
-                    f"시나리오 톤: {tone}\n\n"
-                    "이 내용을 바탕으로 분위기 있고 간결한 밤 내러티브를 2~3문장으로 작성하세요.\n\n"
-                    "내러티브:"
-                )
-                try:
-                    narrative = self._generate_with_lm(prompt, max_new_tokens=150)
-                    if narrative:
-                        return narrative.strip()
-                except Exception as e:
-                    logger.warning(f"LM generation failed: {e}")
-
-        # Fallback
-        return self._fallback_night_narrative(turn, turn_limit, night_events)
-
-    def _render_night_coraline(
-        self,
-        world_snapshot: "WorldState",
-        assets: ScenarioAssets,
-        night_conversation: list[list[dict[str, str]]],
-        conversation_pairs: list[tuple[str, str]],
-        night_events: list[str],
-        touched_objects: list[str] | None,
-        turn: int,
-        turn_limit: int,
-        tone: str,
-    ) -> str:
-        """코렐라인 시나리오 전용 밤 나레이션 - 몬스터 소설화"""
-        humanity = world_snapshot.vars.get("humanity", 10)
-        total_suspicion = world_snapshot.vars.get("total_suspicion", 0)
-
-        # 만진 오브젝트 텍스트
-        touched_text = ", ".join(touched_objects) if touched_objects else "아무것도"
-
-        # 대화에서 가장 섬뜩한 부분 추출 (소설화 재료)
-        dialogue_highlights = self._extract_monstrous_dialogue(
-            night_conversation, conversation_pairs, assets
-        )
-
-        # LM 사용
-        if self._enable_lm:
-            self._load_lm_model()
-            if self._lm_model is not None:
-                prompt = self._build_coraline_monster_prompt(
-                    turn, turn_limit, humanity, total_suspicion,
-                    touched_text, dialogue_highlights, night_events,
-                    night_conversation, conversation_pairs, assets
-                )
-                try:
-                    narrative = self._generate_with_lm(prompt, max_new_tokens=300)
-                    if narrative:
-                        return narrative.strip()
-                except Exception as e:
-                    logger.warning(f"Coraline night LM generation failed: {e}")
-
-        # Fallback - 코렐라인 전용 몬스터 나레이션
-        return self._fallback_coraline_monster(
-            turn, humanity, total_suspicion, touched_objects,
-            night_events, night_conversation, assets
-        )
-
-    def _extract_monstrous_dialogue(
-        self,
-        night_conversation: list[list[dict[str, str]]],
-        conversation_pairs: list[tuple[str, str]],
-        assets: ScenarioAssets,
-    ) -> list[str]:
-        """대화에서 가장 섬뜩한 부분 추출"""
-        highlights = []
-
-        # 몬스터 키워드 - 이 단어가 포함된 대사 우선 추출
-        monster_keywords = [
-            "처벌", "눈", "단추", "꿰매", "자르", "태우", "가둬", "혼나",
-            "도망", "배신", "사랑", "가족", "영원히", "규칙", "봤다",
-            "키키키", "후후후", "히히", "감히", "어디",
-        ]
-
-        for conv in night_conversation:
-            for utt in conv:
-                text = utt.get("text", "")
-                speaker = utt.get("speaker", "")
-
-                # 몬스터 키워드가 있으면 추가
-                if any(kw in text for kw in monster_keywords):
-                    highlights.append(f"{speaker}: \"{text}\"")
-                # 마지막 2개 대사는 무조건 추가
-                elif conv.index(utt) >= len(conv) - 2:
-                    highlights.append(f"{speaker}: \"{text}\"")
-
-        return highlights[:6]  # 최대 6개
-
-    def _build_coraline_monster_prompt(
-        self,
-        turn: int,
-        turn_limit: int,
-        humanity: int,
-        total_suspicion: int,
-        touched_text: str,
-        dialogue_highlights: list[str],
-        night_events: list[str],
-        night_conversation: list[list[dict[str, str]]],
-        conversation_pairs: list[tuple[str, str]],
-        assets: ScenarioAssets,
-    ) -> str:
-        """코렐라인 밤 나레이션 - 몬스터 소설화 프롬프트"""
-        dialogue_text = "\n".join(dialogue_highlights) if dialogue_highlights else "(대화 없음)"
-        events_text = "\n".join(f"- {e}" for e in night_events) if night_events else "(없음)"
-
-        # 위험도에 따른 몬스터 톤
-        if total_suspicion >= 12:
-            tone_guide = """
-[몬스터 톤: 최고 위험]
-- 괴물의 본성이 드러남. 인간의 탈을 벗은 것들.
-- "사랑"이라는 단어가 나올 때마다 공포가 배가됨
-- 구체적인 신체 훼손 암시 (눈 꿰매기, 손가락 자르기)
-- 플레이어를 향한 직접적 위협
-- 탈출은 이제 불가능하다는 절망감"""
-        elif total_suspicion >= 8:
-            tone_guide = """
-[몬스터 톤: 고위험]
-- 상냥함 뒤에 숨은 광기가 새어나옴
-- "걱정" "보호"라는 단어가 감금과 구속을 의미
-- 가족끼리 서로 비난하며 히스테리
-- 처벌 논의가 구체적으로"""
+        if use_lm:
+            dialogue = self._render_with_lm_night(world_state, assets, night_conversation)
         else:
-            tone_guide = """
-[몬스터 톤: 불안]
-- 표면은 평온, 내면은 썩어있음
-- 달콤한 말투지만 눈빛은 차갑게
-- 은밀한 감시, 속삭임
-- "아직은" 참고 있다는 느낌"""
+            dialogue = self._render_simple_night(world_state, assets, night_conversation)
 
-        return f"""당신은 공포 소설 작가입니다. 아래 대화를 바탕으로 "몬스터가 된 인형 가족"의 밤을 묘사하세요.
+        # 렌더 로그 기록
+        self._render_log.append({
+            "phase": "night",
+            "conversation_count": len(night_conversation),
+            "dialogue_length": len(dialogue),
+            "used_lm": use_lm,
+        })
 
-[세계관: 코렐라인 - 단추 눈의 저택]
-플레이어는 단추 눈 인형 가족에게 갇힌 인간. 가족은 플레이어의 눈에 단추를 꿰매 영원히 함께하길 원한다.
-이들의 "사랑"은 인간의 그것이 아니다. 소유욕, 집착, 광기다.
+        logger.debug(f"Rendered night dialogue: {len(dialogue)} chars")
+        return dialogue
 
-[현재 상황]
-- 턴: {turn}/{turn_limit} (끝이 가까워질수록 더 위험)
-- 플레이어 인간성: {humanity}/10 (0이 되면 인형이 됨)
-- 가족 의심도: {total_suspicion} (높을수록 즉각적 위협)
-- 오늘 만진 오브젝트: {touched_text}
+    def _render_simple_night(
+        self,
+        world_state: "WorldState",
+        assets: ScenarioAssets,
+        night_conversation: list[dict[str, str]],
+    ) -> str:
+        """
+        밤 페이즈 단순 소설화 (non-CUDA 환경용)
 
-[가족 회의에서 오간 대화]
-{dialogue_text}
+        대화를 인용하고 간단한 서술을 붙여 소설 형식으로 변환합니다.
 
-[밤의 사건들]
-{events_text}
+        Args:
+            world_state: 현재 월드 상태
+            assets: 시나리오 에셋
+            night_conversation: 대화 리스트 [{speaker, text}, ...]
+
+        Returns:
+            str: 소설화된 텍스트
+        """
+        if not night_conversation:
+            return "밤이 고요히 지나간다."
+
+        parts = []
+        parts.append("---")
+        parts.append("")
+
+        # 도입부
+        humanity = world_state.vars.get("humanity", 10)
+        total_suspicion = world_state.vars.get("total_suspicion", 0)
+
+        if total_suspicion >= 10:
+            parts.append("어둠 속에서 단추 눈들이 번뜩인다. 가족 회의가 시작되었다.")
+        elif total_suspicion >= 5:
+            parts.append("밤이 깊어지고, 인형 가족이 모여앉는다.")
+        else:
+            parts.append("조용한 밤. 어딘가에서 속삭임이 들려온다.")
+
+        parts.append("")
+
+        # 대화를 소설 형식으로 변환
+        prev_speaker = None
+        for utt in night_conversation:
+            speaker_id = utt.get("speaker", "")
+            text = utt.get("text", "")
+
+            # NPC 이름 가져오기
+            npc_info = assets.get_npc_by_id(speaker_id)
+            speaker_name = npc_info.get("name", speaker_id) if npc_info else speaker_id
+
+            # 화자 전환 시 서술 추가
+            if speaker_id != prev_speaker:
+                if prev_speaker is not None:
+                    parts.append("")
+                parts.append(f"{speaker_name}이(가) 말했다.")
+
+            # 대사 인용
+            parts.append(f'"{text}"')
+            prev_speaker = speaker_id
+
+        parts.append("")
+
+        # 마무리
+        if humanity <= 3:
+            parts.append("대화가 끝났다. 그들의 시선이 네 방을 향한다.")
+        elif total_suspicion >= 8:
+            parts.append("불길한 침묵이 내려앉는다.")
+        else:
+            parts.append("대화가 끝나고, 다시 정적이 찾아온다.")
+
+        return "\n".join(parts)
+
+    def _render_with_lm_night(
+        self,
+        world_state: "WorldState",
+        assets: ScenarioAssets,
+        night_conversation: list[dict[str, str]],
+    ) -> str:
+        """
+        밤 페이즈 LM을 사용한 소설 형식 텍스트 생성
+
+        Args:
+            world_state: 현재 월드 상태
+            assets: 시나리오 에셋
+            night_conversation: 대화 리스트 [{speaker, text}, ...]
+
+        Returns:
+            str: LM이 생성한 소설 형식 텍스트
+        """
+        # 모델 로드 (첫 호출 시에만)
+        self._load_lm_model()
+
+        # 모델 로드 실패 시 단순 조합으로 폴백
+        if self._lm_model is None or self._lm_tokenizer is None:
+            logger.warning("LM model not available, falling back to simple composition")
+            return self._render_simple_night(world_state, assets, night_conversation)
+
+        # 프롬프트 구성
+        prompt = self._build_night_narrative_prompt(world_state, assets, night_conversation)
+
+        # LM 생성
+        try:
+            generated_text = self._generate_with_lm(prompt, max_new_tokens=400)
+            return "---\n\n" + generated_text
+        except Exception as e:
+            import traceback
+            logger.error(f"LM generation failed: {e}")
+            logger.error(f"Traceback:\n{traceback.format_exc()}")
+            logger.warning("Falling back to simple composition")
+            return self._render_simple_night(world_state, assets, night_conversation)
+
+    def _build_night_narrative_prompt(
+        self,
+        world_state: "WorldState",
+        assets: ScenarioAssets,
+        night_conversation: list[dict[str, str]],
+    ) -> str:
+        """
+        밤 페이즈 내러티브 생성 프롬프트 구성
+
+        Args:
+            world_state: 현재 월드 상태
+            assets: 시나리오 에셋
+            night_conversation: 대화 리스트
+
+        Returns:
+            str: 구성된 프롬프트
+        """
+        # 시나리오 정보
+        scenario_title = assets.scenario.get("title", "")
+        scenario_tone = assets.scenario.get("tone", "")
+
+        # 상태 정보
+        turn = world_state.turn
+        turn_limit = assets.get_turn_limit()
+        humanity = world_state.vars.get("humanity", 10)
+        total_suspicion = world_state.vars.get("total_suspicion", 0)
+
+        # 대화 텍스트 구성
+        conversation_lines = []
+        for utt in night_conversation:
+            speaker_id = utt.get("speaker", "")
+            text = utt.get("text", "")
+            npc_info = assets.get_npc_by_id(speaker_id)
+            speaker_name = npc_info.get("name", speaker_id) if npc_info else speaker_id
+            conversation_lines.append(f"{speaker_name}: \"{text}\"")
+
+        conversation_text = "\n".join(conversation_lines) if conversation_lines else "(대화 없음)"
+
+        # 위험도에 따른 톤 가이드
+        if total_suspicion >= 10:
+            tone_guide = "극도의 긴장감. 몬스터들의 본성이 드러남. 플레이어를 향한 직접적 위협."
+        elif total_suspicion >= 5:
+            tone_guide = "불안한 분위기. 상냥함 뒤에 숨은 광기가 새어나옴."
+        else:
+            tone_guide = "표면적 평온. 하지만 뭔가 이상한 느낌이 감돈다."
+
+        prompt = f"""당신은 공포 소설 작가입니다. 아래 대화를 바탕으로 몬스터 가족의 밤을 소설 형식으로 묘사하세요.
+
+[시나리오: {scenario_title}]
+[톤: {scenario_tone}]
+[현재 턴: {turn}/{turn_limit}]
+[플레이어 인간성: {humanity}/10]
+[가족 의심도: {total_suspicion}]
+
+[분위기 가이드]
 {tone_guide}
 
+[몬스터 가족의 대화]
+{conversation_text}
+
 [작성 지침]
-1. 3~5문장의 몬스터 소설 스타일로 작성
-2. 대화 내용을 직접 인용하며 그 섬뜩함을 강조
-3. 플레이어의 심리 묘사 (공포, 절망, 불안)
-4. 감각적 묘사 (어둠, 발소리, 속삭임, 단추 눈의 번뜩임)
-5. "사랑"이라는 단어가 나올 때 그것이 얼마나 뒤틀린 것인지 암시
-6. 인형들의 비인간적 움직임/표정 묘사
+1. 위 대화를 소설 형식으로 변환하세요.
+2. 대화를 직접 인용하면서 서술을 붙이세요.
+3. 화자의 표정, 목소리 톤, 분위기를 묘사하세요.
+4. 공포와 긴장감을 살리세요.
+5. 5~8문장으로 간결하게 작성하세요.
 
-[출력 - 몬스터 소설]"""
+[출력]"""
 
-    def _fallback_night_narrative(
-        self, turn: int, turn_limit: int, events: list[str]
-    ) -> str:
-        """일반 시나리오 fallback 나레이션"""
-        if turn <= 3:
-            base = random.choice([
-                "하루가 저문다. 아직 시간은 있다.",
-                "첫날 밤. 조각들이 서서히 모이기 시작한다.",
-            ])
-        elif turn <= 7:
-            base = random.choice([
-                "밤이 깊어간다. 진실과 조작의 경계가 흐려진다.",
-                "시간이 흐른다. 당신의 질문들이 세계를 바꾸고 있다.",
-            ])
-        else:
-            base = random.choice([
-                "시간이 얼마 남지 않았다. 결론을 향해 달려가고 있다.",
-                "밤공기가 무겁다. 끝이 가까워지고 있다.",
-            ])
+        return prompt
 
-        if events:
-            base += " " + events[0]
-        return base
 
-    def _fallback_coraline_monster(
+# ============================================================
+    # 엔딩 나레이션 전용 메서드 (EndingChecker에서 호출)
+    # ============================================================
+    def render_ending(
         self,
-        turn: int,
-        humanity: int,
-        total_suspicion: int,
-        touched_objects: list[str] | None,
-        events: list[str],
-        night_conversation: list[list[dict[str, str]]],
+        ending_info: dict,
+        world_state: "WorldState",
         assets: ScenarioAssets,
     ) -> str:
-        """코렐라인 시나리오 fallback - 몬스터 소설화"""
-        parts = []
+        """
+        엔딩 나레이션 생성
 
-        # 대화에서 인용할 대사 추출
-        quote = ""
-        for conv in night_conversation:
-            for utt in conv:
-                text = utt.get("text", "")
-                if any(kw in text for kw in ["처벌", "눈", "단추", "사랑", "가족"]):
-                    quote = f"'{text[:30]}...'"
-                    break
-            if quote:
-                break
+        EndingChecker에서 엔딩이 판별되면 호출되어 epilogue_prompt를 기반으로
+        드라마틱한 엔딩 텍스트를 생성합니다.
 
-        # 위험도별 몬스터 나레이션
-        if total_suspicion >= 12:
-            opening = random.choice([
-                "문 앞에서 발소리가 멈췄다. 숨이 막힌다. 잠금장치가 딸깍거린다.",
-                "어둠 속에서 단추 눈 세 쌍이 반짝인다. 그들이 들어온다. 천천히. 확신에 차서.",
-                "엄마의 미소가 갈라진다. 입꼬리가 귀까지 찢어지듯 올라간다. '사랑하는 아가야...'",
-            ])
-            if quote:
-                parts.append(f"{opening} {quote} 그 말이 머릿속에서 맴돈다.")
-            else:
-                parts.append(f"{opening} '이제 진짜 가족이 될 시간이야.'")
+        Args:
+            ending_info: 엔딩 정보 dict {ending_id, name, epilogue_prompt, on_enter_events}
+            world_state: 현재 월드 상태
+            assets: 시나리오 에셋
 
-            parts.append(random.choice([
-                "바늘이 촛불에 반짝인다. 실이 끝없이 풀려나온다. 검은 단추 두 개가 손바닥에서 데굴데굴 구른다.",
-                "아빠가 천천히 가위를 든다. 찰칵. 찰칵. 공기를 자르는 소리가 심장을 찌른다.",
-                "딸이 동요를 부른다. '영원히~ 영원히~ 같이 놀자~' 그 목소리에서 인간의 온기는 느껴지지 않는다.",
-            ]))
+        Returns:
+            str: 엔딩 나레이션 텍스트
+        """
+        logger.info(f"Rendering ending: {ending_info.get('ending_id', 'unknown')}")
 
-        elif total_suspicion >= 8:
-            opening = random.choice([
-                "가족 회의가 끝났지만, 그들의 눈빛이 아직도 등 뒤에서 느껴진다.",
-                "벽 너머에서 속삭임이 새어나온다. 네 이름이 들린다. 계속, 계속.",
-                "'처벌'이라는 단어가 귓가에 맴돈다. 그들은 이미 결정을 내렸다.",
-            ])
-            if quote:
-                parts.append(f"{opening} {quote}")
-            else:
-                parts.append(opening)
+        # CUDA 사용 가능 여부로 LM 사용 결정
+        import torch
+        use_lm = self._enable_lm and torch.cuda.is_available()
 
-            parts.append(random.choice([
-                "문 아래로 그림자가 지나간다. 왔다갔다. 밤새 그럴 것이다. 감시당하고 있다.",
-                "엄마의 목소리가 달콤하게 속삭인다. '우리가 얼마나 걱정하는데...' 그 다정함이 끔찍하다.",
-                "'규칙을 어기면...' 아빠의 저음이 울린다. 뒷말은 없었지만, 다 알고 있다.",
-            ]))
-
+        if use_lm:
+            dialogue = self._render_with_lm_ending(ending_info, world_state, assets)
         else:
-            opening = random.choice([
-                "밤이 깊다. 이 집의 밤은 유독 고요하다. 너무 고요해서 무섭다.",
-                "그들이 나를 보는 눈빛. 단추인데 왜 이렇게 많은 것이 담겨 있을까.",
-                "엄마가 저녁을 차려줬다. 정성스럽게. 사랑스럽게. 그래서 더 무섭다.",
-            ])
-            parts.append(opening)
+            dialogue = self._render_simple_ending(ending_info, world_state, assets)
 
-            parts.append(random.choice([
-                "언젠가 이 집의 진짜 모습을 보게 될 것이다. 아니, 이미 보고 있는지도 모른다.",
-                "'우리 아가~' 엄마의 목소리가 꿀처럼 달콤하다. 파리를 유혹하는 끈끈이처럼.",
-                "딸이 인형놀이를 하자고 한다. 인형의 눈에는 단추가 달려있다. 내 미래가 보인다.",
-            ]))
+        # 렌더 로그 기록
+        self._render_log.append({
+            "phase": "ending",
+            "ending_id": ending_info.get("ending_id", ""),
+            "ending_name": ending_info.get("name", ""),
+            "dialogue_length": len(dialogue),
+            "used_lm": use_lm,
+        })
 
-        # 인간성에 따른 추가
-        if humanity <= 3:
-            parts.append("거울을 봤다. 내 눈이... 검게 변하고 있는 것 같다. 착각이었으면 좋겠다.")
-        elif humanity <= 6:
-            parts.append("손끝이 차갑다. 피부가 굳어가는 느낌. 점점 이 집에 동화되어 간다.")
+        logger.debug(f"Rendered ending dialogue: {len(dialogue)} chars")
+        return dialogue
 
-        # 만진 오브젝트
-        if touched_objects:
-            if "부엌칼" in touched_objects:
-                parts.append("숨겨둔 칼이 차갑게 심장을 누른다. 아직 기회는 있다. 있어야 한다.")
-            if "성냥" in touched_objects:
-                parts.append("호주머니의 성냥갑이 바스락거린다. 불. 인형의 유일한 천적.")
-            if "거울" in touched_objects:
-                parts.append("거울에서 본 내 모습이 자꾸 떠오른다. 아직... 아직 인간이야.")
-
-        return " ".join(parts)
-
-    def _fallback_coraline_night(
+    def _render_simple_ending(
         self,
-        turn: int,
-        humanity: int,
-        total_suspicion: int,
-        touched_objects: list[str] | None,
-        events: list[str],
+        ending_info: dict,
+        world_state: "WorldState",
+        assets: ScenarioAssets,
     ) -> str:
-        """코렐라인 시나리오 fallback 나레이션 (구버전 호환)"""
+        """
+        엔딩 단순 텍스트 조합 (non-CUDA 환경용)
+
+        Args:
+            ending_info: 엔딩 정보 dict
+            world_state: 현재 월드 상태
+            assets: 시나리오 에셋
+
+        Returns:
+            str: 조합된 엔딩 텍스트
+        """
+        ending_id = ending_info.get("ending_id", "")
+        ending_name = ending_info.get("name", "")
+        epilogue_prompt = ending_info.get("epilogue_prompt", "")
+
         parts = []
+        parts.append("=" * 40)
+        parts.append("")
+        parts.append(f"【 {ending_name} 】")
+        parts.append("")
 
-        # 기본 분위기
-        if total_suspicion >= 12:
-            parts.append(random.choice([
-                "가족 회의가 끝났다. 그들의 눈에서 결의가 느껴진다. 오늘 밤... 뭔가 일어날 것 같다.",
-                "단추 눈들이 어둠 속에서 번뜩인다. '더 이상 기다릴 필요 없어.' 아빠의 저음이 울린다.",
-                "엄마의 미소가 굳어있다. '사랑하는 아가야... 이제 진짜 가족이 될 시간이야.'",
-            ]))
-        elif total_suspicion >= 8:
-            parts.append(random.choice([
-                "가족 회의의 대화가 계속 귓가에 맴돈다. '처벌'이라는 단어가 머리에서 떠나지 않는다.",
-                "그들이 뭔가를 계획하고 있다. 밤새 발소리가 문 앞을 서성인다.",
-                "'나쁜 아이는 혼나야 해~' 딸의 동요가 어둠 속에서 들려온다.",
-            ]))
+        # epilogue_prompt가 있으면 그것을 기반으로 간단한 엔딩 텍스트 구성
+        if epilogue_prompt:
+            # epilogue_prompt의 핵심 키워드를 활용한 간단한 서술
+            parts.append(f"...{epilogue_prompt}...")
         else:
-            parts.append(random.choice([
-                "밤이 깊어간다. 벽 너머에서 속삭이는 소리가 들린다.",
-                "가족의 시선이 느껴진다. 잠이 오지 않는다.",
-                "어딘가에서 바느질 소리가 들린다. 찰칵... 찰칵...",
-            ]))
+            # 기본 엔딩 텍스트
+            parts.append("이야기가 끝났다.")
 
-        # 인간성에 따른 추가
-        if humanity <= 3:
-            parts.append("거울을 봤을 때... 네 눈이 단추처럼 보였던 건 착각이었을까?")
-        elif humanity <= 6:
-            parts.append("손끝이 차갑다. 점점 이 집에 익숙해지는 것 같다.")
+        parts.append("")
 
-        # 만진 오브젝트에 따른 추가
-        if touched_objects:
-            if "부엌칼" in touched_objects or "칼" in touched_objects:
-                parts.append("숨겨둔 칼이 차갑게 느껴진다. 그들이 알고 있을까?")
-            if "성냥" in touched_objects or "불" in touched_objects:
-                parts.append("성냥갑이 호주머니에서 바스락거린다. 불... 인형의 천적.")
-            if "거울" in touched_objects:
-                parts.append("거울에서 본 네 모습이 자꾸 떠오른다. 아직... 인간이야.")
+        # 상태 기반 추가 묘사
+        humanity = world_state.vars.get("humanity", 10)
+        turn = world_state.turn
+        turn_limit = assets.get_turn_limit()
 
-        return " ".join(parts)
+        if "escape" in ending_id.lower() or "탈출" in ending_name:
+            parts.append("저택의 문이 열리고, 당신은 마침내 바깥 세계를 마주한다.")
+        elif "death" in ending_id.lower() or "죽음" in ending_name:
+            parts.append("어둠이 모든 것을 삼킨다.")
+        elif "puppet" in ending_id.lower() or "인형" in ending_name:
+            parts.append("더 이상 당신은 당신이 아니다.")
+        elif "truth" in ending_id.lower() or "진실" in ending_name:
+            parts.append("진실은 때때로 자유보다 무겁다.")
+        else:
+            if humanity <= 3:
+                parts.append("결국, 당신은 이 집의 일부가 되었다.")
+            elif turn >= turn_limit:
+                parts.append("시간이 다했다. 모든 것이 끝났다.")
+            else:
+                parts.append("이것이 당신이 선택한 결말이다.")
+
+        parts.append("")
+        parts.append(f"[{turn}/{turn_limit}턴 - 인간성 {humanity}]")
+        parts.append("")
+        parts.append("=" * 40)
+
+        return "\n".join(parts)
+
+    def _render_with_lm_ending(
+        self,
+        ending_info: dict,
+        world_state: "WorldState",
+        assets: ScenarioAssets,
+    ) -> str:
+        """
+        엔딩 LM을 사용한 소설 형식 텍스트 생성
+
+        Args:
+            ending_info: 엔딩 정보 dict
+            world_state: 현재 월드 상태
+            assets: 시나리오 에셋
+
+        Returns:
+            str: LM이 생성한 엔딩 텍스트
+        """
+        # 모델 로드 (첫 호출 시에만)
+        self._load_lm_model()
+
+        # 모델 로드 실패 시 단순 조합으로 폴백
+        if self._lm_model is None or self._lm_tokenizer is None:
+            logger.warning("LM model not available, falling back to simple composition")
+            return self._render_simple_ending(ending_info, world_state, assets)
+
+        # 프롬프트 구성
+        prompt = self._build_ending_narrative_prompt(ending_info, world_state, assets)
+
+        # LM 생성 (엔딩은 좀 더 긴 텍스트 허용)
+        try:
+            ending_name = ending_info.get("name", "")
+            generated_text = self._generate_with_lm(prompt, max_new_tokens=600)
+
+            # 엔딩 형식으로 포맷팅
+            formatted = [
+                "=" * 40,
+                "",
+                f"【 {ending_name} 】",
+                "",
+                generated_text,
+                "",
+                "=" * 40,
+            ]
+            return "\n".join(formatted)
+
+        except Exception as e:
+            import traceback
+            logger.error(f"LM generation failed: {e}")
+            logger.error(f"Traceback:\n{traceback.format_exc()}")
+            logger.warning("Falling back to simple composition")
+            return self._render_simple_ending(ending_info, world_state, assets)
+
+    def _build_ending_narrative_prompt(
+        self,
+        ending_info: dict,
+        world_state: "WorldState",
+        assets: ScenarioAssets,
+    ) -> str:
+        """
+        엔딩 내러티브 생성 프롬프트 구성
+
+        epilogue_prompt를 활용하여 드라마틱한 엔딩 텍스트를 생성하도록 유도합니다.
+
+        Args:
+            ending_info: 엔딩 정보 dict
+            world_state: 현재 월드 상태
+            assets: 시나리오 에셋
+
+        Returns:
+            str: 구성된 프롬프트
+        """
+        # 엔딩 정보
+        ending_id = ending_info.get("ending_id", "")
+        ending_name = ending_info.get("name", "")
+        epilogue_prompt = ending_info.get("epilogue_prompt", "")
+
+        # 시나리오 정보
+        scenario_title = assets.scenario.get("title", "")
+        scenario_genre = assets.scenario.get("genre", "")
+        scenario_tone = assets.scenario.get("tone", "")
+
+        # 상태 정보
+        turn = world_state.turn
+        turn_limit = assets.get_turn_limit()
+        humanity = world_state.vars.get("humanity", 10)
+        total_suspicion = world_state.vars.get("total_suspicion", 0)
+
+        # 인벤토리 정보
+        inventory = world_state.inventory if world_state.inventory else []
+        inventory_text = ", ".join(inventory) if inventory else "(없음)"
+
+        # NPC 상태 요약
+        npc_summary = []
+        for npc_id, npc_state in world_state.npcs.items():
+            npc_data = assets.get_npc_by_id(npc_id)
+            npc_name = npc_data.get("name", npc_id) if npc_data else npc_id
+            npc_summary.append(
+                f"- {npc_name}: 신뢰 {npc_state.trust}, 두려움 {npc_state.fear}, 의심 {npc_state.suspicion}"
+            )
+        npc_summary_text = "\n".join(npc_summary) if npc_summary else "(없음)"
+
+        prompt = f"""당신은 {scenario_genre} 장르의 베테랑 소설 작가입니다.
+지금까지의 이야기가 클라이맥스에 도달했습니다. 아래 정보를 바탕으로 감동적이고 몰입감 있는 엔딩을 작성하세요.
+
+[시나리오: {scenario_title}]
+[장르: {scenario_genre}]
+[톤: {scenario_tone}]
+
+[도달한 엔딩]
+- 엔딩 ID: {ending_id}
+- 엔딩 이름: {ending_name}
+
+[플레이어 최종 상태]
+- 경과 턴: {turn}/{turn_limit}
+- 인간성: {humanity}/10
+- 총 의심도: {total_suspicion}
+- 소지품: {inventory_text}
+
+[NPC 최종 상태]
+{npc_summary_text}
+
+[엔딩 지시문 (중요!)]
+{epilogue_prompt}
+
+[작성 지침]
+1. 위의 '엔딩 지시문'을 충실히 반영하여 엔딩을 작성하세요.
+2. 플레이어의 여정을 마무리하는 감정적 클라이맥스를 만드세요.
+3. 시나리오의 장르와 톤에 맞는 문체를 사용하세요.
+4. 5~10문장으로 간결하면서도 여운이 남는 엔딩을 작성하세요.
+5. 열린 결말이나 암시적 표현을 활용해도 좋습니다.
+
+[출력]"""
+
+        return prompt
 
 
 # ============================================================
@@ -817,6 +944,7 @@ def get_narrative_layer() -> NarrativeLayer:
 if __name__ == "__main__":
     from pathlib import Path
     from app.loader import ScenarioLoader
+    from app.models import WorldState, NPCState
 
     print("=" * 60)
     print("NARRATIVE 컴포넌트 테스트")
@@ -828,7 +956,7 @@ if __name__ == "__main__":
     scenarios = loader.list_scenarios()
 
     if not scenarios:
-        print("❌ 시나리오가 없습니다!")
+        print("시나리오가 없습니다!")
         exit(1)
 
     assets = loader.load(scenarios[0])
@@ -837,82 +965,68 @@ if __name__ == "__main__":
     # 내러티브 레이어
     narrative = NarrativeLayer()
 
-    # 테스트 1: 이벤트만 있는 경우 (밤 변화 관찰 안 됨)
-    print(f"\n[2] 이벤트만 렌더링 (is_observed=False)")
+    # 테스트용 월드 상태
+    world_state = WorldState(
+        turn=3,
+        npcs={"button_mother": NPCState(npc_id="button_mother", trust=3, fear=0, suspicion=2)},
+        vars={"humanity": 8, "total_suspicion": 2},
+    )
+
+    # 테스트 1: 이벤트만 있는 경우
+    print(f"\n[2] 이벤트만 렌더링")
     print("-" * 40)
 
-    world_before = WorldState(
-        turn=1,
-        npcs={"family": NPCState(npc_id="family", trust=3, fear=0, suspicion=0)},
-        vars={"clue_count": 0},
-    )
     event_description = ["피해자 가족이 고개를 끄덕인다.", "침묵이 흐른다."]
+    state_delta = {}
 
-    dialogue = narrative.render(
-        text_fragment=event_description,
-        night_dialogue="",
-        world_before=world_before,
-        world_after=world_before,
+    dialogue = narrative.render_day(
+        event_description=event_description,
+        state_delta=state_delta,
+        world_state=world_state,
         assets=assets,
     )
     print(dialogue)
 
-    # 테스트 2: 이벤트와 밤 변화 모두 렌더링 (is_observed=True)
-    print(f"\n[3] 이벤트 + 밤 변화 렌더링 (is_observed=True)")
+    # 테스트 2: 이벤트 + 상태 변화
+    print(f"\n[3] 이벤트 + 상태 변화 렌더링")
     print("-" * 40)
 
-    dialogue_observed = narrative.render(
-        event_description=event_desc,
-        night_description=night_desc,
-        assets=assets,
-        is_observed=True  # 밤 변화 관찰됨
-    )
-    print(dialogue_observed)
+    state_delta_with_changes = {
+        "npcs": {
+            "button_mother": {"trust": 2, "suspicion": 1}
+        },
+        "vars": {"humanity": -1}
+    }
 
-    # 테스트 3: 여러 이벤트 블록 + 밤 변화 관찰됨
-    print(f"\n[4] 여러 이벤트 블록 + 밤 변화")
+    dialogue_with_delta = narrative.render_day(
+        event_description=["엄마의 눈빛이 날카로워진다.", "뭔가 수상하다는 듯이 바라본다."],
+        state_delta=state_delta_with_changes,
+        world_state=world_state,
+        assets=assets,
+    )
+    print(dialogue_with_delta)
+
+    # 테스트 3: 여러 이벤트 + 인벤토리 변화
+    print(f"\n[4] 여러 이벤트 + 인벤토리 변화")
     print("-" * 40)
 
-    multiple_events = [
-        "당신은 증거를 분석한다.",
-        "패턴이 보이기 시작한다.",
-        "모든 것이 한 곳을 가리킨다."
-    ]
+    state_delta_inventory = {
+        "inventory_add": ["부엌칼"],
+        "vars": {"knife_touched": 1}
+    }
 
-    dialogue_multiple = narrative.render(
-        event_description=multiple_events,
-        night_description=["시간이 흘러간다."],
+    dialogue_inventory = narrative.render_day(
+        event_description=[
+            "당신은 부엌을 둘러본다.",
+            "서랍 안에서 날카로운 칼이 눈에 띈다.",
+            "조심스럽게 칼을 집어든다."
+        ],
+        state_delta=state_delta_inventory,
+        world_state=world_state,
         assets=assets,
-        is_observed=True
     )
-    print(dialogue_multiple)
-
-    # 테스트 4: 자동 LM 선택 (CUDA 사용 가능하면 LM, 아니면 단순 조합)
-    print(f"\n[5] 자동 LM 선택 테스트 (lm=None, is_observed=True)")
-    print("-" * 40)
-
-    dialogue_auto = narrative.render(
-        event_description=event_desc,
-        night_description=night_desc,
-        assets=assets,
-        is_observed=True,
-        lm=None  # CUDA 사용 가능 여부로 자동 결정
-    )
-    print(dialogue_auto)
-
-    # 테스트 5: 명시적 LM 사용 (lm=True)
-    print(f"\n[6] 명시적 LM 사용 테스트 (lm=True, is_observed=False)")
-    print("-" * 40)
-
-    dialogue_lm = narrative.render(
-        event_description=event_desc,
-        night_description=night_desc,
-        assets=assets,
-        is_observed=False,  # 밤 변화 관찰 안 됨
-        lm=True
-    )
-    print(dialogue_lm)
+    print(dialogue_inventory)
 
     print("\n" + "=" * 60)
-    print("✅ NARRATIVE 테스트 완료")
+    print("NARRATIVE 테스트 완료")
     print("=" * 60)

@@ -12,3 +12,4 @@ lora/adapters/*
 
 # Jupyter
 .ipynb_checkpoints/
+app/llm/__init__.py.orig
