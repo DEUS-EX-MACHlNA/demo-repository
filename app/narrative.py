@@ -57,7 +57,7 @@ class NarrativeLayer:
         self._lm_tokenizer = None
         self._lm_loaded = False
 
-    def render(
+    def render_day(
         self,
         event_description: list[str],
         state_delta: dict[str, Any],
@@ -678,6 +678,253 @@ class NarrativeLayer:
 
 
 # ============================================================
+    # 엔딩 나레이션 전용 메서드 (EndingChecker에서 호출)
+    # ============================================================
+    def render_ending(
+        self,
+        ending_info: dict,
+        world_state: "WorldState",
+        assets: ScenarioAssets,
+    ) -> str:
+        """
+        엔딩 나레이션 생성
+
+        EndingChecker에서 엔딩이 판별되면 호출되어 epilogue_prompt를 기반으로
+        드라마틱한 엔딩 텍스트를 생성합니다.
+
+        Args:
+            ending_info: 엔딩 정보 dict {ending_id, name, epilogue_prompt, on_enter_events}
+            world_state: 현재 월드 상태
+            assets: 시나리오 에셋
+
+        Returns:
+            str: 엔딩 나레이션 텍스트
+        """
+        logger.info(f"Rendering ending: {ending_info.get('ending_id', 'unknown')}")
+
+        # CUDA 사용 가능 여부로 LM 사용 결정
+        import torch
+        use_lm = self._enable_lm and torch.cuda.is_available()
+
+        if use_lm:
+            dialogue = self._render_with_lm_ending(ending_info, world_state, assets)
+        else:
+            dialogue = self._render_simple_ending(ending_info, world_state, assets)
+
+        # 렌더 로그 기록
+        self._render_log.append({
+            "phase": "ending",
+            "ending_id": ending_info.get("ending_id", ""),
+            "ending_name": ending_info.get("name", ""),
+            "dialogue_length": len(dialogue),
+            "used_lm": use_lm,
+        })
+
+        logger.debug(f"Rendered ending dialogue: {len(dialogue)} chars")
+        return dialogue
+
+    def _render_simple_ending(
+        self,
+        ending_info: dict,
+        world_state: "WorldState",
+        assets: ScenarioAssets,
+    ) -> str:
+        """
+        엔딩 단순 텍스트 조합 (non-CUDA 환경용)
+
+        Args:
+            ending_info: 엔딩 정보 dict
+            world_state: 현재 월드 상태
+            assets: 시나리오 에셋
+
+        Returns:
+            str: 조합된 엔딩 텍스트
+        """
+        ending_id = ending_info.get("ending_id", "")
+        ending_name = ending_info.get("name", "")
+        epilogue_prompt = ending_info.get("epilogue_prompt", "")
+
+        parts = []
+        parts.append("=" * 40)
+        parts.append("")
+        parts.append(f"【 {ending_name} 】")
+        parts.append("")
+
+        # epilogue_prompt가 있으면 그것을 기반으로 간단한 엔딩 텍스트 구성
+        if epilogue_prompt:
+            # epilogue_prompt의 핵심 키워드를 활용한 간단한 서술
+            parts.append(f"...{epilogue_prompt}...")
+        else:
+            # 기본 엔딩 텍스트
+            parts.append("이야기가 끝났다.")
+
+        parts.append("")
+
+        # 상태 기반 추가 묘사
+        humanity = world_state.vars.get("humanity", 10)
+        turn = world_state.turn
+        turn_limit = assets.get_turn_limit()
+
+        if "escape" in ending_id.lower() or "탈출" in ending_name:
+            parts.append("저택의 문이 열리고, 당신은 마침내 바깥 세계를 마주한다.")
+        elif "death" in ending_id.lower() or "죽음" in ending_name:
+            parts.append("어둠이 모든 것을 삼킨다.")
+        elif "puppet" in ending_id.lower() or "인형" in ending_name:
+            parts.append("더 이상 당신은 당신이 아니다.")
+        elif "truth" in ending_id.lower() or "진실" in ending_name:
+            parts.append("진실은 때때로 자유보다 무겁다.")
+        else:
+            if humanity <= 3:
+                parts.append("결국, 당신은 이 집의 일부가 되었다.")
+            elif turn >= turn_limit:
+                parts.append("시간이 다했다. 모든 것이 끝났다.")
+            else:
+                parts.append("이것이 당신이 선택한 결말이다.")
+
+        parts.append("")
+        parts.append(f"[{turn}/{turn_limit}턴 - 인간성 {humanity}]")
+        parts.append("")
+        parts.append("=" * 40)
+
+        return "\n".join(parts)
+
+    def _render_with_lm_ending(
+        self,
+        ending_info: dict,
+        world_state: "WorldState",
+        assets: ScenarioAssets,
+    ) -> str:
+        """
+        엔딩 LM을 사용한 소설 형식 텍스트 생성
+
+        Args:
+            ending_info: 엔딩 정보 dict
+            world_state: 현재 월드 상태
+            assets: 시나리오 에셋
+
+        Returns:
+            str: LM이 생성한 엔딩 텍스트
+        """
+        # 모델 로드 (첫 호출 시에만)
+        self._load_lm_model()
+
+        # 모델 로드 실패 시 단순 조합으로 폴백
+        if self._lm_model is None or self._lm_tokenizer is None:
+            logger.warning("LM model not available, falling back to simple composition")
+            return self._render_simple_ending(ending_info, world_state, assets)
+
+        # 프롬프트 구성
+        prompt = self._build_ending_narrative_prompt(ending_info, world_state, assets)
+
+        # LM 생성 (엔딩은 좀 더 긴 텍스트 허용)
+        try:
+            ending_name = ending_info.get("name", "")
+            generated_text = self._generate_with_lm(prompt, max_new_tokens=600)
+
+            # 엔딩 형식으로 포맷팅
+            formatted = [
+                "=" * 40,
+                "",
+                f"【 {ending_name} 】",
+                "",
+                generated_text,
+                "",
+                "=" * 40,
+            ]
+            return "\n".join(formatted)
+
+        except Exception as e:
+            import traceback
+            logger.error(f"LM generation failed: {e}")
+            logger.error(f"Traceback:\n{traceback.format_exc()}")
+            logger.warning("Falling back to simple composition")
+            return self._render_simple_ending(ending_info, world_state, assets)
+
+    def _build_ending_narrative_prompt(
+        self,
+        ending_info: dict,
+        world_state: "WorldState",
+        assets: ScenarioAssets,
+    ) -> str:
+        """
+        엔딩 내러티브 생성 프롬프트 구성
+
+        epilogue_prompt를 활용하여 드라마틱한 엔딩 텍스트를 생성하도록 유도합니다.
+
+        Args:
+            ending_info: 엔딩 정보 dict
+            world_state: 현재 월드 상태
+            assets: 시나리오 에셋
+
+        Returns:
+            str: 구성된 프롬프트
+        """
+        # 엔딩 정보
+        ending_id = ending_info.get("ending_id", "")
+        ending_name = ending_info.get("name", "")
+        epilogue_prompt = ending_info.get("epilogue_prompt", "")
+
+        # 시나리오 정보
+        scenario_title = assets.scenario.get("title", "")
+        scenario_genre = assets.scenario.get("genre", "")
+        scenario_tone = assets.scenario.get("tone", "")
+
+        # 상태 정보
+        turn = world_state.turn
+        turn_limit = assets.get_turn_limit()
+        humanity = world_state.vars.get("humanity", 10)
+        total_suspicion = world_state.vars.get("total_suspicion", 0)
+
+        # 인벤토리 정보
+        inventory = world_state.inventory if world_state.inventory else []
+        inventory_text = ", ".join(inventory) if inventory else "(없음)"
+
+        # NPC 상태 요약
+        npc_summary = []
+        for npc_id, npc_state in world_state.npcs.items():
+            npc_data = assets.get_npc_by_id(npc_id)
+            npc_name = npc_data.get("name", npc_id) if npc_data else npc_id
+            npc_summary.append(
+                f"- {npc_name}: 신뢰 {npc_state.trust}, 두려움 {npc_state.fear}, 의심 {npc_state.suspicion}"
+            )
+        npc_summary_text = "\n".join(npc_summary) if npc_summary else "(없음)"
+
+        prompt = f"""당신은 {scenario_genre} 장르의 베테랑 소설 작가입니다.
+지금까지의 이야기가 클라이맥스에 도달했습니다. 아래 정보를 바탕으로 감동적이고 몰입감 있는 엔딩을 작성하세요.
+
+[시나리오: {scenario_title}]
+[장르: {scenario_genre}]
+[톤: {scenario_tone}]
+
+[도달한 엔딩]
+- 엔딩 ID: {ending_id}
+- 엔딩 이름: {ending_name}
+
+[플레이어 최종 상태]
+- 경과 턴: {turn}/{turn_limit}
+- 인간성: {humanity}/10
+- 총 의심도: {total_suspicion}
+- 소지품: {inventory_text}
+
+[NPC 최종 상태]
+{npc_summary_text}
+
+[엔딩 지시문 (중요!)]
+{epilogue_prompt}
+
+[작성 지침]
+1. 위의 '엔딩 지시문'을 충실히 반영하여 엔딩을 작성하세요.
+2. 플레이어의 여정을 마무리하는 감정적 클라이맥스를 만드세요.
+3. 시나리오의 장르와 톤에 맞는 문체를 사용하세요.
+4. 5~10문장으로 간결하면서도 여운이 남는 엔딩을 작성하세요.
+5. 열린 결말이나 암시적 표현을 활용해도 좋습니다.
+
+[출력]"""
+
+        return prompt
+
+
+# ============================================================
 # 모듈 레벨 인스턴스 (싱글턴)
 # ============================================================
 _narrative_instance: Optional[NarrativeLayer] = None
@@ -732,7 +979,7 @@ if __name__ == "__main__":
     event_description = ["피해자 가족이 고개를 끄덕인다.", "침묵이 흐른다."]
     state_delta = {}
 
-    dialogue = narrative.render(
+    dialogue = narrative.render_day(
         event_description=event_description,
         state_delta=state_delta,
         world_state=world_state,
@@ -751,7 +998,7 @@ if __name__ == "__main__":
         "vars": {"humanity": -1}
     }
 
-    dialogue_with_delta = narrative.render(
+    dialogue_with_delta = narrative.render_day(
         event_description=["엄마의 눈빛이 날카로워진다.", "뭔가 수상하다는 듯이 바라본다."],
         state_delta=state_delta_with_changes,
         world_state=world_state,
@@ -768,7 +1015,7 @@ if __name__ == "__main__":
         "vars": {"knife_touched": 1}
     }
 
-    dialogue_inventory = narrative.render(
+    dialogue_inventory = narrative.render_day(
         event_description=[
             "당신은 부엌을 둘러본다.",
             "서랍 안에서 날카로운 칼이 눈에 띈다.",

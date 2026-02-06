@@ -51,19 +51,18 @@ class NightController:
         return self._llm
 
     # ── 메인 실행 ─────────────────────────────────────────────
-    def run(
+    def process(
         self,
         world_snapshot: WorldState,
         assets: ScenarioAssets,
     ) -> NightResult:
         """
-        밤 페이즈 전체를 실행하고 NightResult를 반환한다.
+        밤 페이즈를 처리하고 NightResult를 반환한다.
         """
-        logger.info(f"[NightController] turn={world_snapshot.turn}")
+        logger.info(f"[NightController] 처리 시작: turn={world_snapshot.turn}")
         llm = self.llm
 
         night_delta: dict[str, Any] = {
-            "turn_increment": 1,
             "npc_stats": {},
             "vars": {},
         }
@@ -302,7 +301,7 @@ if __name__ == "__main__":
 
     print("\n실행 중...")
     controller = NightController()
-    result = controller.run(world, assets)
+    result = controller.process(world, assets)
 
     print(f"\n{'=' * 60}")
     print(f"night_delta: {result.night_delta}")

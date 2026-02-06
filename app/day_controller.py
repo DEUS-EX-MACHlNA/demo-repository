@@ -31,14 +31,14 @@ class DayController:
         """컨트롤러 초기화"""
         self._decision_log: list[dict] = []
 
-    def execute_turn(
+    def process(
         self,
         user_input: str,
         world_state: WorldState,
         assets: ScenarioAssets,
     ) -> ToolResult:
         """
-        낮 턴을 실행합니다 (tool_calling -> tool_execute -> output).
+        사용자 입력을 처리합니다 (tool_calling -> tool_execute -> rule_engine).
 
         Args:
             user_input: 사용자 입력 텍스트
@@ -46,23 +46,26 @@ class DayController:
             assets: 시나리오 에셋
 
         Returns:
-            ToolResult: tool 실행 결과
+            ToolResult: tool 실행 결과 (Rule Engine delta 포함)
         """
         from app.tools import call_tool, TOOLS, _final_values_to_delta
+        from app.rule_engine import apply_memory_rules, merge_rule_delta
 
-        logger.info(f"[DayController] 턴 시작: user_input={user_input[:50]}...")
+        logger.info(f"[DayController] 처리 시작: user_input={user_input[:50]}...")
 
-        # 1-3. Tool Calling: LLM이 직접 tool과 args 선택 + context 설정
+        # 1. Tool Calling: LLM이 tool, args, intent 선택
         tool_selection = call_tool(user_input, world_state, assets)
         tool_name = tool_selection["tool_name"]
         tool_args = tool_selection["args"]
-        logger.info(f"[DayController] Tool 선택: {tool_name}, args={tool_args}")
+        intent = tool_selection.get("intent", "neutral")
+        logger.info(f"[DayController] Tool 선택: {tool_name}, intent={intent}, args={tool_args}")
 
-        # 의사결정 로그에 기록
+        # 의사결정 로그에 기록 (intent 포함)
         self._decision_log.append({
             "turn": world_state.turn,
             "user_input": user_input,
             "tool_selection": tool_selection,
+            "intent": intent,
         })
 
         # 4. Tool 실행
@@ -73,18 +76,31 @@ class DayController:
             logger.warning(f"[DayController] 알 수 없는 tool: {tool_name}")
             result = TOOLS["action"](action=user_input)
 
-        # 5. 결과를 ToolResult로 변환
-        state_delta = _final_values_to_delta(
+        # 5. Tool 결과를 delta로 변환
+        tool_delta = _final_values_to_delta(
             result.get("state_delta", {}),
             world_state
         )
 
+        # 6. Rule Engine 적용: intent 기반 자동 상태 변화
+        active_npc_id = result.get("npc_id")  # interact에서 반환되는 npc_id
+        rule_delta = apply_memory_rules(
+            intent=intent,
+            memory_rules=assets.memory_rules,
+            active_npc_id=active_npc_id,
+        )
+        logger.info(f"[DayController] Rule Engine 적용: intent={intent}, rule_delta={rule_delta}")
+
+        # 7. Tool delta + Rule delta 병합
+        merged_delta = merge_rule_delta(tool_delta, rule_delta)
+        logger.info(f"[DayController] Delta 병합 완료: {merged_delta}")
+
         tool_result = ToolResult(
             event_description=result.get("event_description", []),
-            state_delta=state_delta,
+            state_delta=merged_delta,
         )
 
-        logger.info(f"[DayController] 턴 완료: event={tool_result.event_description}")
+        logger.info(f"[DayController] 처리 완료: event={tool_result.event_description}")
         return tool_result
 
     @property
@@ -159,12 +175,12 @@ if __name__ == "__main__":
         "부엌을 둘러본다",
     ]
 
-    print(f"\n[4] execute_turn 테스트 ({len(test_cases)}개):")
+    print(f"\n[4] process 테스트 ({len(test_cases)}개):")
     print("-" * 60)
 
     for text in test_cases:
         print(f"\n  입력: \"{text}\"")
-        result = controller.execute_turn(text, world, assets)
+        result = controller.process(text, world, assets)
         print(f"    사건: {result.event_description}")
         print(f"    델타: {result.state_delta}")
 
