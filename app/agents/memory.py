@@ -68,14 +68,14 @@ class MemoryEntry:
 
 
 # ── Memory Stream helpers ────────────────────────────────────
-MAX_MEMORIES_PER_NPC = 100
-
 
 def get_memory_stream(npc_extras: dict[str, Any]) -> list[MemoryEntry]:
     """NPCState.extras에서 MemoryEntry 리스트를 역직렬화."""
     raw = npc_extras.get("memory_stream", [])
     return [MemoryEntry.from_dict(d) for d in raw]
 
+
+MAX_MEMORIES_PER_NPC = 100
 
 def set_memory_stream(npc_extras: dict[str, Any], memories: list[MemoryEntry]) -> None:
     """MemoryEntry 리스트를 NPCState.extras에 직렬화. 오래된 항목은 잘라낸다."""
