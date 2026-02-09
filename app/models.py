@@ -162,6 +162,7 @@ class ToolResult:
     """Tool 실행 결과"""
     state_delta: dict[str, Any]  # WorldState에 적용할 델타
     event_description: list[str]  # 발생 사건들의 묘사 리스트
+    memory: dict[str, Any] = field(default_factory=dict)  # 추가된 메모 업데이트
 
 
 @dataclass

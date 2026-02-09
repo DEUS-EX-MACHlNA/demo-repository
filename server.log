@@ -568,3 +568,1689 @@ INFO:     Waiting for application startup.
 2026-02-06 14:11:14,978 - app.main - INFO - Scenarios path: /Users/juhpark/Documents/maratang/demo-repository/scenarios
 2026-02-06 14:11:14,978 - app.main - INFO - Available scenarios: ['coraline', 'culprit_ai', 'zzapraline']
 INFO:     Application startup complete.
+WARNING:  StatReload detected changes in 'app/api/routes/v1/game.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-02-06 14:37:56,213 - app.main - INFO - Shutting down scenario server...
+INFO:     Application shutdown complete.
+INFO:     Finished server process [56573]
+/opt/anaconda3/envs/maratang_env/lib/python3.11/site-packages/pydantic/_internal/_config.py:383: UserWarning: Valid config keys have changed in V2:
+* 'orm_mode' has been renamed to 'from_attributes'
+  warnings.warn(message, UserWarning)
+INFO:     Started server process [64749]
+INFO:     Waiting for application startup.
+2026-02-06 14:37:56,844 - app.main - INFO - Starting scenario server...
+2026-02-06 14:37:56,844 - app.main - INFO - Scenarios path: /Users/juhpark/Documents/maratang/demo-repository/scenarios
+2026-02-06 14:37:56,844 - app.main - INFO - Available scenarios: ['coraline', 'culprit_ai', 'zzapraline']
+INFO:     Application startup complete.
+WARNING:  StatReload detected changes in 'app/services/game.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-02-06 14:39:09,974 - app.main - INFO - Shutting down scenario server...
+INFO:     Application shutdown complete.
+INFO:     Finished server process [64749]
+/opt/anaconda3/envs/maratang_env/lib/python3.11/site-packages/pydantic/_internal/_config.py:383: UserWarning: Valid config keys have changed in V2:
+* 'orm_mode' has been renamed to 'from_attributes'
+  warnings.warn(message, UserWarning)
+INFO:     Started server process [65018]
+INFO:     Waiting for application startup.
+2026-02-06 14:39:10,408 - app.main - INFO - Starting scenario server...
+2026-02-06 14:39:10,408 - app.main - INFO - Scenarios path: /Users/juhpark/Documents/maratang/demo-repository/scenarios
+2026-02-06 14:39:10,408 - app.main - INFO - Available scenarios: ['coraline', 'culprit_ai', 'zzapraline']
+INFO:     Application startup complete.
+WARNING:  StatReload detected changes in 'app/services/game.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-02-06 14:41:41,528 - app.main - INFO - Shutting down scenario server...
+INFO:     Application shutdown complete.
+INFO:     Finished server process [65018]
+/opt/anaconda3/envs/maratang_env/lib/python3.11/site-packages/pydantic/_internal/_config.py:383: UserWarning: Valid config keys have changed in V2:
+* 'orm_mode' has been renamed to 'from_attributes'
+  warnings.warn(message, UserWarning)
+INFO:     Started server process [65558]
+INFO:     Waiting for application startup.
+2026-02-06 14:41:41,962 - app.main - INFO - Starting scenario server...
+2026-02-06 14:41:41,962 - app.main - INFO - Scenarios path: /Users/juhpark/Documents/maratang/demo-repository/scenarios
+2026-02-06 14:41:41,963 - app.main - INFO - Available scenarios: ['coraline', 'culprit_ai', 'zzapraline']
+INFO:     Application startup complete.
+WARNING:  StatReload detected changes in 'app/services/game.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-02-06 14:41:57,427 - app.main - INFO - Shutting down scenario server...
+INFO:     Application shutdown complete.
+INFO:     Finished server process [65558]
+/opt/anaconda3/envs/maratang_env/lib/python3.11/site-packages/pydantic/_internal/_config.py:383: UserWarning: Valid config keys have changed in V2:
+* 'orm_mode' has been renamed to 'from_attributes'
+  warnings.warn(message, UserWarning)
+INFO:     Started server process [65620]
+INFO:     Waiting for application startup.
+2026-02-06 14:41:57,858 - app.main - INFO - Starting scenario server...
+2026-02-06 14:41:57,858 - app.main - INFO - Scenarios path: /Users/juhpark/Documents/maratang/demo-repository/scenarios
+2026-02-06 14:41:57,858 - app.main - INFO - Available scenarios: ['coraline', 'culprit_ai', 'zzapraline']
+INFO:     Application startup complete.
+WARNING:  StatReload detected changes in 'app/services/game.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-02-06 14:42:03,010 - app.main - INFO - Shutting down scenario server...
+INFO:     Application shutdown complete.
+INFO:     Finished server process [65620]
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 122, in spawn_main
+    exitcode = _main(fd, parent_sentinel)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 131, in _main
+    prepare(preparation_data)
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 244, in prepare
+    _fixup_main_from_name(data['init_main_from_name'])
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 268, in _fixup_main_from_name
+    main_content = runpy.run_module(mod_name,
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen runpy>", line 226, in run_module
+  File "<frozen runpy>", line 98, in _run_module_code
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/juhpark/Documents/maratang/demo-repository/app/main.py", line 35, in <module>
+    from app.api.routes.v1 import game as v1_game_router
+  File "/Users/juhpark/Documents/maratang/demo-repository/app/api/routes/v1/game.py", line 3, in <module>
+    from app.services.game import GameService
+  File "/Users/juhpark/Documents/maratang/demo-repository/app/services/game.py", line 284
+    //llm_response_obj = cls.mock_llm_process(input_dict.dict())
+    ^^
+SyntaxError: invalid syntax
+WARNING:  StatReload detected changes in 'app/services/game.py'. Reloading...
+/opt/anaconda3/envs/maratang_env/lib/python3.11/site-packages/pydantic/_internal/_config.py:383: UserWarning: Valid config keys have changed in V2:
+* 'orm_mode' has been renamed to 'from_attributes'
+  warnings.warn(message, UserWarning)
+INFO:     Started server process [65650]
+INFO:     Waiting for application startup.
+2026-02-06 14:42:05,282 - app.main - INFO - Starting scenario server...
+2026-02-06 14:42:05,282 - app.main - INFO - Scenarios path: /Users/juhpark/Documents/maratang/demo-repository/scenarios
+2026-02-06 14:42:05,282 - app.main - INFO - Available scenarios: ['coraline', 'culprit_ai', 'zzapraline']
+INFO:     Application startup complete.
+INFO:     115.95.186.2:0 - "POST /api/v1/game/2/step HTTP/1.1" 200 OK
+INFO:     222.109.42.88:0 - "POST /api/v1/game/1/step HTTP/1.1" 200 OK
+INFO:     222.109.42.88:0 - "POST /api/v1/game/1/step HTTP/1.1" 200 OK
+WARNING:  StatReload detected changes in 'app/api/routes/v1/game.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-02-06 14:57:40,738 - app.main - INFO - Shutting down scenario server...
+INFO:     Application shutdown complete.
+INFO:     Finished server process [65650]
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 122, in spawn_main
+    exitcode = _main(fd, parent_sentinel)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 131, in _main
+    prepare(preparation_data)
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 244, in prepare
+    _fixup_main_from_name(data['init_main_from_name'])
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 268, in _fixup_main_from_name
+    main_content = runpy.run_module(mod_name,
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen runpy>", line 226, in run_module
+  File "<frozen runpy>", line 98, in _run_module_code
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/juhpark/Documents/maratang/demo-repository/app/main.py", line 35, in <module>
+    from app.api.routes.v1 import game as v1_game_router
+  File "/Users/juhpark/Documents/maratang/demo-repository/app/api/routes/v1/game.py", line 75
+    @router.post("/{game_id}/step", summary="게임 대화 요청")
+IndentationError: unexpected indent
+WARNING:  StatReload detected changes in 'app/crud/game.py'. Reloading...
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 122, in spawn_main
+    exitcode = _main(fd, parent_sentinel)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 131, in _main
+    prepare(preparation_data)
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 244, in prepare
+    _fixup_main_from_name(data['init_main_from_name'])
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 268, in _fixup_main_from_name
+    main_content = runpy.run_module(mod_name,
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen runpy>", line 226, in run_module
+  File "<frozen runpy>", line 98, in _run_module_code
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/juhpark/Documents/maratang/demo-repository/app/main.py", line 35, in <module>
+    from app.api.routes.v1 import game as v1_game_router
+  File "/Users/juhpark/Documents/maratang/demo-repository/app/api/routes/v1/game.py", line 75
+    @router.post("/{game_id}/step", summary="게임 대화 요청")
+IndentationError: unexpected indent
+WARNING:  StatReload detected changes in 'app/api/routes/v1/game.py'. Reloading...
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 122, in spawn_main
+    exitcode = _main(fd, parent_sentinel)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 131, in _main
+    prepare(preparation_data)
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 244, in prepare
+    _fixup_main_from_name(data['init_main_from_name'])
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 268, in _fixup_main_from_name
+    main_content = runpy.run_module(mod_name,
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen runpy>", line 226, in run_module
+  File "<frozen runpy>", line 98, in _run_module_code
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/juhpark/Documents/maratang/demo-repository/app/main.py", line 35, in <module>
+    from app.api.routes.v1 import game as v1_game_router
+  File "/Users/juhpark/Documents/maratang/demo-repository/app/api/routes/v1/game.py", line 75
+    @router.post("/{game_id}/step", summary="게임 대화 요청")
+IndentationError: unexpected indent
+WARNING:  StatReload detected changes in 'app/api/routes/v1/game.py'. Reloading...
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 122, in spawn_main
+    exitcode = _main(fd, parent_sentinel)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 131, in _main
+    prepare(preparation_data)
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 244, in prepare
+    _fixup_main_from_name(data['init_main_from_name'])
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 268, in _fixup_main_from_name
+    main_content = runpy.run_module(mod_name,
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen runpy>", line 226, in run_module
+  File "<frozen runpy>", line 98, in _run_module_code
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/juhpark/Documents/maratang/demo-repository/app/main.py", line 35, in <module>
+    from app.api.routes.v1 import game as v1_game_router
+  File "/Users/juhpark/Documents/maratang/demo-repository/app/api/routes/v1/game.py", line 77
+    @router.post("/{game_id}/step", summary="게임 대화 요청")
+IndentationError: unexpected indent
+WARNING:  StatReload detected changes in 'app/api/routes/v1/game.py'. Reloading...
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 122, in spawn_main
+    exitcode = _main(fd, parent_sentinel)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 131, in _main
+    prepare(preparation_data)
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 244, in prepare
+    _fixup_main_from_name(data['init_main_from_name'])
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 268, in _fixup_main_from_name
+    main_content = runpy.run_module(mod_name,
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen runpy>", line 226, in run_module
+  File "<frozen runpy>", line 98, in _run_module_code
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/juhpark/Documents/maratang/demo-repository/app/main.py", line 35, in <module>
+    from app.api.routes.v1 import game as v1_game_router
+  File "/Users/juhpark/Documents/maratang/demo-repository/app/api/routes/v1/game.py", line 77
+    @router.post("/{game_id}/step", summary="게임 대화 요청")
+IndentationError: unexpected indent
+WARNING:  StatReload detected changes in 'app/api/routes/v1/game.py'. Reloading...
+/opt/anaconda3/envs/maratang_env/lib/python3.11/site-packages/pydantic/_internal/_config.py:383: UserWarning: Valid config keys have changed in V2:
+* 'orm_mode' has been renamed to 'from_attributes'
+  warnings.warn(message, UserWarning)
+INFO:     Started server process [70014]
+INFO:     Waiting for application startup.
+2026-02-06 15:01:22,154 - app.main - INFO - Starting scenario server...
+2026-02-06 15:01:22,154 - app.main - INFO - Scenarios path: /Users/juhpark/Documents/maratang/demo-repository/scenarios
+2026-02-06 15:01:22,155 - app.main - INFO - Available scenarios: ['coraline', 'culprit_ai', 'zzapraline']
+INFO:     Application startup complete.
+INFO:     115.95.186.2:0 - "GET /docs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55961 - "GET /docs HTTP/1.1" 200 OK
+INFO:     222.109.42.88:0 - "POST /api/v1/game/1/step HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55961 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     115.95.186.2:0 - "GET /openapi.json HTTP/1.1" 200 OK
+WARNING:  StatReload detected changes in 'app/api/routes/v1/game.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-02-06 15:01:42,765 - app.main - INFO - Shutting down scenario server...
+INFO:     Application shutdown complete.
+INFO:     Finished server process [70014]
+/opt/anaconda3/envs/maratang_env/lib/python3.11/site-packages/pydantic/_internal/_config.py:383: UserWarning: Valid config keys have changed in V2:
+* 'orm_mode' has been renamed to 'from_attributes'
+  warnings.warn(message, UserWarning)
+INFO:     Started server process [70099]
+INFO:     Waiting for application startup.
+2026-02-06 15:01:43,196 - app.main - INFO - Starting scenario server...
+2026-02-06 15:01:43,196 - app.main - INFO - Scenarios path: /Users/juhpark/Documents/maratang/demo-repository/scenarios
+2026-02-06 15:01:43,196 - app.main - INFO - Available scenarios: ['coraline', 'culprit_ai', 'zzapraline']
+INFO:     Application startup complete.
+INFO:     127.0.0.1:56065 - "GET /docs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56065 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56065 - "GET /api/v1/game/ HTTP/1.1" 200 OK
+WARNING:  StatReload detected changes in 'app/models.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-02-06 15:18:50,846 - app.main - INFO - Shutting down scenario server...
+INFO:     Application shutdown complete.
+INFO:     Finished server process [70099]
+/opt/anaconda3/envs/maratang_env/lib/python3.11/site-packages/pydantic/_internal/_config.py:383: UserWarning: Valid config keys have changed in V2:
+* 'orm_mode' has been renamed to 'from_attributes'
+  warnings.warn(message, UserWarning)
+INFO:     Started server process [73957]
+INFO:     Waiting for application startup.
+2026-02-06 15:18:51,276 - app.main - INFO - Starting scenario server...
+2026-02-06 15:18:51,276 - app.main - INFO - Scenarios path: /Users/juhpark/Documents/maratang/demo-repository/scenarios
+2026-02-06 15:18:51,276 - app.main - INFO - Available scenarios: ['coraline', 'culprit_ai', 'zzapraline']
+INFO:     Application startup complete.
+WARNING:  StatReload detected changes in 'app/day_controller.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-02-06 15:18:52,691 - app.main - INFO - Shutting down scenario server...
+INFO:     Application shutdown complete.
+INFO:     Finished server process [73957]
+/opt/anaconda3/envs/maratang_env/lib/python3.11/site-packages/pydantic/_internal/_config.py:383: UserWarning: Valid config keys have changed in V2:
+* 'orm_mode' has been renamed to 'from_attributes'
+  warnings.warn(message, UserWarning)
+INFO:     Started server process [73968]
+INFO:     Waiting for application startup.
+2026-02-06 15:18:53,108 - app.main - INFO - Starting scenario server...
+2026-02-06 15:18:53,108 - app.main - INFO - Scenarios path: /Users/juhpark/Documents/maratang/demo-repository/scenarios
+2026-02-06 15:18:53,108 - app.main - INFO - Available scenarios: ['coraline', 'culprit_ai', 'zzapraline']
+INFO:     Application startup complete.
+WARNING:  StatReload detected changes in 'app/services/game.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-02-06 15:19:16,558 - app.main - INFO - Shutting down scenario server...
+INFO:     Application shutdown complete.
+INFO:     Finished server process [73968]
+/opt/anaconda3/envs/maratang_env/lib/python3.11/site-packages/pydantic/_internal/_config.py:383: UserWarning: Valid config keys have changed in V2:
+* 'orm_mode' has been renamed to 'from_attributes'
+  warnings.warn(message, UserWarning)
+INFO:     Started server process [74054]
+INFO:     Waiting for application startup.
+2026-02-06 15:19:16,989 - app.main - INFO - Starting scenario server...
+2026-02-06 15:19:16,989 - app.main - INFO - Scenarios path: /Users/juhpark/Documents/maratang/demo-repository/scenarios
+2026-02-06 15:19:16,990 - app.main - INFO - Available scenarios: ['coraline', 'culprit_ai', 'zzapraline']
+INFO:     Application startup complete.
+INFO:     115.95.186.2:0 - "POST /api/v1/game/1/step HTTP/1.1" 200 OK
+INFO:     222.109.42.88:0 - "POST /api/v1/game/1/step HTTP/1.1" 200 OK
+INFO:     222.109.42.88:0 - "POST /api/v1/game/1/step HTTP/1.1" 200 OK
+INFO:     222.109.42.88:0 - "POST /api/v1/game/1/step HTTP/1.1" 200 OK
+INFO:     222.109.42.88:0 - "POST /api/v1/game/1/step HTTP/1.1" 200 OK
+WARNING:  StatReload detected changes in 'app/schemas/status.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-02-06 15:44:02,370 - app.main - INFO - Shutting down scenario server...
+INFO:     Application shutdown complete.
+INFO:     Finished server process [74054]
+/opt/anaconda3/envs/maratang_env/lib/python3.11/site-packages/pydantic/_internal/_config.py:383: UserWarning: Valid config keys have changed in V2:
+* 'orm_mode' has been renamed to 'from_attributes'
+  warnings.warn(message, UserWarning)
+INFO:     Started server process [79610]
+INFO:     Waiting for application startup.
+2026-02-06 15:44:02,967 - app.main - INFO - Starting scenario server...
+2026-02-06 15:44:02,967 - app.main - INFO - Scenarios path: /Users/juhpark/Documents/maratang/demo-repository/scenarios
+2026-02-06 15:44:02,967 - app.main - INFO - Available scenarios: ['coraline', 'culprit_ai', 'zzapraline']
+INFO:     Application startup complete.
+WARNING:  StatReload detected changes in 'app/db_models/chat_log.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-02-06 15:45:34,211 - app.main - INFO - Shutting down scenario server...
+INFO:     Application shutdown complete.
+INFO:     Finished server process [79610]
+/opt/anaconda3/envs/maratang_env/lib/python3.11/site-packages/pydantic/_internal/_config.py:383: UserWarning: Valid config keys have changed in V2:
+* 'orm_mode' has been renamed to 'from_attributes'
+  warnings.warn(message, UserWarning)
+INFO:     Started server process [79933]
+INFO:     Waiting for application startup.
+2026-02-06 15:45:34,728 - app.main - INFO - Starting scenario server...
+2026-02-06 15:45:34,728 - app.main - INFO - Scenarios path: /Users/juhpark/Documents/maratang/demo-repository/scenarios
+2026-02-06 15:45:34,728 - app.main - INFO - Available scenarios: ['coraline', 'culprit_ai', 'zzapraline']
+INFO:     Application startup complete.
+WARNING:  StatReload detected changes in 'app/schemas/status.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-02-06 15:46:08,386 - app.main - INFO - Shutting down scenario server...
+INFO:     Application shutdown complete.
+INFO:     Finished server process [79933]
+/opt/anaconda3/envs/maratang_env/lib/python3.11/site-packages/pydantic/_internal/_config.py:383: UserWarning: Valid config keys have changed in V2:
+* 'orm_mode' has been renamed to 'from_attributes'
+  warnings.warn(message, UserWarning)
+INFO:     Started server process [80084]
+INFO:     Waiting for application startup.
+2026-02-06 15:46:08,830 - app.main - INFO - Starting scenario server...
+2026-02-06 15:46:08,830 - app.main - INFO - Scenarios path: /Users/juhpark/Documents/maratang/demo-repository/scenarios
+2026-02-06 15:46:08,830 - app.main - INFO - Available scenarios: ['coraline', 'culprit_ai', 'zzapraline']
+INFO:     Application startup complete.
+WARNING:  StatReload detected changes in 'app/db_models/chat_log.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-02-06 15:46:40,721 - app.main - INFO - Shutting down scenario server...
+INFO:     Application shutdown complete.
+INFO:     Finished server process [80084]
+/opt/anaconda3/envs/maratang_env/lib/python3.11/site-packages/pydantic/_internal/_config.py:383: UserWarning: Valid config keys have changed in V2:
+* 'orm_mode' has been renamed to 'from_attributes'
+  warnings.warn(message, UserWarning)
+INFO:     Started server process [80209]
+INFO:     Waiting for application startup.
+2026-02-06 15:46:41,322 - app.main - INFO - Starting scenario server...
+2026-02-06 15:46:41,322 - app.main - INFO - Scenarios path: /Users/juhpark/Documents/maratang/demo-repository/scenarios
+2026-02-06 15:46:41,323 - app.main - INFO - Available scenarios: ['coraline', 'culprit_ai', 'zzapraline']
+INFO:     Application startup complete.
+WARNING:  StatReload detected changes in 'app/db_models/game.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-02-06 15:46:42,839 - app.main - INFO - Shutting down scenario server...
+INFO:     Application shutdown complete.
+INFO:     Finished server process [80209]
+/opt/anaconda3/envs/maratang_env/lib/python3.11/site-packages/pydantic/_internal/_config.py:383: UserWarning: Valid config keys have changed in V2:
+* 'orm_mode' has been renamed to 'from_attributes'
+  warnings.warn(message, UserWarning)
+INFO:     Started server process [80218]
+INFO:     Waiting for application startup.
+2026-02-06 15:46:43,273 - app.main - INFO - Starting scenario server...
+2026-02-06 15:46:43,273 - app.main - INFO - Scenarios path: /Users/juhpark/Documents/maratang/demo-repository/scenarios
+2026-02-06 15:46:43,273 - app.main - INFO - Available scenarios: ['coraline', 'culprit_ai', 'zzapraline']
+INFO:     Application startup complete.
+WARNING:  StatReload detected changes in 'app/api/routes/v1/game.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-02-06 15:47:10,616 - app.main - INFO - Shutting down scenario server...
+INFO:     Application shutdown complete.
+INFO:     Finished server process [80218]
+/opt/anaconda3/envs/maratang_env/lib/python3.11/site-packages/pydantic/_internal/_config.py:383: UserWarning: Valid config keys have changed in V2:
+* 'orm_mode' has been renamed to 'from_attributes'
+  warnings.warn(message, UserWarning)
+INFO:     Started server process [80376]
+INFO:     Waiting for application startup.
+2026-02-06 15:47:11,224 - app.main - INFO - Starting scenario server...
+2026-02-06 15:47:11,224 - app.main - INFO - Scenarios path: /Users/juhpark/Documents/maratang/demo-repository/scenarios
+2026-02-06 15:47:11,224 - app.main - INFO - Available scenarios: ['coraline', 'culprit_ai', 'zzapraline']
+INFO:     Application startup complete.
+INFO:     115.95.186.2:0 - "POST /api/v1/game/1/step HTTP/1.1" 200 OK
+WARNING:  StatReload detected changes in 'app/services/game.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-02-06 16:22:08,226 - app.main - INFO - Shutting down scenario server...
+INFO:     Application shutdown complete.
+INFO:     Finished server process [80376]
+/opt/anaconda3/envs/maratang_env/lib/python3.11/site-packages/pydantic/_internal/_config.py:383: UserWarning: Valid config keys have changed in V2:
+* 'orm_mode' has been renamed to 'from_attributes'
+  warnings.warn(message, UserWarning)
+INFO:     Started server process [88248]
+INFO:     Waiting for application startup.
+2026-02-06 16:22:08,771 - app.main - INFO - Starting scenario server...
+2026-02-06 16:22:08,771 - app.main - INFO - Scenarios path: /Users/juhpark/Documents/maratang/demo-repository/scenarios
+2026-02-06 16:22:08,771 - app.main - INFO - Available scenarios: ['coraline', 'culprit_ai', 'zzapraline']
+INFO:     Application startup complete.
+WARNING:  StatReload detected changes in 'app/services/game.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-02-06 16:22:10,286 - app.main - INFO - Shutting down scenario server...
+INFO:     Application shutdown complete.
+INFO:     Finished server process [88248]
+/opt/anaconda3/envs/maratang_env/lib/python3.11/site-packages/pydantic/_internal/_config.py:383: UserWarning: Valid config keys have changed in V2:
+* 'orm_mode' has been renamed to 'from_attributes'
+  warnings.warn(message, UserWarning)
+INFO:     Started server process [88261]
+INFO:     Waiting for application startup.
+2026-02-06 16:22:10,711 - app.main - INFO - Starting scenario server...
+2026-02-06 16:22:10,711 - app.main - INFO - Scenarios path: /Users/juhpark/Documents/maratang/demo-repository/scenarios
+2026-02-06 16:22:10,712 - app.main - INFO - Available scenarios: ['coraline', 'culprit_ai', 'zzapraline']
+INFO:     Application startup complete.
+INFO:     222.109.42.88:0 - "POST /api/v1/game/1/step HTTP/1.1" 200 OK
+INFO:     222.109.42.88:0 - "POST /api/v1/game/1/step HTTP/1.1" 200 OK
+INFO:     222.109.42.88:0 - "POST /api/v1/game/1/step HTTP/1.1" 200 OK
+INFO:     222.109.42.88:0 - "POST /api/v1/game/1/step HTTP/1.1" 200 OK
+WARNING:  StatReload detected changes in 'app/services/game.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-02-06 16:52:20,914 - app.main - INFO - Shutting down scenario server...
+INFO:     Application shutdown complete.
+INFO:     Finished server process [88261]
+/opt/anaconda3/envs/maratang_env/lib/python3.11/site-packages/pydantic/_internal/_config.py:383: UserWarning: Valid config keys have changed in V2:
+* 'orm_mode' has been renamed to 'from_attributes'
+  warnings.warn(message, UserWarning)
+INFO:     Started server process [92026]
+INFO:     Waiting for application startup.
+2026-02-06 16:52:21,408 - app.main - INFO - Starting scenario server...
+2026-02-06 16:52:21,408 - app.main - INFO - Scenarios path: /Users/juhpark/Documents/maratang/demo-repository/scenarios
+2026-02-06 16:52:21,408 - app.main - INFO - Available scenarios: ['coraline', 'culprit_ai', 'zzapraline']
+INFO:     Application startup complete.
+WARNING:  StatReload detected changes in 'app/services/game.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-02-06 16:52:45,764 - app.main - INFO - Shutting down scenario server...
+INFO:     Application shutdown complete.
+INFO:     Finished server process [92026]
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 122, in spawn_main
+    exitcode = _main(fd, parent_sentinel)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 131, in _main
+    prepare(preparation_data)
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 244, in prepare
+    _fixup_main_from_name(data['init_main_from_name'])
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 268, in _fixup_main_from_name
+    main_content = runpy.run_module(mod_name,
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen runpy>", line 226, in run_module
+  File "<frozen runpy>", line 98, in _run_module_code
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/juhpark/Documents/maratang/demo-repository/app/main.py", line 35, in <module>
+    from app.api.routes.v1 import game as v1_game_router
+  File "/Users/juhpark/Documents/maratang/demo-repository/app/api/routes/v1/game.py", line 3, in <module>
+    from app.services.game import GameService
+  File "/Users/juhpark/Documents/maratang/demo-repository/app/services/game.py", line 342
+    @classmethod
+                ^
+IndentationError: unindent does not match any outer indentation level
+WARNING:  StatReload detected changes in 'app/services/game.py'. Reloading...
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 122, in spawn_main
+    exitcode = _main(fd, parent_sentinel)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 131, in _main
+    prepare(preparation_data)
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 244, in prepare
+    _fixup_main_from_name(data['init_main_from_name'])
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 268, in _fixup_main_from_name
+    main_content = runpy.run_module(mod_name,
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen runpy>", line 226, in run_module
+  File "<frozen runpy>", line 98, in _run_module_code
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/juhpark/Documents/maratang/demo-repository/app/main.py", line 35, in <module>
+    from app.api.routes.v1 import game as v1_game_router
+  File "/Users/juhpark/Documents/maratang/demo-repository/app/api/routes/v1/game.py", line 3, in <module>
+    from app.services.game import GameService
+  File "/Users/juhpark/Documents/maratang/demo-repository/app/services/game.py", line 342
+    @classmethod
+                ^
+IndentationError: unindent does not match any outer indentation level
+WARNING:  StatReload detected changes in 'app/services/game.py'. Reloading...
+/opt/anaconda3/envs/maratang_env/lib/python3.11/site-packages/pydantic/_internal/_config.py:383: UserWarning: Valid config keys have changed in V2:
+* 'orm_mode' has been renamed to 'from_attributes'
+  warnings.warn(message, UserWarning)
+INFO:     Started server process [92197]
+INFO:     Waiting for application startup.
+2026-02-06 16:53:07,228 - app.main - INFO - Starting scenario server...
+2026-02-06 16:53:07,228 - app.main - INFO - Scenarios path: /Users/juhpark/Documents/maratang/demo-repository/scenarios
+2026-02-06 16:53:07,228 - app.main - INFO - Available scenarios: ['coraline', 'culprit_ai', 'zzapraline']
+INFO:     Application startup complete.
+WARNING:  StatReload detected changes in 'app/services/game.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-02-06 16:53:08,037 - app.main - INFO - Shutting down scenario server...
+INFO:     Application shutdown complete.
+INFO:     Finished server process [92197]
+/opt/anaconda3/envs/maratang_env/lib/python3.11/site-packages/pydantic/_internal/_config.py:383: UserWarning: Valid config keys have changed in V2:
+* 'orm_mode' has been renamed to 'from_attributes'
+  warnings.warn(message, UserWarning)
+INFO:     Started server process [92208]
+INFO:     Waiting for application startup.
+2026-02-06 16:53:08,447 - app.main - INFO - Starting scenario server...
+2026-02-06 16:53:08,447 - app.main - INFO - Scenarios path: /Users/juhpark/Documents/maratang/demo-repository/scenarios
+2026-02-06 16:53:08,448 - app.main - INFO - Available scenarios: ['coraline', 'culprit_ai', 'zzapraline']
+INFO:     Application startup complete.
+INFO:     115.95.186.2:0 - "POST /api/v1/game/1/step HTTP/1.1" 200 OK
+WARNING:  StatReload detected changes in 'app/services/game.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-02-06 17:08:46,135 - app.main - INFO - Shutting down scenario server...
+INFO:     Application shutdown complete.
+INFO:     Finished server process [92208]
+/opt/anaconda3/envs/maratang_env/lib/python3.11/site-packages/pydantic/_internal/_config.py:383: UserWarning: Valid config keys have changed in V2:
+* 'orm_mode' has been renamed to 'from_attributes'
+  warnings.warn(message, UserWarning)
+INFO:     Started server process [95595]
+INFO:     Waiting for application startup.
+2026-02-06 17:08:46,563 - app.main - INFO - Starting scenario server...
+2026-02-06 17:08:46,563 - app.main - INFO - Scenarios path: /Users/juhpark/Documents/maratang/demo-repository/scenarios
+2026-02-06 17:08:46,563 - app.main - INFO - Available scenarios: ['coraline', 'culprit_ai', 'zzapraline']
+INFO:     Application startup complete.
+WARNING:  StatReload detected changes in 'app/services/game.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-02-06 17:13:45,449 - app.main - INFO - Shutting down scenario server...
+INFO:     Application shutdown complete.
+INFO:     Finished server process [95595]
+/opt/anaconda3/envs/maratang_env/lib/python3.11/site-packages/pydantic/_internal/_config.py:383: UserWarning: Valid config keys have changed in V2:
+* 'orm_mode' has been renamed to 'from_attributes'
+  warnings.warn(message, UserWarning)
+INFO:     Started server process [96771]
+INFO:     Waiting for application startup.
+2026-02-06 17:13:45,848 - app.main - INFO - Starting scenario server...
+2026-02-06 17:13:45,849 - app.main - INFO - Scenarios path: /Users/juhpark/Documents/maratang/demo-repository/scenarios
+2026-02-06 17:13:45,849 - app.main - INFO - Available scenarios: ['coraline', 'culprit_ai', 'zzapraline']
+INFO:     Application startup complete.
+INFO:     115.95.186.2:0 - "POST /api/v1/game/1/step HTTP/1.1" 200 OK
+WARNING:  StatReload detected changes in 'app/services/game.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-02-06 17:15:28,416 - app.main - INFO - Shutting down scenario server...
+INFO:     Application shutdown complete.
+INFO:     Finished server process [96771]
+/opt/anaconda3/envs/maratang_env/lib/python3.11/site-packages/pydantic/_internal/_config.py:383: UserWarning: Valid config keys have changed in V2:
+* 'orm_mode' has been renamed to 'from_attributes'
+  warnings.warn(message, UserWarning)
+INFO:     Started server process [97129]
+INFO:     Waiting for application startup.
+2026-02-06 17:15:28,843 - app.main - INFO - Starting scenario server...
+2026-02-06 17:15:28,844 - app.main - INFO - Scenarios path: /Users/juhpark/Documents/maratang/demo-repository/scenarios
+2026-02-06 17:15:28,844 - app.main - INFO - Available scenarios: ['coraline', 'culprit_ai', 'zzapraline']
+INFO:     Application startup complete.
+WARNING:  StatReload detected changes in 'app/services/game.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-02-06 17:15:52,083 - app.main - INFO - Shutting down scenario server...
+INFO:     Application shutdown complete.
+INFO:     Finished server process [97129]
+/opt/anaconda3/envs/maratang_env/lib/python3.11/site-packages/pydantic/_internal/_config.py:383: UserWarning: Valid config keys have changed in V2:
+* 'orm_mode' has been renamed to 'from_attributes'
+  warnings.warn(message, UserWarning)
+INFO:     Started server process [97229]
+INFO:     Waiting for application startup.
+2026-02-06 17:15:52,502 - app.main - INFO - Starting scenario server...
+2026-02-06 17:15:52,502 - app.main - INFO - Scenarios path: /Users/juhpark/Documents/maratang/demo-repository/scenarios
+2026-02-06 17:15:52,502 - app.main - INFO - Available scenarios: ['coraline', 'culprit_ai', 'zzapraline']
+INFO:     Application startup complete.
+INFO:     115.95.186.2:0 - "POST /api/v1/game/1/step HTTP/1.1" 200 OK
+INFO:     115.95.186.2:0 - "GET /api/v1/game/ HTTP/1.1" 200 OK
+WARNING:  StatReload detected changes in 'app/services/game.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-02-06 17:25:36,410 - app.main - INFO - Shutting down scenario server...
+INFO:     Application shutdown complete.
+INFO:     Finished server process [97229]
+/opt/anaconda3/envs/maratang_env/lib/python3.11/site-packages/pydantic/_internal/_config.py:383: UserWarning: Valid config keys have changed in V2:
+* 'orm_mode' has been renamed to 'from_attributes'
+  warnings.warn(message, UserWarning)
+INFO:     Started server process [99587]
+INFO:     Waiting for application startup.
+2026-02-06 17:25:36,842 - app.main - INFO - Starting scenario server...
+2026-02-06 17:25:36,842 - app.main - INFO - Scenarios path: /Users/juhpark/Documents/maratang/demo-repository/scenarios
+2026-02-06 17:25:36,842 - app.main - INFO - Available scenarios: ['coraline', 'culprit_ai', 'zzapraline']
+INFO:     Application startup complete.
+
+=== [GameService] Apply Result Verification ===
+Turn: 1 (Expected: incremented)
+Inventory: ['', 'warm_black_tea']
+Memory: {}
+Mother not found in NPC list
+===============================================
+
+INFO:     115.95.186.2:0 - "POST /api/v1/game/1/step HTTP/1.1" 200 OK
+
+=== [GameService] Apply Result Verification ===
+Turn: 1 (Expected: incremented)
+Inventory: ['', 'warm_black_tea']
+Memory: {}
+Mother not found in NPC list
+===============================================
+
+INFO:     115.95.186.2:0 - "POST /api/v1/game/1/step HTTP/1.1" 200 OK
+
+=== [GameService] Apply Result Verification ===
+Turn: 1 (Expected: incremented)
+Inventory: ['', 'warm_black_tea']
+Memory: {}
+Mother not found in NPC list
+===============================================
+
+INFO:     115.95.186.2:0 - "POST /api/v1/game/1/step HTTP/1.1" 200 OK
+
+=== [GameService] Apply Result Verification ===
+Turn: 1 (Expected: incremented)
+Inventory: ['', 'warm_black_tea']
+Memory: {}
+Mother not found in NPC list
+===============================================
+
+INFO:     115.95.186.2:0 - "POST /api/v1/game/1/step HTTP/1.1" 200 OK
+
+=== [GameService] Apply Result Verification ===
+Turn: 1 (Expected: incremented)
+Inventory: ['', 'warm_black_tea']
+Memory: {}
+Mother not found in NPC list
+===============================================
+
+INFO:     115.95.186.2:0 - "POST /api/v1/game/1/step HTTP/1.1" 200 OK
+INFO:     115.95.186.2:0 - "GET /api/v1/scenario/start/1?user_id=2 HTTP/1.1" 200 OK
+INFO:     115.95.186.2:0 - "GET /api/v1/scenario/start/1?user_id=1 HTTP/1.1" 200 OK
+WARNING:  StatReload detected changes in 'app/services/game.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-02-06 17:28:26,452 - app.main - INFO - Shutting down scenario server...
+INFO:     Application shutdown complete.
+INFO:     Finished server process [99587]
+/opt/anaconda3/envs/maratang_env/lib/python3.11/site-packages/pydantic/_internal/_config.py:383: UserWarning: Valid config keys have changed in V2:
+* 'orm_mode' has been renamed to 'from_attributes'
+  warnings.warn(message, UserWarning)
+INFO:     Started server process [287]
+INFO:     Waiting for application startup.
+2026-02-06 17:28:26,900 - app.main - INFO - Starting scenario server...
+2026-02-06 17:28:26,900 - app.main - INFO - Scenarios path: /Users/juhpark/Documents/maratang/demo-repository/scenarios
+2026-02-06 17:28:26,900 - app.main - INFO - Available scenarios: ['coraline', 'culprit_ai', 'zzapraline']
+INFO:     Application startup complete.
+[DEBUG] apply_chat_result - Before Turn: 1, Increment: 1
+[DEBUG] apply_chat_result - After Turn: 2
+
+=== [GameService] Apply Result Verification ===
+Turn: 1 (Expected: incremented)
+Inventory: ['warm_black_tea']
+Memory: {}
+Mother not found in NPC list
+===============================================
+
+INFO:     115.95.186.2:0 - "POST /api/v1/game/4/step HTTP/1.1" 200 OK
+[DEBUG] apply_chat_result - Before Turn: 1, Increment: 1
+[DEBUG] apply_chat_result - After Turn: 2
+
+=== [GameService] Apply Result Verification ===
+Turn: 1 (Expected: incremented)
+Inventory: ['warm_black_tea']
+Memory: {}
+Mother not found in NPC list
+===============================================
+
+INFO:     115.95.186.2:0 - "POST /api/v1/game/4/step HTTP/1.1" 200 OK
+WARNING:  StatReload detected changes in 'app/services/game.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-02-06 17:34:01,556 - app.main - INFO - Shutting down scenario server...
+INFO:     Application shutdown complete.
+INFO:     Finished server process [287]
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 122, in spawn_main
+    exitcode = _main(fd, parent_sentinel)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 131, in _main
+    prepare(preparation_data)
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 244, in prepare
+    _fixup_main_from_name(data['init_main_from_name'])
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 268, in _fixup_main_from_name
+    main_content = runpy.run_module(mod_name,
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen runpy>", line 226, in run_module
+  File "<frozen runpy>", line 98, in _run_module_code
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/juhpark/Documents/maratang/demo-repository/app/main.py", line 35, in <module>
+    from app.api.routes.v1 import game as v1_game_router
+  File "/Users/juhpark/Documents/maratang/demo-repository/app/api/routes/v1/game.py", line 3, in <module>
+    from app.services.game import GameService
+  File "/Users/juhpark/Documents/maratang/demo-repository/app/services/game.py", line 279
+    @staticmethod
+IndentationError: unexpected indent
+WARNING:  StatReload detected changes in 'app/services/game.py'. Reloading...
+/opt/anaconda3/envs/maratang_env/lib/python3.11/site-packages/pydantic/_internal/_config.py:383: UserWarning: Valid config keys have changed in V2:
+* 'orm_mode' has been renamed to 'from_attributes'
+  warnings.warn(message, UserWarning)
+INFO:     Started server process [2495]
+INFO:     Waiting for application startup.
+2026-02-06 17:37:05,874 - app.main - INFO - Starting scenario server...
+2026-02-06 17:37:05,874 - app.main - INFO - Scenarios path: /Users/juhpark/Documents/maratang/demo-repository/scenarios
+2026-02-06 17:37:05,874 - app.main - INFO - Available scenarios: ['coraline', 'culprit_ai', 'zzapraline']
+INFO:     Application startup complete.
+WARNING:  StatReload detected changes in 'app/services/game.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-02-06 17:37:08,804 - app.main - INFO - Shutting down scenario server...
+INFO:     Application shutdown complete.
+INFO:     Finished server process [2495]
+/opt/anaconda3/envs/maratang_env/lib/python3.11/site-packages/pydantic/_internal/_config.py:383: UserWarning: Valid config keys have changed in V2:
+* 'orm_mode' has been renamed to 'from_attributes'
+  warnings.warn(message, UserWarning)
+INFO:     Started server process [2517]
+INFO:     Waiting for application startup.
+2026-02-06 17:37:09,215 - app.main - INFO - Starting scenario server...
+2026-02-06 17:37:09,215 - app.main - INFO - Scenarios path: /Users/juhpark/Documents/maratang/demo-repository/scenarios
+2026-02-06 17:37:09,215 - app.main - INFO - Available scenarios: ['coraline', 'culprit_ai', 'zzapraline']
+INFO:     Application startup complete.
+[DEBUG] apply_chat_result - Before Turn: 1, Increment: 1
+[DEBUG] apply_chat_result - After Turn: 2
+
+=== [GameService] Apply Result Verification ===
+Turn: 2 (Expected: incremented)
+Inventory: ['old_key', 'strange_note', 'warm_black_tea']
+Memory: {'clue_found': 'old_key', 'last_interaction': 'talked_to_mother'}
+Mother not found in NPC list
+===============================================
+
+INFO:     115.95.186.2:0 - "POST /api/v1/game/4/step HTTP/1.1" 200 OK
+[DEBUG] apply_chat_result - Before Turn: 2, Increment: 1
+[DEBUG] apply_chat_result - After Turn: 3
+
+=== [GameService] Apply Result Verification ===
+Turn: 3 (Expected: incremented)
+Inventory: ['old_key', 'strange_note', 'warm_black_tea']
+Memory: {'clue_found': 'old_key', 'last_interaction': 'talked_to_mother'}
+Mother not found in NPC list
+===============================================
+
+INFO:     115.95.186.2:0 - "POST /api/v1/game/4/step HTTP/1.1" 200 OK
+[DEBUG] apply_chat_result - Before Turn: 3, Increment: 1
+[DEBUG] apply_chat_result - After Turn: 4
+
+=== [GameService] Apply Result Verification ===
+Turn: 4 (Expected: incremented)
+Inventory: ['old_key', 'strange_note', 'warm_black_tea']
+Memory: {'clue_found': 'old_key', 'last_interaction': 'talked_to_mother'}
+Mother not found in NPC list
+===============================================
+
+INFO:     115.95.186.2:0 - "POST /api/v1/game/4/step HTTP/1.1" 200 OK
+[DEBUG] apply_chat_result - Before Turn: 4, Increment: 1
+[DEBUG] apply_chat_result - After Turn: 5
+
+=== [GameService] Apply Result Verification ===
+Turn: 5 (Expected: incremented)
+Inventory: ['old_key', 'strange_note', 'warm_black_tea']
+Memory: {'clue_found': 'old_key', 'last_interaction': 'talked_to_mother'}
+Mother not found in NPC list
+===============================================
+
+INFO:     115.95.186.2:0 - "POST /api/v1/game/4/step HTTP/1.1" 200 OK
+WARNING:  StatReload detected changes in 'app/services/game.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-02-06 17:40:01,188 - app.main - INFO - Shutting down scenario server...
+INFO:     Application shutdown complete.
+INFO:     Finished server process [2517]
+/opt/anaconda3/envs/maratang_env/lib/python3.11/site-packages/pydantic/_internal/_config.py:383: UserWarning: Valid config keys have changed in V2:
+* 'orm_mode' has been renamed to 'from_attributes'
+  warnings.warn(message, UserWarning)
+INFO:     Started server process [3172]
+INFO:     Waiting for application startup.
+2026-02-06 17:40:01,608 - app.main - INFO - Starting scenario server...
+2026-02-06 17:40:01,608 - app.main - INFO - Scenarios path: /Users/juhpark/Documents/maratang/demo-repository/scenarios
+2026-02-06 17:40:01,608 - app.main - INFO - Available scenarios: ['coraline', 'culprit_ai', 'zzapraline']
+INFO:     Application startup complete.
+WARNING:  StatReload detected changes in 'app/services/game.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-02-06 17:40:07,469 - app.main - INFO - Shutting down scenario server...
+INFO:     Application shutdown complete.
+INFO:     Finished server process [3172]
+/opt/anaconda3/envs/maratang_env/lib/python3.11/site-packages/pydantic/_internal/_config.py:383: UserWarning: Valid config keys have changed in V2:
+* 'orm_mode' has been renamed to 'from_attributes'
+  warnings.warn(message, UserWarning)
+INFO:     Started server process [3312]
+INFO:     Waiting for application startup.
+2026-02-06 17:40:07,895 - app.main - INFO - Starting scenario server...
+2026-02-06 17:40:07,895 - app.main - INFO - Scenarios path: /Users/juhpark/Documents/maratang/demo-repository/scenarios
+2026-02-06 17:40:07,895 - app.main - INFO - Available scenarios: ['coraline', 'culprit_ai', 'zzapraline']
+INFO:     Application startup complete.
+WARNING:  StatReload detected changes in 'app/services/game.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-02-06 17:44:25,042 - app.main - INFO - Shutting down scenario server...
+INFO:     Application shutdown complete.
+INFO:     Finished server process [3312]
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 122, in spawn_main
+    exitcode = _main(fd, parent_sentinel)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 131, in _main
+    prepare(preparation_data)
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 244, in prepare
+    _fixup_main_from_name(data['init_main_from_name'])
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 268, in _fixup_main_from_name
+    main_content = runpy.run_module(mod_name,
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen runpy>", line 226, in run_module
+  File "<frozen runpy>", line 98, in _run_module_code
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/juhpark/Documents/maratang/demo-repository/app/main.py", line 35, in <module>
+    from app.api.routes.v1 import game as v1_game_router
+  File "/Users/juhpark/Documents/maratang/demo-repository/app/api/routes/v1/game.py", line 3, in <module>
+    from app.services.game import GameService
+  File "/Users/juhpark/Documents/maratang/demo-repository/app/services/game.py", line 457
+    crud_game.update_game(db, game)
+IndentationError: unexpected indent
+WARNING:  StatReload detected changes in 'app/services/game.py'. Reloading...
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 122, in spawn_main
+    exitcode = _main(fd, parent_sentinel)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 131, in _main
+    prepare(preparation_data)
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 244, in prepare
+    _fixup_main_from_name(data['init_main_from_name'])
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 268, in _fixup_main_from_name
+    main_content = runpy.run_module(mod_name,
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen runpy>", line 226, in run_module
+  File "<frozen runpy>", line 98, in _run_module_code
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/juhpark/Documents/maratang/demo-repository/app/main.py", line 35, in <module>
+    from app.api.routes.v1 import game as v1_game_router
+  File "/Users/juhpark/Documents/maratang/demo-repository/app/api/routes/v1/game.py", line 3, in <module>
+    from app.services.game import GameService
+  File "/Users/juhpark/Documents/maratang/demo-repository/app/services/game.py", line 457
+    crud_game.update_game(db, game)
+IndentationError: unexpected indent
+WARNING:  StatReload detected changes in 'app/services/game.py'. Reloading...
+/opt/anaconda3/envs/maratang_env/lib/python3.11/site-packages/pydantic/_internal/_config.py:383: UserWarning: Valid config keys have changed in V2:
+* 'orm_mode' has been renamed to 'from_attributes'
+  warnings.warn(message, UserWarning)
+INFO:     Started server process [4308]
+INFO:     Waiting for application startup.
+2026-02-06 17:44:47,446 - app.main - INFO - Starting scenario server...
+2026-02-06 17:44:47,446 - app.main - INFO - Scenarios path: /Users/juhpark/Documents/maratang/demo-repository/scenarios
+2026-02-06 17:44:47,447 - app.main - INFO - Available scenarios: ['coraline', 'culprit_ai', 'zzapraline']
+INFO:     Application startup complete.
+INFO:     222.109.42.88:0 - "POST /api/v1/game/1/step HTTP/1.1" 500 Internal Server Error
+ERROR:    Exception in ASGI application
+Traceback (most recent call last):
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/site-packages/uvicorn/protocols/http/h11_impl.py", line 428, in run_asgi
+    result = await app(  # type: ignore[func-returns-value]
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/site-packages/uvicorn/middleware/proxy_headers.py", line 78, in __call__
+    return await self.app(scope, receive, send)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/site-packages/fastapi/applications.py", line 1138, in __call__
+    await super().__call__(scope, receive, send)
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/site-packages/starlette/applications.py", line 107, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/site-packages/starlette/middleware/errors.py", line 186, in __call__
+    raise exc
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/site-packages/starlette/middleware/errors.py", line 164, in __call__
+    await self.app(scope, receive, _send)
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/site-packages/starlette/middleware/exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/site-packages/fastapi/middleware/asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/site-packages/starlette/routing.py", line 716, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/site-packages/starlette/routing.py", line 736, in app
+    await route.handle(scope, receive, send)
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/site-packages/starlette/routing.py", line 290, in handle
+    await self.app(scope, receive, send)
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/site-packages/fastapi/routing.py", line 115, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/site-packages/fastapi/routing.py", line 101, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/site-packages/fastapi/routing.py", line 355, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/site-packages/fastapi/routing.py", line 245, in run_endpoint_function
+    return await run_in_threadpool(dependant.call, **values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/site-packages/starlette/concurrency.py", line 32, in run_in_threadpool
+    return await anyio.to_thread.run_sync(func)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/site-packages/anyio/to_thread.py", line 63, in run_sync
+    return await get_async_backend().run_sync_in_worker_thread(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/site-packages/anyio/_backends/_asyncio.py", line 2502, in run_sync_in_worker_thread
+    return await future
+           ^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/site-packages/anyio/_backends/_asyncio.py", line 986, in run
+    result = context.run(func, *args)
+             ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/juhpark/Documents/maratang/demo-repository/app/api/routes/v1/game.py", line 85, in step_game
+    result = GameService.process_turn(db, game_id, request.dict(), game)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: GameService.process_turn() takes 4 positional arguments but 5 were given
+WARNING:  StatReload detected changes in 'app/services/game.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-02-06 17:45:31,757 - app.main - INFO - Shutting down scenario server...
+INFO:     Application shutdown complete.
+INFO:     Finished server process [4308]
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 122, in spawn_main
+    exitcode = _main(fd, parent_sentinel)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 131, in _main
+    prepare(preparation_data)
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 244, in prepare
+    _fixup_main_from_name(data['init_main_from_name'])
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 268, in _fixup_main_from_name
+    main_content = runpy.run_module(mod_name,
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen runpy>", line 226, in run_module
+  File "<frozen runpy>", line 98, in _run_module_code
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/juhpark/Documents/maratang/demo-repository/app/main.py", line 35, in <module>
+    from app.api.routes.v1 import game as v1_game_router
+  File "/Users/juhpark/Documents/maratang/demo-repository/app/api/routes/v1/game.py", line 3, in <module>
+    from app.services.game import GameService
+  File "/Users/juhpark/Documents/maratang/demo-repository/app/services/game.py", line 457
+    crud_game.update_game(db, game)
+IndentationError: unexpected indent
+WARNING:  StatReload detected changes in 'app/services/game.py'. Reloading...
+/opt/anaconda3/envs/maratang_env/lib/python3.11/site-packages/pydantic/_internal/_config.py:383: UserWarning: Valid config keys have changed in V2:
+* 'orm_mode' has been renamed to 'from_attributes'
+  warnings.warn(message, UserWarning)
+INFO:     Started server process [4499]
+INFO:     Waiting for application startup.
+2026-02-06 17:45:37,537 - app.main - INFO - Starting scenario server...
+2026-02-06 17:45:37,537 - app.main - INFO - Scenarios path: /Users/juhpark/Documents/maratang/demo-repository/scenarios
+2026-02-06 17:45:37,537 - app.main - INFO - Available scenarios: ['coraline', 'culprit_ai', 'zzapraline']
+INFO:     Application startup complete.
+[DEBUG] apply_chat_result - Before Turn: 5, Increment: 1
+[DEBUG] apply_chat_result - After Turn: 6
+
+=== [GameService] Apply Result Verification ===
+Turn: 6 (Expected: incremented)
+Inventory: ['strange_note', 'old_key', 'warm_black_tea']
+Memory: {'clue_found': 'old_key', 'last_interaction': 'talked_to_mother'}
+Mother not found in NPC list
+===============================================
+
+INFO:     115.95.186.2:0 - "POST /api/v1/game/4/step HTTP/1.1" 200 OK
+[DEBUG] apply_chat_result - Before Turn: 6, Increment: 1
+[DEBUG] apply_chat_result - After Turn: 7
+
+=== [GameService] Apply Result Verification ===
+Turn: 7 (Expected: incremented)
+Inventory: ['strange_note', 'old_key', 'warm_black_tea']
+Memory: {'clue_found': 'old_key', 'last_interaction': 'talked_to_mother'}
+Mother not found in NPC list
+===============================================
+
+INFO:     115.95.186.2:0 - "POST /api/v1/game/4/step HTTP/1.1" 200 OK
+WARNING:  StatReload detected changes in 'app/api/routes/v1/game.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-02-06 17:48:10,017 - app.main - INFO - Shutting down scenario server...
+INFO:     Application shutdown complete.
+INFO:     Finished server process [4499]
+/opt/anaconda3/envs/maratang_env/lib/python3.11/site-packages/pydantic/_internal/_config.py:383: UserWarning: Valid config keys have changed in V2:
+* 'orm_mode' has been renamed to 'from_attributes'
+  warnings.warn(message, UserWarning)
+INFO:     Started server process [5078]
+INFO:     Waiting for application startup.
+2026-02-06 17:48:10,451 - app.main - INFO - Starting scenario server...
+2026-02-06 17:48:10,451 - app.main - INFO - Scenarios path: /Users/juhpark/Documents/maratang/demo-repository/scenarios
+2026-02-06 17:48:10,451 - app.main - INFO - Available scenarios: ['coraline', 'culprit_ai', 'zzapraline']
+INFO:     Application startup complete.
+[DEBUG] apply_chat_result - Before Turn: 1, Increment: 1
+[DEBUG] apply_chat_result - After Turn: 2
+
+=== [GameService] Apply Result Verification ===
+Turn: 2 (Expected: incremented)
+Inventory: ['', 'strange_note', 'old_key', 'warm_black_tea']
+Memory: {'last_interaction': 'talked_to_mother', 'clue_found': 'old_key'}
+Mother not found in NPC list
+===============================================
+
+INFO:     222.109.42.88:0 - "POST /api/v1/game/1/step HTTP/1.1" 200 OK
+[DEBUG] apply_chat_result - Before Turn: 2, Increment: 1
+[DEBUG] apply_chat_result - After Turn: 3
+
+=== [GameService] Apply Result Verification ===
+Turn: 3 (Expected: incremented)
+Inventory: ['', 'strange_note', 'old_key', 'warm_black_tea']
+Memory: {'clue_found': 'old_key', 'last_interaction': 'talked_to_mother'}
+Mother not found in NPC list
+===============================================
+
+INFO:     222.109.42.88:0 - "POST /api/v1/game/1/step HTTP/1.1" 200 OK
+WARNING:  StatReload detected changes in 'app/api/routes/v1/game.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-02-06 17:51:46,580 - app.main - INFO - Shutting down scenario server...
+INFO:     Application shutdown complete.
+INFO:     Finished server process [5078]
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 122, in spawn_main
+    exitcode = _main(fd, parent_sentinel)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 131, in _main
+    prepare(preparation_data)
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 244, in prepare
+    _fixup_main_from_name(data['init_main_from_name'])
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 268, in _fixup_main_from_name
+    main_content = runpy.run_module(mod_name,
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen runpy>", line 226, in run_module
+  File "<frozen runpy>", line 98, in _run_module_code
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/juhpark/Documents/maratang/demo-repository/app/main.py", line 35, in <module>
+    from app.api.routes.v1 import game as v1_game_router
+  File "/Users/juhpark/Documents/maratang/demo-repository/app/api/routes/v1/game.py", line 75, in <module>
+    @router.get("/{game_id}/nights/{night_id}", summary="밤의 대화 결과 조회", response_model=NightLogResponse)
+                                                                                              ^^^^^^^^^^^^^^^^
+NameError: name 'NightLogResponse' is not defined
+WARNING:  StatReload detected changes in 'app/api/routes/v1/game.py'. Reloading...
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 122, in spawn_main
+    exitcode = _main(fd, parent_sentinel)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 131, in _main
+    prepare(preparation_data)
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 244, in prepare
+    _fixup_main_from_name(data['init_main_from_name'])
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 268, in _fixup_main_from_name
+    main_content = runpy.run_module(mod_name,
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen runpy>", line 226, in run_module
+  File "<frozen runpy>", line 98, in _run_module_code
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/juhpark/Documents/maratang/demo-repository/app/main.py", line 35, in <module>
+    from app.api.routes.v1 import game as v1_game_router
+  File "/Users/juhpark/Documents/maratang/demo-repository/app/api/routes/v1/game.py", line 75, in <module>
+    @router.get("/{game_id}/nights/{night_id}", summary="밤의 대화 결과 조회", response_model=NightLogResponse)
+                                                                                              ^^^^^^^^^^^^^^^^
+NameError: name 'NightLogResponse' is not defined
+WARNING:  StatReload detected changes in 'app/api/routes/v1/game.py'. Reloading...
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 122, in spawn_main
+    exitcode = _main(fd, parent_sentinel)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 131, in _main
+    prepare(preparation_data)
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 244, in prepare
+    _fixup_main_from_name(data['init_main_from_name'])
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 268, in _fixup_main_from_name
+    main_content = runpy.run_module(mod_name,
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen runpy>", line 226, in run_module
+  File "<frozen runpy>", line 98, in _run_module_code
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/juhpark/Documents/maratang/demo-repository/app/main.py", line 35, in <module>
+    from app.api.routes.v1 import game as v1_game_router
+  File "/Users/juhpark/Documents/maratang/demo-repository/app/api/routes/v1/game.py", line 75, in <module>
+    @router.get("/{game_id}/nights/{night_id}", summary="밤의 대화 요청", response_model=NightLogResponse)
+                                                                                         ^^^^^^^^^^^^^^^^
+NameError: name 'NightLogResponse' is not defined
+WARNING:  StatReload detected changes in 'app/api/routes/v1/game.py'. Reloading...
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 122, in spawn_main
+    exitcode = _main(fd, parent_sentinel)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 131, in _main
+    prepare(preparation_data)
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 244, in prepare
+    _fixup_main_from_name(data['init_main_from_name'])
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 268, in _fixup_main_from_name
+    main_content = runpy.run_module(mod_name,
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen runpy>", line 226, in run_module
+  File "<frozen runpy>", line 98, in _run_module_code
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/juhpark/Documents/maratang/demo-repository/app/main.py", line 35, in <module>
+    from app.api.routes.v1 import game as v1_game_router
+  File "/Users/juhpark/Documents/maratang/demo-repository/app/api/routes/v1/game.py", line 75, in <module>
+    @router.get("/{game_id}/nights/{night_id}", summary="밤의 대화 요청", response_model=NightChatResponse)
+                                                                                         ^^^^^^^^^^^^^^^^^
+NameError: name 'NightChatResponse' is not defined
+WARNING:  StatReload detected changes in 'app/schemas/night_chat_response.py'. Reloading...
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 122, in spawn_main
+    exitcode = _main(fd, parent_sentinel)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 131, in _main
+    prepare(preparation_data)
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 244, in prepare
+    _fixup_main_from_name(data['init_main_from_name'])
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 268, in _fixup_main_from_name
+    main_content = runpy.run_module(mod_name,
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen runpy>", line 226, in run_module
+  File "<frozen runpy>", line 98, in _run_module_code
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/juhpark/Documents/maratang/demo-repository/app/main.py", line 35, in <module>
+    from app.api.routes.v1 import game as v1_game_router
+  File "/Users/juhpark/Documents/maratang/demo-repository/app/api/routes/v1/game.py", line 75, in <module>
+    @router.get("/{game_id}/nights/{night_id}", summary="밤의 대화 요청", response_model=NightChatResponse)
+                                                                                         ^^^^^^^^^^^^^^^^^
+NameError: name 'NightChatResponse' is not defined
+WARNING:  StatReload detected changes in 'app/schemas/night_chat_response.py'. Reloading...
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 122, in spawn_main
+    exitcode = _main(fd, parent_sentinel)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 131, in _main
+    prepare(preparation_data)
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 244, in prepare
+    _fixup_main_from_name(data['init_main_from_name'])
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 268, in _fixup_main_from_name
+    main_content = runpy.run_module(mod_name,
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen runpy>", line 226, in run_module
+  File "<frozen runpy>", line 98, in _run_module_code
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/juhpark/Documents/maratang/demo-repository/app/main.py", line 35, in <module>
+    from app.api.routes.v1 import game as v1_game_router
+  File "/Users/juhpark/Documents/maratang/demo-repository/app/api/routes/v1/game.py", line 75, in <module>
+    @router.get("/{game_id}/nights/{night_id}", summary="밤의 대화 요청", response_model=NightChatResponse)
+                                                                                         ^^^^^^^^^^^^^^^^^
+NameError: name 'NightChatResponse' is not defined
+WARNING:  StatReload detected changes in 'app/schemas/night_chat_response.py'. Reloading...
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 122, in spawn_main
+    exitcode = _main(fd, parent_sentinel)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 131, in _main
+    prepare(preparation_data)
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 244, in prepare
+    _fixup_main_from_name(data['init_main_from_name'])
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 268, in _fixup_main_from_name
+    main_content = runpy.run_module(mod_name,
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen runpy>", line 226, in run_module
+  File "<frozen runpy>", line 98, in _run_module_code
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/juhpark/Documents/maratang/demo-repository/app/main.py", line 35, in <module>
+    from app.api.routes.v1 import game as v1_game_router
+  File "/Users/juhpark/Documents/maratang/demo-repository/app/api/routes/v1/game.py", line 75, in <module>
+    @router.get("/{game_id}/nights/{night_id}", summary="밤의 대화 요청", response_model=NightChatResponse)
+                                                                                         ^^^^^^^^^^^^^^^^^
+NameError: name 'NightChatResponse' is not defined
+WARNING:  StatReload detected changes in 'app/schemas/night_chat_response.py'. Reloading...
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 122, in spawn_main
+    exitcode = _main(fd, parent_sentinel)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 131, in _main
+    prepare(preparation_data)
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 244, in prepare
+    _fixup_main_from_name(data['init_main_from_name'])
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 268, in _fixup_main_from_name
+    main_content = runpy.run_module(mod_name,
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen runpy>", line 226, in run_module
+  File "<frozen runpy>", line 98, in _run_module_code
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/juhpark/Documents/maratang/demo-repository/app/main.py", line 35, in <module>
+    from app.api.routes.v1 import game as v1_game_router
+  File "/Users/juhpark/Documents/maratang/demo-repository/app/api/routes/v1/game.py", line 75, in <module>
+    @router.get("/{game_id}/nights/{night_id}", summary="밤의 대화 요청", response_model=NightChatResponse)
+                                                                                         ^^^^^^^^^^^^^^^^^
+NameError: name 'NightChatResponse' is not defined
+WARNING:  StatReload detected changes in 'app/api/routes/v1/game.py'. Reloading...
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 122, in spawn_main
+    exitcode = _main(fd, parent_sentinel)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 131, in _main
+    prepare(preparation_data)
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 244, in prepare
+    _fixup_main_from_name(data['init_main_from_name'])
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 268, in _fixup_main_from_name
+    main_content = runpy.run_module(mod_name,
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen runpy>", line 226, in run_module
+  File "<frozen runpy>", line 98, in _run_module_code
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/juhpark/Documents/maratang/demo-repository/app/main.py", line 35, in <module>
+    from app.api.routes.v1 import game as v1_game_router
+  File "/Users/juhpark/Documents/maratang/demo-repository/app/api/routes/v1/game.py", line 75, in <module>
+    @router.get("/{game_id}/nights/{night_id}", summary="밤의 대화 요청", response_model=NightChatResponse)
+                                                                                         ^^^^^^^^^^^^^^^^^
+NameError: name 'NightChatResponse' is not defined
+WARNING:  StatReload detected changes in 'app/api/routes/v1/game.py'. Reloading...
+/opt/anaconda3/envs/maratang_env/lib/python3.11/site-packages/pydantic/_internal/_config.py:383: UserWarning: Valid config keys have changed in V2:
+* 'orm_mode' has been renamed to 'from_attributes'
+  warnings.warn(message, UserWarning)
+INFO:     Started server process [11643]
+INFO:     Waiting for application startup.
+2026-02-06 18:16:58,146 - app.main - INFO - Starting scenario server...
+2026-02-06 18:16:58,146 - app.main - INFO - Scenarios path: /Users/juhpark/Documents/maratang/demo-repository/scenarios
+2026-02-06 18:16:58,146 - app.main - INFO - Available scenarios: ['coraline', 'culprit_ai', 'zzapraline']
+INFO:     Application startup complete.
+WARNING:  StatReload detected changes in 'app/api/routes/v1/game.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-02-06 18:25:43,627 - app.main - INFO - Shutting down scenario server...
+INFO:     Application shutdown complete.
+INFO:     Finished server process [11643]
+[DEBUG] apply_chat_result - Before Turn: 3, Increment: 1
+[DEBUG] apply_chat_result - After Turn: 4
+
+=== [GameService] Apply Result Verification ===
+Turn: 4 (Expected: incremented)
+Inventory: ['', 'warm_black_tea', 'old_key', 'strange_note']
+Memory: {'clue_found': 'old_key', 'last_interaction': 'talked_to_mother'}
+Mother not found in NPC list
+===============================================
+
+[DEBUG] apply_chat_result - Before Turn: 3, Increment: 1
+[DEBUG] apply_chat_result - After Turn: 4
+
+=== [GameService] Apply Result Verification ===
+Turn: 4 (Expected: incremented)
+Inventory: ['', 'warm_black_tea', 'old_key', 'strange_note']
+Memory: {'clue_found': 'old_key', 'last_interaction': 'talked_to_mother'}
+Mother not found in NPC list
+===============================================
+
+[DEBUG] apply_chat_result - Before Turn: 3, Increment: 1
+[DEBUG] apply_chat_result - After Turn: 4
+
+=== [GameService] Apply Result Verification ===
+Turn: 4 (Expected: incremented)
+Inventory: ['', 'warm_black_tea', 'old_key', 'strange_note']
+Memory: {'clue_found': 'old_key', 'last_interaction': 'talked_to_mother'}
+Mother not found in NPC list
+===============================================
+
+[DEBUG] apply_chat_result - Before Turn: 3, Increment: 1
+[DEBUG] apply_chat_result - After Turn: 4
+
+=== [GameService] Apply Result Verification ===
+Turn: 4 (Expected: incremented)
+Inventory: ['', 'warm_black_tea', 'old_key', 'strange_note']
+Memory: {'clue_found': 'old_key', 'last_interaction': 'talked_to_mother'}
+Mother not found in NPC list
+===============================================
+
+[DEBUG] apply_chat_result - Before Turn: 3, Increment: 1
+[DEBUG] apply_chat_result - After Turn: 4
+
+=== [GameService] Apply Result Verification ===
+Turn: 4 (Expected: incremented)
+Inventory: ['', 'warm_black_tea', 'old_key', 'strange_note']
+Memory: {'clue_found': 'old_key', 'last_interaction': 'talked_to_mother'}
+Mother not found in NPC list
+===============================================
+
+[DEBUG] apply_chat_result - Before Turn: 3, Increment: 1
+[DEBUG] apply_chat_result - After Turn: 4
+
+=== [GameService] Apply Result Verification ===
+Turn: 4 (Expected: incremented)
+Inventory: ['', 'warm_black_tea', 'old_key', 'strange_note']
+Memory: {'clue_found': 'old_key', 'last_interaction': 'talked_to_mother'}
+Mother not found in NPC list
+===============================================
+
+[DEBUG] apply_chat_result - Before Turn: 3, Increment: 1
+[DEBUG] apply_chat_result - After Turn: 4
+
+=== [GameService] Apply Result Verification ===
+Turn: 4 (Expected: incremented)
+Inventory: ['', 'warm_black_tea', 'old_key', 'strange_note']
+Memory: {'clue_found': 'old_key', 'last_interaction': 'talked_to_mother'}
+Mother not found in NPC list
+===============================================
+
+[DEBUG] apply_chat_result - Before Turn: 3, Increment: 1
+[DEBUG] apply_chat_result - After Turn: 4
+
+=== [GameService] Apply Result Verification ===
+Turn: 4 (Expected: incremented)
+Inventory: ['', 'warm_black_tea', 'old_key', 'strange_note']
+Memory: {'clue_found': 'old_key', 'last_interaction': 'talked_to_mother'}
+Mother not found in NPC list
+===============================================
+
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 122, in spawn_main
+    exitcode = _main(fd, parent_sentinel)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 131, in _main
+    prepare(preparation_data)
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 244, in prepare
+    _fixup_main_from_name(data['init_main_from_name'])
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 268, in _fixup_main_from_name
+    main_content = runpy.run_module(mod_name,
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen runpy>", line 226, in run_module
+  File "<frozen runpy>", line 98, in _run_module_code
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/juhpark/Documents/maratang/demo-repository/app/main.py", line 35, in <module>
+    from app.api.routes.v1 import game as v1_game_router
+  File "/Users/juhpark/Documents/maratang/demo-repository/app/api/routes/v1/game.py", line 148
+    )
+    ^
+SyntaxError: unmatched ')'
+WARNING:  StatReload detected changes in 'app/api/routes/v1/game.py'. Reloading...
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 122, in spawn_main
+    exitcode = _main(fd, parent_sentinel)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 131, in _main
+    prepare(preparation_data)
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 244, in prepare
+    _fixup_main_from_name(data['init_main_from_name'])
+  File "/opt/anaconda3/envs/maratang_env/lib/python3.11/multiprocessing/spawn.py", line 268, in _fixup_main_from_name
+    main_content = runpy.run_module(mod_name,
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen runpy>", line 226, in run_module
+  File "<frozen runpy>", line 98, in _run_module_code
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/juhpark/Documents/maratang/demo-repository/app/main.py", line 35, in <module>
+    from app.api.routes.v1 import game as v1_game_router
+  File "/Users/juhpark/Documents/maratang/demo-repository/app/api/routes/v1/game.py", line 129
+    available=True,
+             ^
+SyntaxError: invalid syntax
+WARNING:  StatReload detected changes in 'app/api/routes/v1/game.py'. Reloading...
+/opt/anaconda3/envs/maratang_env/lib/python3.11/site-packages/pydantic/_internal/_config.py:383: UserWarning: Valid config keys have changed in V2:
+* 'orm_mode' has been renamed to 'from_attributes'
+  warnings.warn(message, UserWarning)
+INFO:     Started server process [13822]
+INFO:     Waiting for application startup.
+2026-02-06 18:26:32,698 - app.main - INFO - Starting scenario server...
+2026-02-06 18:26:32,698 - app.main - INFO - Scenarios path: /Users/juhpark/Documents/maratang/demo-repository/scenarios
+2026-02-06 18:26:32,698 - app.main - INFO - Available scenarios: ['coraline', 'culprit_ai', 'zzapraline']
+INFO:     Application startup complete.
+WARNING:  StatReload detected changes in 'app/api/routes/v1/game.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-02-06 18:26:57,146 - app.main - INFO - Shutting down scenario server...
+INFO:     Application shutdown complete.
+INFO:     Finished server process [13822]
+/opt/anaconda3/envs/maratang_env/lib/python3.11/site-packages/pydantic/_internal/_config.py:383: UserWarning: Valid config keys have changed in V2:
+* 'orm_mode' has been renamed to 'from_attributes'
+  warnings.warn(message, UserWarning)
+INFO:     Started server process [13911]
+INFO:     Waiting for application startup.
+2026-02-06 18:26:57,587 - app.main - INFO - Starting scenario server...
+2026-02-06 18:26:57,587 - app.main - INFO - Scenarios path: /Users/juhpark/Documents/maratang/demo-repository/scenarios
+2026-02-06 18:26:57,587 - app.main - INFO - Available scenarios: ['coraline', 'culprit_ai', 'zzapraline']
+INFO:     Application startup complete.
+[DEBUG] apply_chat_result - Before Turn: 4, Increment: 1
+[DEBUG] apply_chat_result - After Turn: 5
+
+=== [GameService] Apply Result Verification ===
+Turn: 5 (Expected: incremented)
+Inventory: ['', 'strange_note', 'old_key', 'warm_black_tea']
+Memory: {'clue_found': 'old_key', 'last_interaction': 'talked_to_mother'}
+Mother not found in NPC list
+===============================================
+
+INFO:     222.109.42.88:0 - "POST /api/v1/game/1/step HTTP/1.1" 200 OK
+[DEBUG] apply_chat_result - Before Turn: 5, Increment: 1
+[DEBUG] apply_chat_result - After Turn: 6
+
+=== [GameService] Apply Result Verification ===
+Turn: 6 (Expected: incremented)
+Inventory: ['', 'old_key', 'warm_black_tea', 'strange_note']
+Memory: {'clue_found': 'old_key', 'last_interaction': 'talked_to_mother'}
+Mother not found in NPC list
+===============================================
+
+INFO:     222.109.42.88:0 - "POST /api/v1/game/1/step HTTP/1.1" 200 OK
+[DEBUG] apply_chat_result - Before Turn: 6, Increment: 1
+[DEBUG] apply_chat_result - After Turn: 7
+
+=== [GameService] Apply Result Verification ===
+Turn: 7 (Expected: incremented)
+Inventory: ['', 'strange_note', 'old_key', 'warm_black_tea']
+Memory: {'clue_found': 'old_key', 'last_interaction': 'talked_to_mother'}
+Mother not found in NPC list
+===============================================
+
+INFO:     222.109.42.88:0 - "POST /api/v1/game/1/step HTTP/1.1" 200 OK
+[DEBUG] apply_chat_result - Before Turn: 7, Increment: 1
+[DEBUG] apply_chat_result - After Turn: 8
+
+=== [GameService] Apply Result Verification ===
+Turn: 8 (Expected: incremented)
+Inventory: ['', 'old_key', 'warm_black_tea', 'strange_note']
+Memory: {'clue_found': 'old_key', 'last_interaction': 'talked_to_mother'}
+Mother not found in NPC list
+===============================================
+
+INFO:     222.109.42.88:0 - "POST /api/v1/game/1/step HTTP/1.1" 200 OK
+[DEBUG] apply_chat_result - Before Turn: 8, Increment: 1
+[DEBUG] apply_chat_result - After Turn: 9
+
+=== [GameService] Apply Result Verification ===
+Turn: 9 (Expected: incremented)
+Inventory: ['', 'strange_note', 'old_key', 'warm_black_tea']
+Memory: {'clue_found': 'old_key', 'last_interaction': 'talked_to_mother'}
+Mother not found in NPC list
+===============================================
+
+INFO:     222.109.42.88:0 - "POST /api/v1/game/1/step HTTP/1.1" 200 OK
+[DEBUG] apply_chat_result - Before Turn: 9, Increment: 1
+[DEBUG] apply_chat_result - After Turn: 10
+
+=== [GameService] Apply Result Verification ===
+Turn: 10 (Expected: incremented)
+Inventory: ['', 'old_key', 'warm_black_tea', 'strange_note']
+Memory: {'clue_found': 'old_key', 'last_interaction': 'talked_to_mother'}
+Mother not found in NPC list
+===============================================
+
+INFO:     222.109.42.88:0 - "POST /api/v1/game/1/step HTTP/1.1" 200 OK
+[DEBUG] apply_chat_result - Before Turn: 10, Increment: 1
+[DEBUG] apply_chat_result - After Turn: 11
+
+=== [GameService] Apply Result Verification ===
+Turn: 11 (Expected: incremented)
+Inventory: ['', 'strange_note', 'old_key', 'warm_black_tea']
+Memory: {'clue_found': 'old_key', 'last_interaction': 'talked_to_mother'}
+Mother not found in NPC list
+===============================================
+
+INFO:     222.109.42.88:0 - "POST /api/v1/game/1/step HTTP/1.1" 200 OK
+[DEBUG] apply_chat_result - Before Turn: 11, Increment: 1
+[DEBUG] apply_chat_result - After Turn: 12
+
+=== [GameService] Apply Result Verification ===
+Turn: 12 (Expected: incremented)
+Inventory: ['', 'old_key', 'warm_black_tea', 'strange_note']
+Memory: {'clue_found': 'old_key', 'last_interaction': 'talked_to_mother'}
+Mother not found in NPC list
+===============================================
+
+INFO:     222.109.42.88:0 - "POST /api/v1/game/1/step HTTP/1.1" 200 OK
+INFO:     115.95.186.2:0 - "GET /docs HTTP/1.1" 200 OK
+INFO:     115.95.186.2:0 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     115.95.186.2:0 - "GET /api/v1/scenario/ HTTP/1.1" 200 OK
+[DEBUG] apply_chat_result - Before Turn: 12, Increment: 1
+[DEBUG] apply_chat_result - After Turn: 13
+
+=== [GameService] Apply Result Verification ===
+Turn: 13 (Expected: incremented)
+Inventory: ['', 'strange_note', 'old_key', 'warm_black_tea']
+Memory: {'clue_found': 'old_key', 'last_interaction': 'talked_to_mother'}
+Mother not found in NPC list
+===============================================
+
+INFO:     115.95.186.2:0 - "POST /api/v1/game/1/step HTTP/1.1" 200 OK
+INFO:     115.95.186.2:0 - "GET /docs HTTP/1.1" 200 OK
+INFO:     115.95.186.2:0 - "GET /openapi.json HTTP/1.1" 200 OK
+[DEBUG] apply_chat_result - Before Turn: 13, Increment: 1
+[DEBUG] apply_chat_result - After Turn: 14
+
+=== [GameService] Apply Result Verification ===
+Turn: 14 (Expected: incremented)
+Inventory: ['', 'old_key', 'warm_black_tea', 'strange_note']
+Memory: {'clue_found': 'old_key', 'last_interaction': 'talked_to_mother'}
+Mother not found in NPC list
+===============================================
+
+INFO:     115.95.186.2:0 - "POST /api/v1/game/1/step HTTP/1.1" 200 OK
+WARNING:  StatReload detected changes in 'app/api/routes/v1/game.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-02-09 09:48:14,048 - app.main - INFO - Shutting down scenario server...
+INFO:     Application shutdown complete.
+INFO:     Finished server process [13911]
+/opt/anaconda3/envs/maratang_env/lib/python3.11/site-packages/pydantic/_internal/_config.py:383: UserWarning: Valid config keys have changed in V2:
+* 'orm_mode' has been renamed to 'from_attributes'
+  warnings.warn(message, UserWarning)
+INFO:     Started server process [65360]
+INFO:     Waiting for application startup.
+2026-02-09 09:48:14,638 - app.main - INFO - Starting scenario server...
+2026-02-09 09:48:14,638 - app.main - INFO - Scenarios path: /Users/juhpark/Documents/maratang/demo-repository/scenarios
+2026-02-09 09:48:14,638 - app.main - INFO - Available scenarios: ['coraline', 'culprit_ai', 'zzapraline']
+INFO:     Application startup complete.
+[DEBUG] apply_chat_result - Before Turn: 14, Increment: 1
+[DEBUG] apply_chat_result - After Turn: 15
+
+=== [GameService] Apply Result Verification ===
+Turn: 15 (Expected: incremented)
+Inventory: ['', 'strange_note', 'old_key', 'warm_black_tea']
+Memory: {'clue_found': 'old_key', 'last_interaction': 'talked_to_mother'}
+Mother not found in NPC list
+===============================================
+
+INFO:     222.109.42.88:0 - "POST /api/v1/game/1/step HTTP/1.1" 200 OK
+WARNING:  StatReload detected changes in 'app/schemas/night_chat_response.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-02-09 09:48:25,781 - app.main - INFO - Shutting down scenario server...
+INFO:     Application shutdown complete.
+INFO:     Finished server process [65360]
+/opt/anaconda3/envs/maratang_env/lib/python3.11/site-packages/pydantic/_internal/_config.py:383: UserWarning: Valid config keys have changed in V2:
+* 'orm_mode' has been renamed to 'from_attributes'
+  warnings.warn(message, UserWarning)
+INFO:     Started server process [65414]
+INFO:     Waiting for application startup.
+2026-02-09 09:48:26,196 - app.main - INFO - Starting scenario server...
+2026-02-09 09:48:26,196 - app.main - INFO - Scenarios path: /Users/juhpark/Documents/maratang/demo-repository/scenarios
+2026-02-09 09:48:26,196 - app.main - INFO - Available scenarios: ['coraline', 'culprit_ai', 'zzapraline']
+INFO:     Application startup complete.
+[DEBUG] apply_chat_result - Before Turn: 15, Increment: 1
+[DEBUG] apply_chat_result - After Turn: 16
+
+=== [GameService] Apply Result Verification ===
+Turn: 16 (Expected: incremented)
+Inventory: ['', 'warm_black_tea', 'old_key', 'strange_note']
+Memory: {'clue_found': 'old_key', 'last_interaction': 'talked_to_mother'}
+Mother not found in NPC list
+===============================================
+
+INFO:     222.109.42.88:0 - "POST /api/v1/game/1/step HTTP/1.1" 200 OK
+[DEBUG] apply_chat_result - Before Turn: 16, Increment: 1
+[DEBUG] apply_chat_result - After Turn: 17
+
+=== [GameService] Apply Result Verification ===
+Turn: 17 (Expected: incremented)
+Inventory: ['', 'old_key', 'warm_black_tea', 'strange_note']
+Memory: {'clue_found': 'old_key', 'last_interaction': 'talked_to_mother'}
+Mother not found in NPC list
+===============================================
+
+INFO:     222.109.42.88:0 - "POST /api/v1/game/1/step HTTP/1.1" 200 OK
+[DEBUG] apply_chat_result - Before Turn: 17, Increment: 1
+[DEBUG] apply_chat_result - After Turn: 18
+
+=== [GameService] Apply Result Verification ===
+Turn: 18 (Expected: incremented)
+Inventory: ['', 'old_key', 'warm_black_tea', 'strange_note']
+Memory: {'clue_found': 'old_key', 'last_interaction': 'talked_to_mother'}
+Mother not found in NPC list
+===============================================
+
+INFO:     222.109.42.88:0 - "POST /api/v1/game/1/step HTTP/1.1" 200 OK
+[DEBUG] apply_chat_result - Before Turn: 18, Increment: 1
+[DEBUG] apply_chat_result - After Turn: 19
+
+=== [GameService] Apply Result Verification ===
+Turn: 19 (Expected: incremented)
+Inventory: ['', 'old_key', 'warm_black_tea', 'strange_note']
+Memory: {'clue_found': 'old_key', 'last_interaction': 'talked_to_mother'}
+Mother not found in NPC list
+===============================================
+
+INFO:     222.109.42.88:0 - "POST /api/v1/game/1/step HTTP/1.1" 200 OK
+[DEBUG] apply_chat_result - Before Turn: 19, Increment: 1
+[DEBUG] apply_chat_result - After Turn: 20
+
+=== [GameService] Apply Result Verification ===
+Turn: 20 (Expected: incremented)
+Inventory: ['', 'old_key', 'warm_black_tea', 'strange_note']
+Memory: {'clue_found': 'old_key', 'last_interaction': 'talked_to_mother'}
+Mother not found in NPC list
+===============================================
+
+INFO:     222.109.42.88:0 - "POST /api/v1/game/1/step HTTP/1.1" 200 OK
+[DEBUG] apply_chat_result - Before Turn: 20, Increment: 1
+[DEBUG] apply_chat_result - After Turn: 21
+
+=== [GameService] Apply Result Verification ===
+Turn: 21 (Expected: incremented)
+Inventory: ['', 'old_key', 'warm_black_tea', 'strange_note']
+Memory: {'clue_found': 'old_key', 'last_interaction': 'talked_to_mother'}
+Mother not found in NPC list
+===============================================
+
+INFO:     222.109.42.88:0 - "POST /api/v1/game/1/step HTTP/1.1" 200 OK
+[DEBUG] apply_chat_result - Before Turn: 21, Increment: 1
+[DEBUG] apply_chat_result - After Turn: 22
+
+=== [GameService] Apply Result Verification ===
+Turn: 22 (Expected: incremented)
+Inventory: ['', 'old_key', 'warm_black_tea', 'strange_note']
+Memory: {'clue_found': 'old_key', 'last_interaction': 'talked_to_mother'}
+Mother not found in NPC list
+===============================================
+
+INFO:     222.109.42.88:0 - "POST /api/v1/game/1/step HTTP/1.1" 200 OK
+[DEBUG] apply_chat_result - Before Turn: 22, Increment: 1
+[DEBUG] apply_chat_result - After Turn: 23
+
+=== [GameService] Apply Result Verification ===
+Turn: 23 (Expected: incremented)
+Inventory: ['', 'old_key', 'warm_black_tea', 'strange_note']
+Memory: {'clue_found': 'old_key', 'last_interaction': 'talked_to_mother'}
+Mother not found in NPC list
+===============================================
+
+INFO:     222.109.42.88:0 - "POST /api/v1/game/1/step HTTP/1.1" 200 OK
+[DEBUG] apply_chat_result - Before Turn: 23, Increment: 1
+[DEBUG] apply_chat_result - After Turn: 24
+
+=== [GameService] Apply Result Verification ===
+Turn: 24 (Expected: incremented)
+Inventory: ['', 'old_key', 'warm_black_tea', 'strange_note']
+Memory: {'clue_found': 'old_key', 'last_interaction': 'talked_to_mother'}
+Mother not found in NPC list
+===============================================
+
+INFO:     222.109.42.88:0 - "POST /api/v1/game/1/step HTTP/1.1" 200 OK
+[DEBUG] apply_chat_result - Before Turn: 24, Increment: 1
+[DEBUG] apply_chat_result - After Turn: 25
+
+=== [GameService] Apply Result Verification ===
+Turn: 25 (Expected: incremented)
+Inventory: ['', 'old_key', 'warm_black_tea', 'strange_note']
+Memory: {'clue_found': 'old_key', 'last_interaction': 'talked_to_mother'}
+Mother not found in NPC list
+===============================================
+
+INFO:     115.95.186.2:0 - "POST /api/v1/game/1/step HTTP/1.1" 200 OK
+WARNING:  StatReload detected changes in 'app/schemas/npc_info.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-02-09 10:03:09,524 - app.main - INFO - Shutting down scenario server...
+INFO:     Application shutdown complete.
+INFO:     Finished server process [65414]
+/opt/anaconda3/envs/maratang_env/lib/python3.11/site-packages/pydantic/_internal/_config.py:383: UserWarning: Valid config keys have changed in V2:
+* 'orm_mode' has been renamed to 'from_attributes'
+  warnings.warn(message, UserWarning)
+INFO:     Started server process [68694]
+INFO:     Waiting for application startup.
+2026-02-09 10:03:09,948 - app.main - INFO - Starting scenario server...
+2026-02-09 10:03:09,948 - app.main - INFO - Scenarios path: /Users/juhpark/Documents/maratang/demo-repository/scenarios
+2026-02-09 10:03:09,948 - app.main - INFO - Available scenarios: ['coraline', 'culprit_ai', 'zzapraline']
+INFO:     Application startup complete.
+WARNING:  StatReload detected changes in 'app/services/game.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-02-09 10:03:56,533 - app.main - INFO - Shutting down scenario server...
+INFO:     Application shutdown complete.
+INFO:     Finished server process [68694]
+/opt/anaconda3/envs/maratang_env/lib/python3.11/site-packages/pydantic/_internal/_config.py:383: UserWarning: Valid config keys have changed in V2:
+* 'orm_mode' has been renamed to 'from_attributes'
+  warnings.warn(message, UserWarning)
+INFO:     Started server process [69012]
+INFO:     Waiting for application startup.
+2026-02-09 10:03:56,965 - app.main - INFO - Starting scenario server...
+2026-02-09 10:03:56,965 - app.main - INFO - Scenarios path: /Users/juhpark/Documents/maratang/demo-repository/scenarios
+2026-02-09 10:03:56,965 - app.main - INFO - Available scenarios: ['coraline', 'culprit_ai', 'zzapraline']
+INFO:     Application startup complete.

@@ -8,3 +8,13 @@ class NPCStatus(str, Enum):
     DECEASED = "deceased"  # 사망
     MISSING = "missing"    # 실종
     UNKNOWN = "unknown"    # 알 수 없음
+
+class ChatAt(str, Enum):
+    """채팅 턴"""
+    DAY = "day"
+    NIGHT = "night"
+
+class GameStatus(str, Enum):
+    """게임 상태"""
+    LIVE = "live"        # 진행 중
+    ENDING = "ending"    # 종료됨
