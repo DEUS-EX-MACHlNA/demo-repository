@@ -324,6 +324,7 @@ def interact(target: str, interact: str) -> Dict[str, Any]:
         npc_memory=npc_memory,
         npc_context=assets.export_for_prompt(),
         world_state=world_state.to_dict(),
+        assets=assets,
     )
 
     # 4. LLM 호출 (응답 생성)
@@ -366,6 +367,7 @@ def action(action: str) -> Dict[str, Any]:
         user_state=None,
         world_state=world_state.to_dict(),
         npc_context=assets.export_for_prompt(),
+        assets=assets,
     )
 
     # LLM 호출
@@ -425,6 +427,7 @@ def use(item: str, action: str) -> Dict[str, Any]:
         item_def=item_info,
         world_state=world_state.to_dict(),
         npc_context=assets.export_for_prompt(),
+        assets=assets,
     )
 
     # LLM 호출

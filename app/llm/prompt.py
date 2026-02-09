@@ -1,23 +1,48 @@
-from typing import Dict, List, Any
+from typing import Dict, List, Any, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from app.loader import ScenarioAssets
 
 # ============================================================
-# 공통 출력 형식
+# 공통 출력 형식 (동적 생성)
 # ============================================================
-OUTPUT_FORMAT = """
+def build_output_format(npc_stat_names: list[str] | None = None) -> str:
+    """
+    동적으로 OUTPUT_FORMAT을 생성합니다.
+
+    Args:
+        npc_stat_names: NPC 스탯 이름 리스트 (예: ["affection", "fear", "humanity"])
+                        None이면 기본 예시 사용
+
+    Returns:
+        출력 형식 문자열
+    """
+    # NPC 스탯 예시 생성
+    if npc_stat_names:
+        stat_example = ", ".join([f'"{stat}": 최종값' for stat in npc_stat_names])
+        stat_description = f"사용 가능한 스탯: {', '.join(npc_stat_names)}"
+    else:
+        stat_example = '"stat_name": 최종값, ...'
+        stat_description = "스탯명은 시나리오에 정의된 이름 사용"
+
+    return f"""
 [출력 형식] 반드시 아래 JSON만 출력하라. 다른 텍스트 없이.
-{
-  "state_delta": {
-    "npc_stats": {"npc_id": {"trust": 최종값, "suspicion": 최종값, "fear": 최종값, "humanity": 최종값}},
-    "vars": {"변수명": 최종값}
-  },
+{{
+  "state_delta": {{
+    "npc_stats": {{"npc_id": {{{stat_example}}}}},
+    "vars": {{"변수명": 최종값}}
+  }},
   "event_description": ["사건1 묘사", "사건2 묘사"]
-}
+}}
 <|im_end|>
 
 - state_delta: 변화한 NPC 스탯/변수의 최종값만 포함 (변경 없으면 빈 객체)
 - event_description: 발생 사건들의 간단한 묘사 리스트 (1개 이상)
-- humanity: 인간성 (호감도가 올라가면 인간성이 떨어짐)
+- npc_stats: {stat_description}
 """
+
+# 하위 호환성을 위한 기본 OUTPUT_FORMAT (deprecated)
+OUTPUT_FORMAT = build_output_format()
 
 # ============================================================
 # 코렐라인 전용 - 가족 회의 프롬프트
@@ -84,7 +109,7 @@ SYSTEM_PROMPT_TALK = """당신은 인터랙티브 노벨 게임의 내러티브 
 
 [목표]
 - NPC의 대화 반응을 생성
-- trust/suspicion/fear 변화에 집중
+- NPC 스탯 변화에 집중 (시나리오에 정의된 스탯 사용)
 - NPC의 성격, 기억, 현재 감정 상태를 반영
 
 [규칙]
@@ -127,7 +152,7 @@ SYSTEM_PROMPT = """당신은 인터랙티브 노벨 게임의 내러티브 엔�
 
 [의도 분류 기준]
 - talk: NPC에게 대화를 시도하거나 질문하는 경우
-  → NPC의 대화 반응, trust/suspicion 변화에 집중
+  → NPC의 대화 반응, NPC 스탯 변화에 집중
 - action: 장소 이동, 조사, 관찰 등 일반적인 행동
   → 행동의 결과, 발견한 단서, vars 변화에 집중
 - item_usage: 아이템을 사용하거나 적용하는 경우
@@ -150,6 +175,7 @@ def build_talk_prompt(
     npc_memory: Dict[str, Any] | None = None,
     npc_context: List[str] | None = None,
     world_state: Dict | None = None,
+    assets: "ScenarioAssets | None" = None,
 ) -> str:
     """talk 의도 전용 프롬프트 생성"""
     prompt_parts = [SYSTEM_PROMPT_TALK]
@@ -181,7 +207,9 @@ def build_talk_prompt(
         "[대화 내용]\n" + message
     )
 
-    prompt_parts.append(OUTPUT_FORMAT)
+    # 동적 OUTPUT_FORMAT 생성
+    npc_stat_names = assets.get_npc_stat_names() if assets else None
+    prompt_parts.append(build_output_format(npc_stat_names))
     prompt_parts.append("[출력]\n")
 
     return "\n\n".join(prompt_parts)
@@ -192,6 +220,7 @@ def build_action_prompt(
     user_state: Dict[str, Any] | None = None,
     world_state: Dict | None = None,
     npc_context: List[str] | None = None,
+    assets: "ScenarioAssets | None" = None,
 ) -> str:
     """action 의도 전용 프롬프트 생성"""
     prompt_parts = [SYSTEM_PROMPT_ACTION]
@@ -217,7 +246,9 @@ def build_action_prompt(
         "[행동]\n" + action
     )
 
-    prompt_parts.append(OUTPUT_FORMAT)
+    # 동적 OUTPUT_FORMAT 생성
+    npc_stat_names = assets.get_npc_stat_names() if assets else None
+    prompt_parts.append(build_output_format(npc_stat_names))
     prompt_parts.append("[출력]\n")
 
     return "\n\n".join(prompt_parts)
@@ -228,6 +259,7 @@ def build_item_prompt(
     item_def: Dict[str, Any] | None = None,
     world_state: Dict | None = None,
     npc_context: List[str] | None = None,
+    assets: "ScenarioAssets | None" = None,
 ) -> str:
     """item 의도 전용 프롬프트 생성"""
     prompt_parts = [SYSTEM_PROMPT_ITEM]
@@ -259,7 +291,9 @@ def build_item_prompt(
         "[아이템 사용]\n" + f"{item_name}을(를) 사용한다"
     )
 
-    prompt_parts.append(OUTPUT_FORMAT)
+    # 동적 OUTPUT_FORMAT 생성
+    npc_stat_names = assets.get_npc_stat_names() if assets else None
+    prompt_parts.append(build_output_format(npc_stat_names))
     prompt_parts.append("[출력]\n")
 
     return "\n\n".join(prompt_parts)
@@ -343,7 +377,7 @@ def build_family_meeting_prompt(
                 obs_text += f"  - {obs}\n"
         prompt_parts.append(obs_text)
 
-    # 현재 스탯 상황
+    # 현재 스탯 상황 (동적 스탯)
     if current_stats:
         stats_text = "[현재 가족의 감정 상태]\n"
         for npc_id, stats in current_stats.items():
@@ -352,7 +386,8 @@ def build_family_meeting_prompt(
                 "button_father": "단추아빠",
                 "button_daughter": "단추딸"
             }.get(npc_id, npc_id)
-            stats_text += f"- {npc_name}: 호감도={stats.get('trust', 0)}, 의심도={stats.get('suspicion', 0)}\n"
+            stats_str = ", ".join(f"{k}={v}" for k, v in stats.items())
+            stats_text += f"- {npc_name}: {stats_str}\n"
         prompt_parts.append(stats_text)
 
     # 플레이어 상태

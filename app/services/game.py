@@ -12,19 +12,19 @@ from app.crud import game as crud_game
 from app.redis_client import get_redis_client
 
 # 스키마 import
-from app.schemas.llm_payload import (
+from app.schemas import (
     LLMInputPayload,
     UserInputSchema,
     WorldInfoSchema,
     LogicContextSchema,
     ModelConfigSchema,
+    GameClientSyncSchema,
+    WorldDataSchema,
+    NpcCollectionSchema,
+    PlayerSchema,
+    ItemsCollectionSchema,
+    LLMResponseSchema,
 )
-from app.schemas.client_sync import GameClientSyncSchema
-from app.schemas.world_data import WorldDataSchema
-from app.schemas.npc import NpcCollectionSchema
-from app.schemas.player import PlayerSchema
-from app.schemas.item import ItemsCollectionSchema
-from app.schemas.llm_response import LLMResponseSchema
 
 # (가상의 LLM 호출 함수 import - 나중에 구현 필요)
 # from app.services.llm_client import call_llm_api 

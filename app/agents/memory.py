@@ -14,7 +14,7 @@ import logging
 from typing import Any, List, Union
 
 # schemas에서 Memory 관련 스키마 import
-from app.schemas.memory import (
+from app.schemas import (
     MemoryEntrySchema,
     MemoryStreamSchema,
     MEMORY_OBSERVATION,

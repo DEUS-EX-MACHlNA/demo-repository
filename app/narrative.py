@@ -15,19 +15,31 @@ Narrative Layer
 from __future__ import annotations
 
 import logging
-import os
 import random
 from typing import Any, Optional, TYPE_CHECKING
 
 from dotenv import load_dotenv
 
 from app.loader import ScenarioAssets
+from app.llm import UnifiedLLMEngine
 
 if TYPE_CHECKING:
     from app.schemas import WorldState
 
 # 환경변수 로드
 load_dotenv()
+
+# ============================================================
+# 전역 인스턴스 (싱글턴)
+# ============================================================
+_llm_instance: Optional[UnifiedLLMEngine] = None
+
+def _get_llm() -> UnifiedLLMEngine:
+    """LLM 엔진 싱글턴 반환"""
+    global _llm_instance
+    if _llm_instance is None:
+        _llm_instance = UnifiedLLMEngine()
+    return _llm_instance
 
 logger = logging.getLogger(__name__)
 
@@ -53,8 +65,8 @@ class NarrativeLayer:
 
         # LM 모델 (lazy loading)
         self._enable_lm = enable_lm
-        self._lm_model = None
-        self._lm_tokenizer = None
+        self._model = None
+        self._tokenizer = None
         self._lm_loaded = False
 
     def render_day(
@@ -158,32 +170,18 @@ class NarrativeLayer:
 
         changes = []
 
-        # NPC 상태 변화
+        # NPC 상태 변화 (동적 스탯)
         if "npcs" in state_delta:
             for npc_id, npc_delta in state_delta["npcs"].items():
                 npc_info = assets.get_npc_by_id(npc_id)
                 npc_name = npc_info.get("name", npc_id) if npc_info else npc_id
 
-                if "trust" in npc_delta:
-                    delta = npc_delta["trust"]
-                    if delta > 0:
-                        changes.append(f"{npc_name}의 신뢰가 상승했다. (+{delta})")
-                    elif delta < 0:
-                        changes.append(f"{npc_name}의 신뢰가 하락했다. ({delta})")
-
-                if "suspicion" in npc_delta:
-                    delta = npc_delta["suspicion"]
-                    if delta > 0:
-                        changes.append(f"{npc_name}이(가) 의심을 품기 시작했다. (+{delta})")
-                    elif delta < 0:
-                        changes.append(f"{npc_name}의 의심이 줄어들었다. ({delta})")
-
-                if "fear" in npc_delta:
-                    delta = npc_delta["fear"]
-                    if delta > 0:
-                        changes.append(f"{npc_name}이(가) 두려움을 느낀다. (+{delta})")
-                    elif delta < 0:
-                        changes.append(f"{npc_name}의 두려움이 줄어들었다. ({delta})")
+                for stat_name, delta in npc_delta.items():
+                    if not isinstance(delta, (int, float)) or delta == 0:
+                        continue
+                    sign = f"+{delta}" if delta > 0 else str(delta)
+                    direction = "상승" if delta > 0 else "하락"
+                    changes.append(f"{npc_name}의 {stat_name}이(가) {direction}했다. ({sign})")
 
         # 변수 변화
         if "vars" in state_delta:
@@ -235,7 +233,7 @@ class NarrativeLayer:
             return ""
 
     def _load_lm_model(self):
-        """LM 모델 로드 (lazy loading)"""
+        """LM 모델 로드 (UnifiedLLMEngine)"""
         if self._lm_loaded:
             return
 
@@ -246,33 +244,13 @@ class NarrativeLayer:
 
         try:
             import torch
-            from transformers import AutoModelForCausalLM, AutoTokenizer
 
-            model_name = "LGAI-EXAONE/EXAONE-3.5-7.8B-Instruct"
-            hf_token = os.environ.get("HF_TOKEN")
-
-            # CUDA 사용 가능 여부 확인
             device = "cuda" if torch.cuda.is_available() else "cpu"
-            logger.info(f"Loading LM model: {model_name} on {device}")
-
-            self._lm_tokenizer = AutoTokenizer.from_pretrained(
-                model_name,
-                token=hf_token,
-                trust_remote_code=True
-            )
-
-            # 메모리 최적화 옵션 추가
-            self._lm_model = AutoModelForCausalLM.from_pretrained(
-                model_name,
-                token=hf_token,
-                trust_remote_code=True,
-                torch_dtype=torch.float16,  # 메모리 사용량 절반으로 줄임
-                low_cpu_mem_usage=True,  # CPU 메모리 사용량 최적화
-                device_map="auto" if device == "cuda" else "cpu"  # CUDA 사용 가능하면 자동 배치
-            )
-
+            llm_engine = _get_llm()
             logger.info(f"LM model loaded successfully on {device}")
             self._lm_loaded = True
+            self._model = llm_engine._model
+            self._tokenizer = llm_engine._tokenizer
 
         except Exception as e:
             import traceback
@@ -280,8 +258,9 @@ class NarrativeLayer:
             logger.warning(f"Traceback:\n{traceback.format_exc()}")
             logger.warning("Falling back to simple text composition.")
             self._lm_loaded = True
-            self._lm_model = None
-            self._lm_tokenizer = None
+            self._model = None
+            self._tokenizer = None            
+
 
     def _render_with_lm_day(
         self,
@@ -306,7 +285,7 @@ class NarrativeLayer:
         self._load_lm_model()
 
         # 모델 로드 실패 시 단순 조합으로 폴백
-        if self._lm_model is None or self._lm_tokenizer is None:
+        if self._model is None or self._tokenizer is None:
             logger.warning("LM model not available, falling back to simple composition")
             return self._render_simple_day(event_description, state_delta, world_state, assets)
 
@@ -408,7 +387,7 @@ class NarrativeLayer:
 
         # 토크나이징
         messages = [{"role": "user", "content": prompt}]
-        input_ids = self._lm_tokenizer.apply_chat_template(
+        input_ids = self._tokenizer.apply_chat_template(
             messages,
             tokenize=True,
             add_generation_prompt=True,
@@ -416,24 +395,24 @@ class NarrativeLayer:
         )
 
         # 디바이스로 이동
-        device = next(self._lm_model.parameters()).device
+        device = next(self._model.parameters()).device
         input_ids = input_ids.to(device)
 
         # 생성
         with torch.no_grad():
-            outputs = self._lm_model.generate(
+            outputs = self._model.generate(
                 input_ids,
                 max_new_tokens=max_new_tokens,
                 do_sample=True,
                 temperature=0.7,
                 top_p=0.9,
-                eos_token_id=self._lm_tokenizer.eos_token_id,
-                pad_token_id=self._lm_tokenizer.pad_token_id,
+                eos_token_id=self._tokenizer.eos_token_id,
+                pad_token_id=self._tokenizer.pad_token_id,
             )
 
         # 디코딩
         generated_ids = outputs[0][input_ids.shape[1]:]
-        generated_text = self._lm_tokenizer.decode(generated_ids, skip_special_tokens=True)
+        generated_text = self._tokenizer.decode(generated_ids, skip_special_tokens=True)
 
         # 후처리
         generated_text = generated_text.strip()
@@ -446,7 +425,7 @@ class NarrativeLayer:
         return {
             "narrative": "lm_enabled" if self._enable_lm else "text_block_composer",
             "lm_loaded": self._lm_loaded,
-            "lm_available": self._lm_model is not None,
+            "lm_available": self._model is not None,
             "recent_renders": self._render_log[-5:] if self._render_log else [],
         }
 
@@ -587,7 +566,7 @@ class NarrativeLayer:
         self._load_lm_model()
 
         # 모델 로드 실패 시 단순 조합으로 폴백
-        if self._lm_model is None or self._lm_tokenizer is None:
+        if self._model is None or self._tokenizer is None:
             logger.warning("LM model not available, falling back to simple composition")
             return self._render_simple_night(world_state, assets, night_conversation)
 
@@ -809,7 +788,7 @@ class NarrativeLayer:
         self._load_lm_model()
 
         # 모델 로드 실패 시 단순 조합으로 폴백
-        if self._lm_model is None or self._lm_tokenizer is None:
+        if self._model is None or self._tokenizer is None:
             logger.warning("LM model not available, falling back to simple composition")
             return self._render_simple_ending(ending_info, world_state, assets)
 
@@ -879,17 +858,13 @@ class NarrativeLayer:
         inventory = world_state.inventory if world_state.inventory else []
         inventory_text = ", ".join(inventory) if inventory else "(없음)"
 
-        # NPC 상태 요약 (stats Dict 기반)
+        # NPC 상태 요약 (동적 스탯)
         npc_summary = []
         for npc_id, npc_state in world_state.npcs.items():
             npc_data = assets.get_npc_by_id(npc_id)
             npc_name = npc_data.get("name", npc_id) if npc_data else npc_id
-            trust = npc_state.stats.get("trust", 0)
-            fear = npc_state.stats.get("fear", 0)
-            suspicion = npc_state.stats.get("suspicion", 0)
-            npc_summary.append(
-                f"- {npc_name}: 신뢰 {trust}, 두려움 {fear}, 의심 {suspicion}"
-            )
+            stats_str = ", ".join(f"{k} {v}" for k, v in npc_state.stats.items())
+            npc_summary.append(f"- {npc_name}: {stats_str}" if stats_str else f"- {npc_name}: (스탯 없음)")
         npc_summary_text = "\n".join(npc_summary) if npc_summary else "(없음)"
 
         prompt = f"""당신은 {scenario_genre} 장르의 베테랑 소설 작가입니다.

@@ -158,25 +158,25 @@ if __name__ == "__main__":
     assets = loader.load(scenarios[0])
     print(f"\n[1] 시나리오 로드됨: {assets.scenario.get('title')}")
 
-    # 테스트용 월드 상태 (stats Dict 기반)
+    # 테스트용 월드 상태 (시나리오 YAML의 stats 구조에 맞춤)
     world = WorldState(
         turn=1,
         npcs={
-            "button_mother": NPCState(
-                npc_id="button_mother",
-                stats={"trust": 3, "fear": 0, "suspicion": 4}
+            "stepmother": NPCState(
+                npc_id="stepmother",
+                stats={"affection": 50, "fear": 80, "humanity": 0}
             ),
-            "button_father": NPCState(
-                npc_id="button_father",
-                stats={"trust": 2, "fear": 0, "suspicion": 5}
+            "stepfather": NPCState(
+                npc_id="stepfather",
+                stats={"affection": 30, "fear": 60, "humanity": 20}
             ),
-            "button_daughter": NPCState(
-                npc_id="button_daughter",
-                stats={"trust": 3, "fear": 0, "suspicion": 3}
+            "brother": NPCState(
+                npc_id="brother",
+                stats={"affection": 60, "fear": 40, "humanity": 50}
             ),
         },
         inventory=[],
-        vars={"humanity": 10, "total_suspicion": 0}
+        vars={"humanity": 100, "suspicion_level": 0}
     )
     print(f"\n[2] 월드 상태 생성: turn={world.turn}, npcs={list(world.npcs.keys())}")
 

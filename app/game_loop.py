@@ -96,7 +96,7 @@ class GameLoop:
         for flag_name, flag_def in flags_schema.items():
             initial_vars[flag_name] = flag_def.get("default", None)
 
-        # NPC 초기화
+        # NPC 초기화 (시나리오 YAML의 stats Dict를 그대로 사용)
         npcs = {}
         for npc_data in self._assets.get_all_npc_ids():
             npc_def = self._assets.get_npc_by_id(npc_data)
@@ -104,10 +104,7 @@ class GameLoop:
                 stats = npc_def.get("stats", {})
                 npcs[npc_data] = NPCState(
                     npc_id=npc_data,
-                    trust=stats.get("trust", 0),
-                    fear=stats.get("fear", 0),
-                    suspicion=stats.get("suspicion", 0),
-                    humanity=stats.get("humanity", 10),
+                    stats=dict(stats),
                 )
 
         return WorldState(

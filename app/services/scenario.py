@@ -16,23 +16,18 @@ if str(project_root) not in sys.path:
 from app.database import SessionLocal
 from app.db_models.scenario import Scenario
 from app.db_models.game import Games, GameStatus
-from app.schemas.npc import NpcSchema, NpcCollectionSchema
-from app.schemas.player import PlayerSchema, PlayerMemoSchema
-from app.schemas.world_data import (
-    WorldDataSchema,
-    ScenarioSchema,
-    StoryGraphSchema,
-    LockSchema,
-    LocksSchemaList,
-    CurrentStateSchema,
-    StoryNodeSchema,
-    EndingSchema,
+from app.schemas import (
+    NpcSchema, NpcCollectionSchema,
+    PlayerSchema, PlayerMemoSchema,
+    WorldDataSchema, ScenarioSchema, StoryGraphSchema,
+    LockSchema, LocksSchemaList, CurrentStateSchema,
+    StoryNodeSchema, EndingSchema,
+    ItemSchema, ItemsCollectionSchema,
+    GameClientSyncSchema,
 )
-from app.schemas.item import ItemSchema, ItemsCollectionSchema
 import json
 import copy
 from typing import Dict, Any
-from app.schemas.client_sync import GameClientSyncSchema
 from app.crud import scenario as crud_scenario
 from app.crud import game as crud_game
 

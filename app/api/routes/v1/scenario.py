@@ -1,13 +1,12 @@
-from app.schemas.client_sync import GameClientSyncSchema
+from app.schemas import GameClientSyncSchema
 from app.loader import get_loader
 from app.services.scenario import ScenarioService
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.db_models.game import Games, GameStatus
-from app.db_models.scenario import Scenario  
+from app.db_models.scenario import Scenario
 from app.config import SCENARIOS_BASE_PATH
-from app.schemas.client_sync import GameClientSyncSchema
 
 
 router = APIRouter(tags=["scenario"])

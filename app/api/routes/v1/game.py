@@ -8,7 +8,7 @@ from app.database import get_db
 from app.db_models.game import Games, GameStatus
 from app.db_models.scenario import Scenario  
 from app.db_models.scenario import Scenario  
-from app.schemas.client_sync import GameClientSyncSchema
+from app.schemas import GameClientSyncSchema
 
 
 router = APIRouter(tags=["game"])

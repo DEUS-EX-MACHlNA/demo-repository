@@ -137,14 +137,9 @@ class NightController:
             npc_name = npc_data["name"] if npc_data else npc_id
             persona = npc_data.get("persona", {}) if npc_data else {}
 
-            # stats Dict에서 스탯 조회
-            trust = npc_state.stats.get("trust", 0)
-            fear = npc_state.stats.get("fear", 0)
-            suspicion = npc_state.stats.get("suspicion", 0)
-
             plan = update_plan(
                 npc_id, npc_name, persona, npc_state.memory,
-                trust, fear, suspicion,
+                npc_state.stats,
                 turn, turn_limit, scenario_title, llm,
             )
             logger.debug(f"[NightController] plan: npc={npc_id}, plan='{plan[:50]}...'")
@@ -188,19 +183,12 @@ class NightController:
             ]
             listener_str = ", ".join(other_names)
 
-            # stats Dict에서 스탯 조회
-            trust = state.stats.get("trust", 0)
-            fear = state.stats.get("fear", 0)
-            suspicion = state.stats.get("suspicion", 0)
-
             utterance = _generate_utterance(
                 speaker_id,
                 speaker["name"],
                 speaker["persona"],
                 state.memory,
-                trust,
-                fear,
-                suspicion,
+                state.stats,
                 listener_str,
                 conversation,
                 llm,
@@ -244,6 +232,8 @@ class NightController:
         if len(npc_ids) < 2:
             return
 
+        stat_names = assets.get_npc_stat_names()
+
         # 모든 NPC 쌍에 대해 분석
         for i, npc1_id in enumerate(npc_ids):
             for npc2_id in npc_ids[i + 1:]:
@@ -253,6 +243,7 @@ class NightController:
                     npc1_id, d1.get("name", npc1_id), d1.get("persona", {}),
                     npc2_id, d2.get("name", npc2_id), d2.get("persona", {}),
                     conversation, llm,
+                    stat_names=stat_names,
                 )
                 for npc_id, stat_changes in changes.items():
                     if not stat_changes:
@@ -298,27 +289,27 @@ if __name__ == "__main__":
     assets = loader.load(scenarios[0])
     print(f"\n시나리오: {assets.scenario.get('title')}")
 
-    # NPCState를 stats Dict 기반으로 생성
+    # NPCState를 시나리오 YAML의 stats 구조에 맞춤
     world = WorldState(
         turn=3,
         npcs={
-            "button_mother": NPCState(
-                npc_id="button_mother",
-                stats={"trust": 3, "fear": 0, "suspicion": 4}
+            "stepmother": NPCState(
+                npc_id="stepmother",
+                stats={"affection": 50, "fear": 80, "humanity": 0}
             ),
-            "button_father": NPCState(
-                npc_id="button_father",
-                stats={"trust": 2, "fear": 0, "suspicion": 5}
+            "stepfather": NPCState(
+                npc_id="stepfather",
+                stats={"affection": 30, "fear": 60, "humanity": 20}
             ),
-            "button_daughter": NPCState(
-                npc_id="button_daughter",
-                stats={"trust": 3, "fear": 0, "suspicion": 3}
+            "brother": NPCState(
+                npc_id="brother",
+                stats={"affection": 60, "fear": 40, "humanity": 50}
             ),
         },
         inventory=[],
         vars={
-            "humanity": 10,
-            "total_suspicion": 0,
+            "humanity": 100,
+            "suspicion_level": 0,
         },
     )
 

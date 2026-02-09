@@ -6,33 +6,21 @@ app/schemas/__init__.py
     from app.schemas import NpcSchema, WorldState, Intent, ...
 """
 
-# ── Enums ─────────────────────────────────────────────────────
-from app.schemas.enums import (
+# ── Core (Enums, NPC, Player, Item) ──────────────────────
+from app.schemas.core import (
     NPCStatus,
     Intent,
     ToolName,
-)
-
-# ── NPC ───────────────────────────────────────────────────────
-from app.schemas.npc import (
     NpcSchema,
     NpcCollectionSchema,
-)
-
-# ── Player ────────────────────────────────────────────────────
-from app.schemas.player import (
     PlayerSchema,
     PlayerMemoSchema,
-)
-
-# ── Item ──────────────────────────────────────────────────────
-from app.schemas.item import (
     ItemSchema,
     ItemsCollectionSchema,
 )
 
-# ── Memory ────────────────────────────────────────────────────
-from app.schemas.memory import (
+# ── State (GameState, Memory, WorldData) ─────────────────
+from app.schemas.state import (
     MemoryEntrySchema,
     MemoryStreamSchema,
     MEMORY_OBSERVATION,
@@ -40,10 +28,10 @@ from app.schemas.memory import (
     MEMORY_PLAN,
     MEMORY_DIALOGUE,
     MAX_MEMORIES_PER_NPC,
-)
-
-# ── World Data (정적 시나리오 구조) ────────────────────────────
-from app.schemas.world_data import (
+    NPCState,
+    WorldState,
+    StateDelta,
+    merge_deltas,
     CurrentStateSchema,
     LockSchema,
     LocksSchemaList,
@@ -54,110 +42,42 @@ from app.schemas.world_data import (
     WorldDataSchema,
 )
 
-# ── Game State (런타임 상태) ──────────────────────────────────
-from app.schemas.game_state import (
-    NPCState,
-    WorldState,
-    StateDelta,
-    merge_deltas,
-)
-
-# ── Tool ──────────────────────────────────────────────────────
-from app.schemas.tool import (
+# ── IO (Tool, Night, LLM, API, ClientSync) ───────────────
+from app.schemas.io import (
     ToolCall,
     ToolResult,
-)
-
-# ── Parser ────────────────────────────────────────────────────
-from app.schemas.parser import (
-    ParsedInput,
-)
-
-# ── Night ─────────────────────────────────────────────────────
-from app.schemas.night import (
     NightResult,
-)
-
-# ── Request/Response (API) ────────────────────────────────────
-from app.schemas.request_response import (
-    StepRequest,
-    StepResponse,
-)
-
-# ── LLM Payload ──────────────────────────────────────────────
-from app.schemas.llm_payload import (
     UserInputSchema,
     WorldInfoSchema,
     LogicContextSchema,
     ModelConfigSchema,
     LLMInputPayload,
-)
-
-# ── LLM Response ─────────────────────────────────────────────
-from app.schemas.llm_response import (
     LLMResponseSchema,
-)
-
-# ── Client Sync ──────────────────────────────────────────────
-from app.schemas.client_sync import (
+    StepRequest,
+    StepResponse,
     GameClientSyncSchema,
 )
 
 
 __all__ = [
-    # Enums
-    "NPCStatus",
-    "Intent",
-    "ToolName",
-    # NPC
-    "NpcSchema",
-    "NpcCollectionSchema",
-    # Player
-    "PlayerSchema",
-    "PlayerMemoSchema",
-    # Item
-    "ItemSchema",
-    "ItemsCollectionSchema",
-    # Memory
-    "MemoryEntrySchema",
-    "MemoryStreamSchema",
-    "MEMORY_OBSERVATION",
-    "MEMORY_REFLECTION",
-    "MEMORY_PLAN",
-    "MEMORY_DIALOGUE",
+    # Core
+    "NPCStatus", "Intent", "ToolName",
+    "NpcSchema", "NpcCollectionSchema",
+    "PlayerSchema", "PlayerMemoSchema",
+    "ItemSchema", "ItemsCollectionSchema",
+    # State
+    "MemoryEntrySchema", "MemoryStreamSchema",
+    "MEMORY_OBSERVATION", "MEMORY_REFLECTION", "MEMORY_PLAN", "MEMORY_DIALOGUE",
     "MAX_MEMORIES_PER_NPC",
-    # World Data
-    "CurrentStateSchema",
-    "LockSchema",
-    "LocksSchemaList",
-    "StoryNodeSchema",
-    "StoryGraphSchema",
-    "EndingSchema",
-    "ScenarioSchema",
-    "WorldDataSchema",
-    # Game State
-    "NPCState",
-    "WorldState",
-    "StateDelta",
-    "merge_deltas",
-    # Tool
-    "ToolCall",
-    "ToolResult",
-    # Parser
-    "ParsedInput",
-    # Night
-    "NightResult",
-    # Request/Response
-    "StepRequest",
-    "StepResponse",
-    # LLM Payload
-    "UserInputSchema",
-    "WorldInfoSchema",
-    "LogicContextSchema",
-    "ModelConfigSchema",
-    "LLMInputPayload",
-    # LLM Response
+    "NPCState", "WorldState", "StateDelta", "merge_deltas",
+    "CurrentStateSchema", "LockSchema", "LocksSchemaList",
+    "StoryNodeSchema", "StoryGraphSchema",
+    "EndingSchema", "ScenarioSchema", "WorldDataSchema",
+    # IO
+    "ToolCall", "ToolResult", "NightResult",
+    "UserInputSchema", "WorldInfoSchema", "LogicContextSchema",
+    "ModelConfigSchema", "LLMInputPayload",
     "LLMResponseSchema",
-    # Client Sync
+    "StepRequest", "StepResponse",
     "GameClientSyncSchema",
 ]

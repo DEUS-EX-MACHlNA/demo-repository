@@ -47,9 +47,7 @@ def generate_short_term_plan(
     npc_name: str,
     persona: dict[str, Any],
     npc_memory: dict[str, Any],
-    trust: int,
-    fear: int,
-    suspicion: int,
+    stats: dict[str, int],
     long_term_plan: str,
     llm: GenerativeAgentsLLM,
     current_turn: int = 1,
@@ -57,10 +55,11 @@ def generate_short_term_plan(
     """턴 수준 단기 계획.
 
     Args:
-        npc_memory: NPCState.memory dict (이전의 npc_extras)
+        npc_memory: NPCState.memory dict
+        stats: NPC 스탯 Dict (예: {"affection": 50, "fear": 80})
     """
     persona_str = format_persona(persona)
-    emotion_str = format_emotion(trust, fear, suspicion)
+    emotion_str = format_emotion(stats)
 
     # 최근 기억 검색
     query = f"{npc_name}의 다음 행동 계획"
@@ -88,9 +87,7 @@ def update_plan(
     npc_name: str,
     persona: dict[str, Any],
     npc_memory: dict[str, Any],
-    npc_trust: int,
-    npc_fear: int,
-    npc_suspicion: int,
+    stats: dict[str, int],
     turn: int,
     turn_limit: int,
     scenario_title: str,
@@ -99,7 +96,8 @@ def update_plan(
     """장기+단기 계획을 갱신하고 memory에 저장. 단기 계획 텍스트 반환.
 
     Args:
-        npc_memory: NPCState.memory dict (이전의 npc_extras)
+        npc_memory: NPCState.memory dict
+        stats: NPC 스탯 Dict (예: {"affection": 50, "fear": 80})
     """
     # 장기 계획 (없으면 생성)
     if "long_term_plan" not in npc_memory:
@@ -113,7 +111,7 @@ def update_plan(
     # 단기 계획
     st_plan = generate_short_term_plan(
         npc_id, npc_name, persona, npc_memory,
-        npc_trust, npc_fear, npc_suspicion, lt_plan, llm, current_turn=turn,
+        stats, lt_plan, llm, current_turn=turn,
     )
 
     # memory에 저장
