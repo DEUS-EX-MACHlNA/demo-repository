@@ -5,10 +5,14 @@ from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.db_models.game import Games, GameStatus
+from app.db_models.game import Games
+from app.schemas.status import GameStatus
 from app.db_models.scenario import Scenario  
 from app.db_models.scenario import Scenario  
-from app.schemas import GameClientSyncSchema
+from app.db_models.scenario import Scenario  
+from app.schemas.client_sync import GameClientSyncSchema
+from app.crud import game as crud_game
+from app.schemas.night_chat_response import NightChatResponse
 
 
 router = APIRouter(tags=["game"])
@@ -22,8 +26,15 @@ class StepRequestSchema(BaseModel):
 
 @router.get("/", summary="게임 목록 조회", response_model=list[dict])
 def get_games(db: Session = Depends(get_db)):
-    # TODO: 스키마를 구현하고 실제 게임 목록을 반환해야 합니다.
-    return []
+    games = crud_game.get_all_games(db)
+    # 필요한 필드만 추출 (id, summary)
+    return [
+        {
+            "game_id": g.id, 
+            "summary": g.summary if g.summary else {}
+        } 
+        for g in games
+    ]
 
 # 일단 LLM과 상호작용 하는 것을 먼저 구현
 
@@ -40,19 +51,6 @@ def get_games(db: Session = Depends(get_db)):
 #@router.delete("/{game_id}/memos/{memo_id}", summary="게임 메모 삭제")
 
 # 대화 요청
-
-"""
-대화로 할 수 있는거
-
-받게 되는건 그냥 요청 객체 하나
-
-변하게 되는건 아마 월드,플레이어,npc 다 바뀌겠지
-
-
-1. npc와 대화
-2. 그냥 엑션
-3. 아이템 사용
-"""
 @router.post("/{game_id}/step", summary="게임 대화 요청")
 def step_game(game_id: int, request: StepRequestSchema, db: Session = Depends(get_db)) -> dict:
     # 1. 게임 정보 조회
@@ -74,5 +72,43 @@ def get_game(game_id: int, db: Session = Depends(get_db)) -> GameClientSyncSchem
     
     return game
 
-# 밤에 대화 시작
+# 밤의 대화 결과 조회(재접속/히스토리)
+@router.get("/{game_id}/nights}", summary="밤의 대화 요청", response_model=NightChatResponse)
+def get_night_log(game_id: int, db: Session = Depends(get_db)):
+    # 일단 요청받은 예시 데이터를 그대로 Mock으로 반환합니다.
+    # 추후 DB 조회 로직이 필요하면 구현합니다.
+
+    mock_response = NightChatResponse(
+        gameId=game_id,
+        day=1, # TODO: 실제 게임 날짜 조회
+        exposedLog=NightExposedLog(
+            title="밤의 대화 기록 일부이긴 한데 일단은 mock데이터를 가지고 보냈고 추후 비즈니스 로직을 추가시킬 예정",
+            lines=[
+                "[새엄마] 오늘은 예절이 부족했어. 내일은 더 깊이 잠들게 해야겠어.",
+                "[새아빠] 지하실 근처를 서성거렸지. 주의가 필요해.",
+                "[동생] 누나... 나랑 놀자... 근데... 저기... 가지 마..."
+            ]
+        ),
+        fullLogRef=NightFullLogRef(
+            available=True,
+            redacted=True
+        ),
+        effects=NightEffects(
+            player=PlayerEffect(
+                humanityDelta=-2,
+                turnPenaltyNextDay=1,
+                statusTagsAdded=["SUSPICION_RISING"]
+            ),
+            npcDeltas=[
+                NpcDelta(id="stepmother", affectionDelta=-5, humanityDelta=0),
+                NpcDelta(id="stepfather", affectionDelta=-2, humanityDelta=1),
+                NpcDelta(id="brother", affectionDelta=3, humanityDelta=2)
+            ]
+        ),
+        ui=UiData(
+            resultText="밤의 대화 기록 일부\n- 새엄마: 오늘은 예절이 부족했어...\n- 새아빠: 지하실 근처를...\n- 동생: 누나... 나랑..."
+        ),
+        serverTime=datetime.utcnow()
+    )
+    return mock_response
 

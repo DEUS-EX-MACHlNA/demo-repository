@@ -26,6 +26,9 @@ from app.schemas import (
     LLMResponseSchema,
 )
 
+from sqlalchemy.orm.attributes import flag_modified
+
+
 # (가상의 LLM 호출 함수 import - 나중에 구현 필요)
 # from app.services.llm_client import call_llm_api 
 
@@ -105,6 +108,8 @@ class GameService:
         # 3. [Arg 3] 로직 컨텍스트 (Logic Context)
         # =========================================================
         
+
+        # TODO: locks 추가
         # Snapshot에서 Meta, State, Rules 추출
         # 이미지의 world_data_snapshot 안에 'meta', 'state' 키가 보입니다.
         
@@ -266,9 +271,105 @@ class GameService:
         
         return game
 
+    @staticmethod
+    def apply_chat_result(game: Games, result: dict[str, Any]) -> None:
+        """
+        DayController 실행 결과(ToolResult)를 DB 모델(game)에 반영합니다.
+        
+        Args:
+            game: SQLAlchemy Games 인스턴스
+            result: DayController 결과 (state_delta, memory, ...)
+        """
+        delta = result.get("state_delta", {})
+
+        # (1) World Snapshot 업데이트
+        snapshot = game.world_data_snapshot or {}
+        
+        # 1-1. State (Flags, Vars, Turn)
+        state_data = snapshot.get("state", {})
+        
+        # [DEBUG] Turn Check Before
+        print(f"[DEBUG] apply_chat_result - Before Turn: {state_data.get('turn')}, Increment: {delta.get('turn_increment')}")
+        
+        # Flags
+        state_data.setdefault("flags", {}).update(delta.get("flags", {}))
+        
+        # Vars (단순 덮어쓰기 예시 - 실제로는 증감 로직 필요할 수 있음)
+        vars_delta = delta.get("vars", {})
+        current_vars = state_data.setdefault("vars", {})
+        for k, v in vars_delta.items():
+            current_vars[k] = v
+            
+        # Turn
+        old_turn = state_data.get("turn", 1)
+        increment = delta.get("turn_increment", 0)
+        state_data["turn"] = old_turn + increment
+        
+        # [DEBUG] Turn Check After
+        print(f"[DEBUG] apply_chat_result - After Turn: {state_data['turn']}")
+        
+        snapshot["state"] = state_data
+        
+        # 1-2. Locks
+        locks_wrapper = snapshot.get("locks", {})
+        locks_list = locks_wrapper.get("locks", [])
+        locks_delta = delta.get("locks", {})
+        
+        if locks_delta:
+            for lock_item in locks_list:
+                lid = lock_item.get("info_id")
+                if lid and lid in locks_delta:
+                    lock_item["is_unlocked"] = locks_delta[lid]
+        
+        locks_wrapper["locks"] = locks_list
+        snapshot["locks"] = locks_wrapper
+        
+        # 중요: 변경된 dict를 다시 할당 (SQLAlchemy JSONB 변경 감지)
+        game.world_data_snapshot = snapshot
+        flag_modified(game, "world_data_snapshot") # Explicitly flag as modified
+
+        # (2) Player Data 업데이트
+        p_data = game.player_data or {}
+        
+        # Inventory
+        current_inv = set(p_data.get("inventory", []))
+        for item in delta.get("inventory_add", []):
+            current_inv.add(item)
+        for item in delta.get("inventory_remove", []):
+            if item in current_inv:
+                current_inv.remove(item)
+        p_data["inventory"] = list(current_inv)
+        
+        # Memory
+        mem = p_data.get("memory", {})
+        mem.update(result.get("memory", {}))
+        p_data["memory"] = mem
+        
+        game.player_data = p_data
+        flag_modified(game, "player_data") # Explicitly flag as modified
+
+        # (3) NPC Data 업데이트
+        n_data = game.npc_data or {"npcs": []}
+        npc_list = n_data.get("npcs", [])
+        npc_stats_delta = delta.get("npc_stats", {})
+        
+        for npc in npc_list:
+            nid = npc.get("npc_id")
+            if nid and nid in npc_stats_delta:
+                changes = npc_stats_delta[nid]
+                if "stats" not in npc:
+                    npc["stats"] = {}
+                
+                for stat_k, stat_v in changes.items():
+                    current_val = npc["stats"].get(stat_k, 0)
+                    npc["stats"][stat_k] = current_val + stat_v
+                    
+        n_data["npcs"] = npc_list
+        game.npc_data = n_data
+        flag_modified(game, "npc_data") # Explicitly flag as modified
 
     @classmethod
-    def process_turn(cls, db: Session, game_id: int, input_data: dict, game: dict) -> dict:
+    def process_turn(cls, db: Session, game_id: int, input_data: dict, game: Games) -> dict:
         """
         1. DB에서 게임 데이터를 가져와 LLM용 컨텍스트(Prompt)를 구성합니다.
         2. LLM에게 요청을 보냅니다.
@@ -280,16 +381,83 @@ class GameService:
 
         # 2. input dict를 llm에서 처리해서 반환
         # TODO : 실제 LLM 호출 로직으로 교체 필요
-        llm_response_obj = cls.mock_llm_process(input_dict.dict())
+        # llm_response_obj = cls.mock_llm_process(input_dict.dict())
 
+        # # 대충 이렇게 나왔다 칩시다
+        mock_day_controller_result = {
+            "event_description": [
+                "플레이어가 새엄마에게 말을 걸었습니다.",
+                "새엄마는 경계하는 눈빛을 보였습니다."
+            ],
+            "state_delta": {
+                "npc_stats": {
+                    "stepmother": {
+                        "trust": 2,
+                        "suspicion": 5
+                    },
+                    "brother": {
+                        "fear": -1
+                    }
+                },
+                "flags": {
+                    "met_mother": True,
+                    "heard_rumor": True
+                },
+                "inventory_add": [
+                    "old_key",
+                    "strange_note"
+                ],
+                "inventory_remove": [
+                    "apple"
+                ],
+                "locks": {
+                    "basement_door": False
+                },
+                "vars": {
+                    "investigation_progress": 10
+                },
+                "turn_increment": 1
+            },
+            "memory": {
+                "last_interaction": "talked_to_mother",
+                "clue_found": "old_key"
+            }
+        }
 
-        # 3. 수정된 내용을 적용
-        cls.apply_llm_response_to_game(game, llm_response_obj)
+        # # 3. 수정된 내용을 적용 (Mock Result 적용)
+        # TODO: 실제로는 DayController가 반환한 ToolResult 객체를 사용해야 함
+        cls.apply_chat_result(game, mock_day_controller_result)
+
+        # [VERIFICATION] API 호출 시 바로 테스트 결과 확인
+        print("\n=== [GameService] Apply Result Verification ===")
+        print(f"Turn: {game.world_data_snapshot.get('state', {}).get('turn')} (Expected: incremented)")
+        print(f"Inventory: {game.player_data.get('inventory')}")
+        print(f"Memory: {game.player_data.get('memory')}")
+        
+        # NPC Stats Check
+        npcs = game.npc_data['npcs']
+        mother = next((n for n in npcs if n['npc_id'] == 'button_mother'), None)
+        if mother:
+            print(f"Mother (button_mother) Stats: {mother.get('stats')} (Expected: trust+=2, suspicion+=5)")
+        else:
+            print("Mother not found in NPC list")
+            
+        daughter = next((n for n in npcs if n['npc_id'] == 'button_daughter'), None)
+        if daughter:
+            print(f"Daughter (button_daughter) Stats: {daughter.get('stats')} (Expected: fear-=1)")
+            
+        # Locks Check
+        locks = game.world_data_snapshot.get('locks', {}).get('locks', [])
+        basement = next((l for l in locks if l.get('info_id') == 'basement_door'), None)
+        if basement:
+             print(f"Lock (basement_door): {basement.get('is_unlocked')} (Expected: False as per mock input)")
+
+        print("===============================================\n")
 
         # 4. 저장 및 결과 반환
         crud_game.update_game(db, game)
-        
-        return input_dict
+
+        return mock_day_controller_result
 
     # 게임 id를 받아서 진행된 게임을 불러오기
     @staticmethod

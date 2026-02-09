@@ -19,3 +19,7 @@ def update_game(db: Session, game: Games) -> Games:
     db.commit()
     db.refresh(game)
     return game
+
+def get_all_games(db: Session) -> list[Games]:
+    """모든 게임 목록을 조회합니다."""
+    return db.query(Games).all()

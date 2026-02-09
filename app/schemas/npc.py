@@ -22,6 +22,8 @@ class NpcSchema(BaseModel):
     stats: Dict[str, int] = Field(..., description="스탯 정보 (Key: 스탯명, Value: 수치)")
     persona: Dict[str, Any] = Field(..., description="성격 및 행동 패턴 (구조 자유)")
     current_node: str = Field(..., description="NPC가 현재 위치하고 있는 스토리 노드 ID")
+
+    # memory: 기억 데이터 (TODO: LIST로 만드시오)
     memory: Dict[str, Any] = Field(default_factory=dict, description="LLM용 기억 데이터")
 
 

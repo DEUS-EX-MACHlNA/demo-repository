@@ -104,6 +104,7 @@ class DayController:
         tool_result = ToolResult(
             event_description=result.get("event_description", []),
             state_delta=merged_delta,
+            memory=result.get("memory", {})
         )
 
         logger.info(f"[DayController] 처리 완료: event={tool_result.event_description}")
