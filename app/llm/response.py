@@ -1,15 +1,7 @@
 import json
 import re
-from dataclasses import dataclass
 
-
-@dataclass
-class LLM_Response:
-    raw_text: str
-    cleaned_text: str
-    state_delta: dict
-    event_description: list[str]
-    confidence: float | None = None
+from app.schemas.llm_parsed_response import LLMParsedResponse
 
 
 def clean_text(text: str) -> str:
@@ -43,7 +35,7 @@ def _extract_json(text: str) -> dict | None:
     return None
 
 
-def parse_response(raw_text: str) -> LLM_Response:
+def parse_response(raw_text: str) -> LLMParsedResponse:
     cleaned = clean_text(raw_text)
     state_delta: dict = {}
     event_description: list[str] = []
@@ -63,7 +55,7 @@ def parse_response(raw_text: str) -> LLM_Response:
     if not event_description and cleaned:
         event_description = [cleaned]
 
-    return LLM_Response(
+    return LLMParsedResponse(
         raw_text=raw_text,
         cleaned_text=cleaned,
         state_delta=state_delta,

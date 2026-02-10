@@ -16,20 +16,26 @@ from pathlib import Path
 from typing import Any, Optional
 
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
 
 from app.loader import ScenarioAssets, get_loader, load_scenario_assets
-from app.models import (
+from app.schemas import (
     NightResult,
     ToolResult,
     WorldState,
+    StepRequest,
+    StepResponse,
+    NightRequestBody,
+    NightTurnResult,
+    ScenarioInfoResponse,
+    StateResponse,
+    EndingCheckResult,
 )
 from app.narrative import get_narrative_layer
 from app.state import get_world_state_manager
 from app.day_controller import get_day_controller
 from app.night_controller import get_night_controller
 from app.lock_manager import get_lock_manager
-from app.ending_checker import check_ending, EndingCheckResult
+from app.ending_checker import check_ending
 
 
 from app.api.routes.v1 import game as v1_game_router
@@ -46,52 +52,6 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
-
-
-# ============================================================
-# Pydantic Models (Request/Response)
-# ============================================================
-class DayRequestBody(BaseModel):
-    """POST /v1/scenario/{scenario_id}/day 요청 바디"""
-    user_id: str
-    text: str
-
-
-class DayResponseBody(BaseModel):
-    """POST /v1/scenario/{scenario_id}/day 응답"""
-    dialogue: str
-    ending: Optional[dict[str, Any]] = None  # 엔딩 도달 시
-    debug: dict[str, Any] = {}
-
-
-class NightRequestBody(BaseModel):
-    """POST /v1/scenario/{scenario_id}/night 요청 바디"""
-    user_id: str
-
-
-class NightResponseBody(BaseModel):
-    """POST /v1/scenario/{scenario_id}/night 응답"""
-    dialogue: str
-    night_conversation: list[dict[str, str]]  # NPC 그룹 대화
-    ending: Optional[dict[str, Any]] = None  # 엔딩 도달 시
-    debug: dict[str, Any] = {}
-
-
-class ScenarioInfoResponse(BaseModel):
-    """시나리오 정보 응답"""
-    scenario_id: str
-    title: str
-    genre: str
-    turn_limit: int
-    npcs: list[str]
-    items: list[str]
-
-
-class StateResponse(BaseModel):
-    """상태 조회 응답"""
-    user_id: str
-    scenario_id: str
-    state: dict[str, Any]
 
 # ============================================================
 # 애플리케이션 설정
@@ -411,14 +371,14 @@ async def execute_night_pipeline(
 # ============================================================
 @app.post(
     "/v1/scenario/{scenario_id}/day",
-    response_model=DayResponseBody,
+    response_model=StepResponse,
     summary="낮 턴 실행",
     description="유저 입력을 받아 낮 턴을 진행합니다. (LockManager → DayController → EndingChecker)"
 )
 async def day_turn(
     scenario_id: str,
-    body: DayRequestBody
-) -> DayResponseBody:
+    body: StepRequest
+) -> StepResponse:
     """낮 턴 실행"""
     logger.info(f"Day request: scenario={scenario_id}, user={body.user_id}")
 
@@ -433,7 +393,7 @@ async def day_turn(
             body.text
         )
 
-        return DayResponseBody(
+        return StepResponse(
             dialogue=dialogue,
             ending=ending,
             debug=debug
@@ -448,14 +408,14 @@ async def day_turn(
 
 @app.post(
     "/v1/scenario/{scenario_id}/night",
-    response_model=NightResponseBody,
+    response_model=NightTurnResult,
     summary="밤 페이즈 실행",
     description="밤 페이즈를 진행합니다. (NightController → EndingChecker)"
 )
 async def night_phase(
     scenario_id: str,
     body: NightRequestBody
-) -> NightResponseBody:
+) -> NightTurnResult:
     """밤 페이즈 실행"""
     logger.info(f"Night request: scenario={scenario_id}, user={body.user_id}")
 
@@ -469,7 +429,7 @@ async def night_phase(
             scenario_id,
         )
 
-        return NightResponseBody(
+        return NightTurnResult(
             dialogue=dialogue,
             night_conversation=conversation,
             ending=ending,

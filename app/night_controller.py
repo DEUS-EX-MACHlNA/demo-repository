@@ -8,6 +8,8 @@ Night Phase Controller — Generative Agents (Park et al. 2023) 기반
 3. 그룹 대화 (Group Dialogue) — NPC 3명이 함께 대화
 4. 대화 영향 분석 (Impact Analysis)
 을 수행하고 NightResult를 반환한다.
+
+NPCState가 stats Dict 기반으로 변경됨.
 """
 from __future__ import annotations
 
@@ -16,7 +18,7 @@ import random
 from typing import Any, Optional
 
 from app.loader import ScenarioAssets
-from app.models import NightResult, WorldState
+from app.schemas import NightResult, WorldState
 
 from app.agents.dialogue import (
     _generate_utterance,
@@ -104,13 +106,14 @@ class NightController:
     ) -> None:
         for npc_id in npc_ids:
             npc_state = world_snapshot.npcs[npc_id]
-            if should_reflect(npc_state.extras):
+            # memory Dict 사용 (이전의 extras)
+            if should_reflect(npc_state.memory):
                 npc_data = assets.get_npc_by_id(npc_id)
                 npc_name = npc_data["name"] if npc_data else npc_id
                 persona = npc_data.get("persona", {}) if npc_data else {}
 
                 insights = perform_reflection(
-                    npc_id, npc_state.extras, npc_name, persona, llm, current_turn=turn,
+                    npc_id, npc_state.memory, npc_name, persona, llm, current_turn=turn,
                 )
                 if insights:
                     night_events.append(f"{npc_name}이(가) 깊은 생각에 잠긴다.")
@@ -135,8 +138,8 @@ class NightController:
             persona = npc_data.get("persona", {}) if npc_data else {}
 
             plan = update_plan(
-                npc_id, npc_name, persona, npc_state.extras,
-                npc_state.trust, npc_state.fear, npc_state.suspicion,
+                npc_id, npc_name, persona, npc_state.memory,
+                npc_state.stats,
                 turn, turn_limit, scenario_title, llm,
             )
             logger.debug(f"[NightController] plan: npc={npc_id}, plan='{plan[:50]}...'")
@@ -184,10 +187,8 @@ class NightController:
                 speaker_id,
                 speaker["name"],
                 speaker["persona"],
-                state.extras,
-                state.trust,
-                state.fear,
-                state.suspicion,
+                state.memory,
+                state.stats,
                 listener_str,
                 conversation,
                 llm,
@@ -206,7 +207,7 @@ class NightController:
                 info["name"],
                 ", ".join(other_names),
                 conversation,
-                info["state"].extras,
+                info["state"].memory,
                 format_persona(info["persona"]),
                 llm,
                 current_turn=turn,
@@ -231,6 +232,8 @@ class NightController:
         if len(npc_ids) < 2:
             return
 
+        stat_names = assets.get_npc_stat_names()
+
         # 모든 NPC 쌍에 대해 분석
         for i, npc1_id in enumerate(npc_ids):
             for npc2_id in npc_ids[i + 1:]:
@@ -240,6 +243,7 @@ class NightController:
                     npc1_id, d1.get("name", npc1_id), d1.get("persona", {}),
                     npc2_id, d2.get("name", npc2_id), d2.get("persona", {}),
                     conversation, llm,
+                    stat_names=stat_names,
                 )
                 for npc_id, stat_changes in changes.items():
                     if not stat_changes:
@@ -267,7 +271,7 @@ def get_night_controller() -> NightController:
 if __name__ == "__main__":
     from pathlib import Path
     from app.loader import ScenarioLoader
-    from app.models import NPCState
+    from app.schemas import NPCState
 
     logging.basicConfig(level=logging.DEBUG)
 
@@ -285,17 +289,27 @@ if __name__ == "__main__":
     assets = loader.load(scenarios[0])
     print(f"\n시나리오: {assets.scenario.get('title')}")
 
+    # NPCState를 시나리오 YAML의 stats 구조에 맞춤
     world = WorldState(
         turn=3,
         npcs={
-            "button_mother": NPCState(npc_id="button_mother", trust=3, fear=0, suspicion=4),
-            "button_father": NPCState(npc_id="button_father", trust=2, fear=0, suspicion=5),
-            "button_daughter": NPCState(npc_id="button_daughter", trust=3, fear=0, suspicion=3),
+            "stepmother": NPCState(
+                npc_id="stepmother",
+                stats={"affection": 50, "fear": 80, "humanity": 0}
+            ),
+            "stepfather": NPCState(
+                npc_id="stepfather",
+                stats={"affection": 30, "fear": 60, "humanity": 20}
+            ),
+            "brother": NPCState(
+                npc_id="brother",
+                stats={"affection": 60, "fear": 40, "humanity": 50}
+            ),
         },
         inventory=[],
         vars={
-            "humanity": 10,
-            "total_suspicion": 0,
+            "humanity": 100,
+            "suspicion_level": 0,
         },
     )
 
@@ -310,8 +324,8 @@ if __name__ == "__main__":
         print(f"  {utt['speaker']}: {utt['text']}")
 
     for npc_id, npc_state in world.npcs.items():
-        stream = npc_state.extras.get("memory_stream", [])
-        plan = npc_state.extras.get("current_plan", {}).get("plan_text", "없음")
+        stream = npc_state.memory.get("memory_stream", [])
+        plan = npc_state.memory.get("current_plan", {}).get("plan_text", "없음")
         print(f"\n[{npc_id}] 기억 수: {len(stream)}, 계획: {plan[:50]}...")
 
     print(f"\n{'=' * 60}")

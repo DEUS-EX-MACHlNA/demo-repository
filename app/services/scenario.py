@@ -32,7 +32,6 @@ from app.schemas.item_info import ItemSchema
 import json
 import copy
 from typing import Dict, Any
-from app.schemas.client_sync import GameClientSyncSchema
 from app.crud import scenario as crud_scenario
 from app.crud import game as crud_game
 

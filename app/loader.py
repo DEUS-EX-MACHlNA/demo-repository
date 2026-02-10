@@ -122,6 +122,20 @@ class ScenarioAssets:
             result.append(f"{nid}: {name} - {role}")
         return result
 
+    def get_npc_stat_names(self) -> list[str]:
+        """
+        모든 NPC에서 사용되는 스탯 이름 목록 반환 (중복 제거)
+
+        Returns:
+            유니크한 스탯 이름 리스트 (예: ["affection", "fear", "humanity"])
+        """
+        stat_names: set[str] = set()
+        for npc in self.npcs.get("npcs", []):
+            stats = npc.get("stats", {})
+            if isinstance(stats, dict):
+                stat_names.update(stats.keys())
+        return sorted(list(stat_names))
+
 
 # ============================================================
 # ScenarioLoader: YAML 파일을 로드하는 로더

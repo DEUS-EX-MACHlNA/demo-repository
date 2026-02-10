@@ -1,18 +1,23 @@
+"""
+app/schemas/status.py
+모든 Enum 정의 통합
+"""
 from enum import Enum
 
 
 class NPCStatus(str, Enum):
     """NPC 상태"""
-   # 생존 여부를 판단하는 상태
-    ALIVE = "alive"      # 생존
-    DECEASED = "deceased"  # 사망
-    MISSING = "missing"    # 실종
-    UNKNOWN = "unknown"    # 알 수 없음
+    ALIVE = "alive"
+    DECEASED = "deceased"
+    MISSING = "missing"
+    UNKNOWN = "unknown"
+
 
 class ChatAt(str, Enum):
     """채팅 턴"""
     DAY = "day"
     NIGHT = "night"
+
 
 class GameStatus(str, Enum):
     """게임 상태"""
@@ -21,5 +26,31 @@ class GameStatus(str, Enum):
 
 class ItemStatus(str, Enum):
     """아이템 상태"""
-    FINE = "fine"        # 정상
-    BURNED = "burned"    # 불가
+    LIVE = "live"
+    ENDING = "ending"
+
+
+class Intent(str, Enum):
+    """파싱된 의도 타입"""
+    LEADING = "leading"
+    NEUTRAL = "neutral"
+    EMPATHIC = "empathic"
+    SUMMARIZE = "summarize"
+    UNKNOWN = "unknown"
+
+
+class ToolName(str, Enum):
+    """사용 가능한 Tool 이름"""
+    NPC_TALK = "npc_talk"
+    ACTION = "action"
+    ITEM_USAGE = "item_usage"
+
+
+class NpcId(str, Enum):
+    """NPC 식별자"""
+    STEPMOTHER = "stepmother"
+    STEPFATHER = "stepfather"
+    BROTHER = "brother"
+    DOG = "dog"
+    GRANDMOTHER = "grandmother"
+

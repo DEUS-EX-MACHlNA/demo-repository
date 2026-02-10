@@ -8,24 +8,12 @@ from __future__ import annotations
 
 import logging
 import re
-from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Union
 
-from app.models import WorldState
+from app.schemas import WorldState
+from app.schemas.condition import EvalContext
 
 logger = logging.getLogger(__name__)
-
-
-@dataclass
-class EvalContext:
-    """조건 평가에 필요한 컨텍스트"""
-    world_state: WorldState
-    turn_limit: int = 50  # 시나리오의 turn_limit
-    extra_vars: Dict[str, Any] = None  # 추가 변수 (필요 시)
-
-    def __post_init__(self):
-        if self.extra_vars is None:
-            self.extra_vars = {}
 
 
 class ConditionEvaluator:
@@ -97,10 +85,10 @@ class ConditionEvaluator:
             if not npc_state:
                 return False
 
-            # NPCState의 속성 또는 extras에서 조회
-            current = getattr(npc_state, stat, None)
+            # NPCState의 stats에서 조회
+            current = npc_state.stats.get(stat)
             if current is None:
-                current = npc_state.extras.get(stat, "")
+                current = npc_state.memory.get(stat, "")
             return str(current) == expected
 
         # 3. npc.{npc_id}.{stat} {op} {value} 패턴 (숫자 비교)
@@ -118,10 +106,8 @@ class ConditionEvaluator:
             if not npc_state:
                 return False
 
-            # NPCState의 속성 또는 extras에서 조회
-            current = getattr(npc_state, stat, None)
-            if current is None:
-                current = npc_state.extras.get(stat, 0)
+            # NPCState의 stats에서 조회
+            current = npc_state.stats.get(stat, 0)
             return self._compare(current, op, value)
 
         # 4. vars.{var_name} == true/false 패턴 (불리언)
@@ -252,3 +238,99 @@ def evaluate_condition(
     evaluator = get_condition_evaluator()
     context = EvalContext(world_state=world_state, turn_limit=turn_limit)
     return evaluator.evaluate(condition, context)
+
+
+# ============================================================
+# 독립 실행 테스트
+# ============================================================
+if __name__ == "__main__":
+    import logging
+    from app.schemas import NPCState, WorldState
+
+    logging.basicConfig(level=logging.INFO)
+
+    print("=" * 60)
+    print("CONDITION EVALUATOR 테스트")
+    print("=" * 60)
+
+    # 테스트용 월드 상태 생성
+    world = WorldState(
+        turn=5,
+        npcs={
+            "button_mother": NPCState(
+                npc_id="button_mother",
+                stats={"trust": 7, "fear": 3, "suspicion": 4}
+            ),
+            "button_father": NPCState(
+                npc_id="button_father",
+                stats={"trust": 2, "fear": 8, "suspicion": 9}
+            ),
+        },
+        inventory=["item_button", "item_thread"],
+        vars={"humanity": 45, "total_suspicion": 13, "discovered": True},
+        flags={"ending_flag": "stealth"},
+    )
+
+    print(f"\n[1] 월드 상태:")
+    print(f"  - turn: {world.turn}")
+    print(f"  - npcs: {list(world.npcs.keys())}")
+    print(f"  - inventory: {world.inventory}")
+    print(f"  - vars: {world.vars}")
+    print(f"  - flags: {world.flags}")
+
+    # 테스트 케이스
+    test_cases = [
+        # NPC stat 조건
+        ("npc.button_mother.trust >= 5", True, "NPC trust >= 5"),
+        ("npc.button_father.fear > 7", True, "NPC fear > 7"),
+        ("npc.button_mother.suspicion <= 5", True, "NPC suspicion <= 5"),
+
+        # vars 조건
+        ("vars.humanity <= 50", True, "humanity <= 50"),
+        ("vars.total_suspicion >= 10", True, "total_suspicion >= 10"),
+        ("vars.humanity > 60", False, "humanity > 60 (should fail)"),
+
+        # vars 불리언
+        ("vars.discovered == true", True, "discovered == true"),
+
+        # inventory 조건 (has_item 함수 형식)
+        ("has_item(item_button)", True, "has item_button"),
+        ("has_item(item_needle)", False, "has item_needle (should fail)"),
+
+        # system.turn 조건
+        ("system.turn >= 3", True, "system.turn >= 3"),
+        ("system.turn <= 10", True, "system.turn <= 10"),
+        ("system.turn == 5", True, "system.turn == 5"),
+
+        # AND 조건 (소문자 'and' 사용)
+        ("vars.humanity <= 50 and system.turn >= 3", True, "AND condition"),
+        ("vars.humanity > 60 and system.turn >= 3", False, "AND condition (should fail)"),
+
+        # 복합 조건
+        ("has_item(item_button) and vars.humanity <= 50", True, "has_item AND vars"),
+    ]
+
+    print(f"\n[2] 조건 평가 테스트 ({len(test_cases)}개):")
+    print("-" * 60)
+
+    passed = 0
+    failed = 0
+
+    for condition, expected, description in test_cases:
+        result = evaluate_condition(condition, world, turn_limit=50)
+        status = "✓" if result == expected else "✗"
+
+        if result == expected:
+            passed += 1
+            print(f"  {status} {description}")
+            print(f"     조건: {condition}")
+            print(f"     결과: {result} (예상: {expected})")
+        else:
+            failed += 1
+            print(f"  {status} {description} [FAILED]")
+            print(f"     조건: {condition}")
+            print(f"     결과: {result} (예상: {expected})")
+
+    print("\n" + "=" * 60)
+    print(f"결과: {passed}개 통과, {failed}개 실패")
+    print("=" * 60)

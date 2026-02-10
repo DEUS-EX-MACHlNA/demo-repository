@@ -8,10 +8,10 @@ Lock Manager - locks.yaml 기반 정보 해금 시스템
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Set
 
-from app.models import WorldState
+from app.schemas import WorldState
+from app.schemas.lock import UnlockedInfo, LockCheckResult
 from app.condition_eval import evaluate_condition
 
 logger = logging.getLogger(__name__)
@@ -19,25 +19,6 @@ logger = logging.getLogger(__name__)
 # 해금된 정보의 메모리 타입 및 중요도
 MEMORY_TYPE_SECRET = "unlocked_secret"
 SECRET_IMPORTANCE_SCORE = 9.5  # 매우 높은 중요도 (최대 10)
-
-
-@dataclass
-class UnlockedInfo:
-    """해금된 정보"""
-    info_id: str
-    info_title: str
-    description: str
-    reveal_trigger: str
-    linked_info_id: Optional[str] = None
-    allowed_npcs: List[str] = field(default_factory=list)
-
-
-@dataclass
-class LockCheckResult:
-    """Lock 체크 결과"""
-    newly_unlocked: List[UnlockedInfo]  # 이번 턴에 새로 해금된 정보
-    all_unlocked_ids: Set[str]  # 현재까지 해금된 모든 정보 ID
-    triggered_events: List[str]  # 발생해야 할 reveal_trigger 이벤트
 
 
 class LockManager:
@@ -193,7 +174,7 @@ class LockManager:
             )
 
             # NPC의 메모리 스트림에 추가
-            add_memory(npc_state.extras, memory_entry)
+            add_memory(npc_state.memory, memory_entry)
             injected_npcs.append(npc_id)
 
             logger.info(
@@ -216,3 +197,164 @@ def get_lock_manager() -> LockManager:
     if _lock_manager_instance is None:
         _lock_manager_instance = LockManager()
     return _lock_manager_instance
+
+
+# ============================================================
+# 독립 실행 테스트
+# ============================================================
+if __name__ == "__main__":
+    import logging
+    from pathlib import Path
+    from app.loader import ScenarioLoader
+    from app.schemas import NPCState, WorldState
+
+    logging.basicConfig(level=logging.INFO)
+
+    print("=" * 60)
+    print("LOCK MANAGER 테스트")
+    print("=" * 60)
+
+    # 시나리오 로드
+    base_path = Path(__file__).parent.parent / "scenarios"
+    loader = ScenarioLoader(base_path)
+    scenarios = loader.list_scenarios()
+
+    if not scenarios:
+        print("시나리오가 없습니다!")
+        exit(1)
+
+    assets = loader.load(scenarios[0])
+    print(f"\n[1] 시나리오: {assets.scenario.get('title')}")
+
+    # locks.yaml 확인
+    locks_data = assets.extras.get("locks", {})
+    locks = locks_data.get("locks", [])
+    print(f"\n[2] 정의된 Lock ({len(locks)}개):")
+    for i, lock in enumerate(locks, 1):
+        print(f"  {i}. {lock.get('info_id')}: {lock.get('info_title')}")
+        print(f"     조건: {lock.get('unlock_condition')}")
+        print(f"     접근 가능 NPC: {lock.get('access', {}).get('allowed_npcs', [])}")
+
+    # LockManager 생성
+    manager = LockManager()
+
+    # 테스트 케이스 1: 초기 상태 (lock 미해금)
+    print(f"\n[3] 테스트 1: 초기 상태 (조건 미충족)")
+    print("-" * 60)
+
+    world1 = WorldState(
+        turn=1,
+        npcs={
+            "brother": NPCState(
+                npc_id="brother",
+                stats={"affection": 30, "humanity": 50, "suspicion": 2}
+            ),
+            "stepfather": NPCState(
+                npc_id="stepfather",
+                stats={"affection": 10, "humanity": 20, "suspicion": 3}
+            ),
+        },
+        vars={"humanity": 80, "suspicion_level": 5, "day": 1, "truth_revealed": False, "clue_count": 0},
+        inventory=[],
+    )
+
+    result1 = manager.check_unlocks(world1, locks_data)
+    print(f"  새로 해금된 정보: {len(result1.newly_unlocked)}개")
+    for info in result1.newly_unlocked:
+        print(f"    - {info.info_id}: {info.info_title}")
+        print(f"      설명: {info.description}")
+    print(f"  전체 해금된 정보 수: {len(result1.all_unlocked_ids)}")
+
+    # 테스트 케이스 2: 조건 충족 - br_00_01 (npc.brother.affection >= 70)
+    print(f"\n[4] 테스트 2: 동생 호감도 높음 (brother.affection >= 70)")
+    print("-" * 60)
+
+    world2 = WorldState(
+        turn=5,
+        npcs={
+            "brother": NPCState(
+                npc_id="brother",
+                stats={"affection": 75, "humanity": 60, "suspicion": 3},
+                memory={"memory_stream": []},
+            ),
+            "stepfather": NPCState(
+                npc_id="stepfather",
+                stats={"affection": 20, "humanity": 30, "suspicion": 5},
+                memory={"memory_stream": []},
+            ),
+        },
+        vars={"humanity": 70, "suspicion_level": 20, "day": 2, "truth_revealed": False},
+        inventory=[],
+    )
+
+    result2 = manager.check_unlocks(world2, locks_data)
+    print(f"  새로 해금된 정보: {len(result2.newly_unlocked)}개")
+    for info in result2.newly_unlocked:
+        print(f"    - {info.info_id}: {info.info_title}")
+        print(f"      설명: {info.description[:60]}...")
+        print(f"      접근 가능 NPC: {info.allowed_npcs}")
+    print(f"  전체 해금된 정보 수: {len(result2.all_unlocked_ids)}")
+    print(f"  트리거된 이벤트: {result2.triggered_events}")
+
+    # 메모리 주입 확인
+    print(f"\n[5] NPC 메모리 확인:")
+    for npc_id, npc_state in world2.npcs.items():
+        memory_stream = npc_state.memory.get("memory_stream", [])
+        print(f"  {npc_id}: {len(memory_stream)}개 메모리")
+        for mem in memory_stream[-3:]:  # 최근 3개만
+            print(f"    - [{mem.get('memory_type')}] {mem.get('description', '')[:40]}...")
+
+    # 테스트 케이스 3: 여러 조건 동시 충족
+    print(f"\n[6] 테스트 3: 복합 조건 충족 (humanity 낮음 + suspicion 높음 + day >= 4)")
+    print("-" * 60)
+
+    world3 = WorldState(
+        turn=35,
+        npcs={
+            "brother": NPCState(
+                npc_id="brother",
+                stats={"affection": 75, "humanity": 80, "suspicion": 5},
+                memory={"memory_stream": []},
+            ),
+            "grandmother": NPCState(
+                npc_id="grandmother",
+                stats={"affection": 50, "humanity": 60, "suspicion": 8},
+                memory={"memory_stream": []},
+            ),
+            "stepmother": NPCState(
+                npc_id="stepmother",
+                stats={"affection": 10, "humanity": 20, "suspicion": 9},
+                memory={"memory_stream": []},
+            ),
+        },
+        vars={"humanity": 25, "suspicion_level": 35, "day": 4, "truth_revealed": True, "clue_count": 2},
+        inventory=["real_family_photo"],
+    )
+
+    result3 = manager.check_unlocks(world3, locks_data)
+    print(f"  새로 해금된 정보: {len(result3.newly_unlocked)}개")
+    for info in result3.newly_unlocked:
+        print(f"    - {info.info_id}: {info.info_title}")
+        print(f"      설명: {info.description[:60]}...")
+    print(f"  전체 해금된 정보 수: {len(result3.all_unlocked_ids)}")
+    print(f"  트리거된 이벤트: {result3.triggered_events}")
+
+    # 테스트 케이스 4: 중복 체크 (이미 해금된 정보)
+    print(f"\n[7] 테스트 4: 중복 체크 (같은 조건 재실행)")
+    print("-" * 60)
+
+    result4 = manager.check_unlocks(world3, locks_data)
+    print(f"  새로 해금된 정보: {len(result4.newly_unlocked)}개 (중복 방지)")
+    print(f"  전체 해금된 정보 수: {len(result4.all_unlocked_ids)}")
+
+    # 특정 NPC가 접근 가능한 정보 조회
+    print(f"\n[8] NPC별 접근 가능 정보:")
+    for npc_id in world3.npcs.keys():
+        accessible = manager.get_unlocked_info_for_npc(npc_id, locks_data)
+        print(f"  {npc_id}: {len(accessible)}개")
+        for info in accessible:
+            print(f"    - {info.info_id}: {info.info_title}")
+
+    print("\n" + "=" * 60)
+    print("LOCK MANAGER 테스트 완료")
+    print("=" * 60)

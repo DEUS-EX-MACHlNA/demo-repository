@@ -4,103 +4,152 @@ Memory Stream 관리 — Generative Agents (Park et al. 2023)
 
 각 NPC는 관찰(observation), 성찰(reflection), 계획(plan), 대화(dialogue) 기억을
 시간순으로 저장하는 Memory Stream을 갖는다.
+
+schemas/memory.py의 MemoryEntrySchema를 사용하여 Pydantic 기반으로 통합됨.
+NPCState.memory (이전의 NPCState.extras)에 저장.
 """
 from __future__ import annotations
 
 import logging
-import uuid
-from dataclasses import asdict, dataclass, field
-from typing import Any
+from typing import Any, List, Union
+
+# schemas에서 Memory 관련 스키마 import
+from app.schemas import (
+    MemoryEntrySchema,
+    MemoryStreamSchema,
+    MEMORY_OBSERVATION,
+    MEMORY_REFLECTION,
+    MEMORY_PLAN,
+    MEMORY_DIALOGUE,
+    MAX_MEMORIES_PER_NPC,
+)
 
 logger = logging.getLogger(__name__)
 
-
-# ── Memory Types ─────────────────────────────────────────────
-MEMORY_OBSERVATION = "observation"
-MEMORY_REFLECTION = "reflection"
-MEMORY_PLAN = "plan"
-MEMORY_DIALOGUE = "dialogue"
-
-
-# ── MemoryEntry ──────────────────────────────────────────────
-@dataclass
-class MemoryEntry:
-    """Memory Stream의 단일 항목."""
-
-    memory_id: str
-    npc_id: str
-    description: str
-    creation_turn: int
-    last_access_turn: int
-    importance_score: float  # 1‑10
-    memory_type: str  # observation | reflection | plan | dialogue
-    metadata: dict[str, Any] = field(default_factory=dict)
-
-    # ── 직렬화 ───────────────────────────────────────────────
-    def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
-
-    @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> MemoryEntry:
-        return cls(**{k: v for k, v in data.items() if k in cls.__dataclass_fields__})
-
-    # ── 팩토리 ───────────────────────────────────────────────
-    @classmethod
-    def create(
-        cls,
-        npc_id: str,
-        description: str,
-        importance_score: float,
-        current_turn: int,
-        memory_type: str = MEMORY_OBSERVATION,
-        metadata: dict[str, Any] | None = None,
-    ) -> MemoryEntry:
-        return cls(
-            memory_id=str(uuid.uuid4()),
-            npc_id=npc_id,
-            description=description,
-            creation_turn=current_turn,
-            last_access_turn=current_turn,
-            importance_score=importance_score,
-            memory_type=memory_type,
-            metadata=metadata or {},
-        )
+# 하위 호환성을 위한 re-export
+MemoryEntry = MemoryEntrySchema
 
 
 # ── Memory Stream helpers ────────────────────────────────────
-MAX_MEMORIES_PER_NPC = 100
+def get_memory_stream(npc_memory: dict[str, Any]) -> list[MemoryEntrySchema]:
+    """NPCState.memory에서 MemoryEntrySchema 리스트를 역직렬화.
+
+    Args:
+        npc_memory: NPCState.memory dict (이전의 npc_extras)
+
+    Returns:
+        MemoryEntrySchema 리스트
+    """
+    raw = npc_memory.get("memory_stream", [])
+    result = []
+    for d in raw:
+        try:
+            if isinstance(d, dict):
+                result.append(MemoryEntrySchema(**d))
+            elif isinstance(d, MemoryEntrySchema):
+                result.append(d)
+        except Exception as e:
+            logger.warning(f"Failed to parse memory entry: {e}")
+            continue
+    return result
 
 
-def get_memory_stream(npc_extras: dict[str, Any]) -> list[MemoryEntry]:
-    """NPCState.extras에서 MemoryEntry 리스트를 역직렬화."""
-    raw = npc_extras.get("memory_stream", [])
-    return [MemoryEntry.from_dict(d) for d in raw]
+def set_memory_stream(npc_memory: dict[str, Any], memories: list[MemoryEntrySchema]) -> None:
+    """MemoryEntrySchema 리스트를 NPCState.memory에 직렬화. 오래된 항목은 잘라낸다.
 
-
-def set_memory_stream(npc_extras: dict[str, Any], memories: list[MemoryEntry]) -> None:
-    """MemoryEntry 리스트를 NPCState.extras에 직렬화. 오래된 항목은 잘라낸다."""
+    Args:
+        npc_memory: NPCState.memory dict
+        memories: 저장할 메모리 리스트
+    """
     if len(memories) > MAX_MEMORIES_PER_NPC:
         # 중요도 낮은 오래된 기억부터 제거
         memories.sort(key=lambda m: (m.importance_score, m.creation_turn))
         memories = memories[-MAX_MEMORIES_PER_NPC:]
         memories.sort(key=lambda m: m.creation_turn)
-    npc_extras["memory_stream"] = [m.to_dict() for m in memories]
+
+    # Pydantic 모델을 dict로 변환하여 저장
+    serialized = []
+    for m in memories:
+        if hasattr(m, 'model_dump'):
+            serialized.append(m.model_dump())
+        elif hasattr(m, 'dict'):
+            serialized.append(m.dict())
+        else:
+            serialized.append(m)
+    npc_memory["memory_stream"] = serialized
 
 
 def add_memory(
-    npc_extras: dict[str, Any],
-    entry: MemoryEntry,
+    npc_memory: dict[str, Any],
+    entry: MemoryEntrySchema,
 ) -> None:
-    """단일 기억을 Memory Stream에 추가하고 누적 중요도를 갱신."""
-    stream = get_memory_stream(npc_extras)
+    """단일 기억을 Memory Stream에 추가하고 누적 중요도를 갱신.
+
+    Args:
+        npc_memory: NPCState.memory dict
+        entry: 추가할 메모리 엔트리
+    """
+    stream = get_memory_stream(npc_memory)
     stream.append(entry)
-    set_memory_stream(npc_extras, stream)
+    set_memory_stream(npc_memory, stream)
 
     # 누적 중요도 갱신 (성찰 트리거용)
-    acc = npc_extras.get("accumulated_importance", 0.0)
-    npc_extras["accumulated_importance"] = acc + entry.importance_score
+    acc = npc_memory.get("accumulated_importance", 0.0)
+    npc_memory["accumulated_importance"] = acc + entry.importance_score
 
     logger.debug(
         f"add_memory: npc={entry.npc_id} type={entry.memory_type} "
-        f"importance={entry.importance_score:.1f} total_acc={npc_extras['accumulated_importance']:.1f}"
+        f"importance={entry.importance_score:.1f} total_acc={npc_memory['accumulated_importance']:.1f}"
     )
+
+
+def create_memory(
+    npc_id: str,
+    description: str,
+    importance_score: float,
+    current_turn: int,
+    memory_type: str = MEMORY_OBSERVATION,
+    metadata: dict[str, Any] | None = None,
+) -> MemoryEntrySchema:
+    """새 메모리 엔트리 생성 (팩토리 함수).
+
+    Args:
+        npc_id: NPC ID
+        description: 메모리 내용
+        importance_score: 중요도 (1-10)
+        current_turn: 현재 턴
+        memory_type: 메모리 타입
+        metadata: 추가 메타데이터
+
+    Returns:
+        MemoryEntrySchema 인스턴스
+    """
+    return MemoryEntrySchema.create(
+        npc_id=npc_id,
+        description=description,
+        importance_score=importance_score,
+        current_turn=current_turn,
+        memory_type=memory_type,
+        metadata=metadata,
+    )
+
+
+def reset_accumulated_importance(npc_memory: dict[str, Any]) -> None:
+    """성찰 후 누적 중요도 리셋.
+
+    Args:
+        npc_memory: NPCState.memory dict
+    """
+    npc_memory["accumulated_importance"] = 0.0
+
+
+def get_accumulated_importance(npc_memory: dict[str, Any]) -> float:
+    """현재 누적 중요도 반환.
+
+    Args:
+        npc_memory: NPCState.memory dict
+
+    Returns:
+        누적 중요도 값
+    """
+    return npc_memory.get("accumulated_importance", 0.0)

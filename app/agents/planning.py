@@ -46,21 +46,24 @@ def generate_short_term_plan(
     npc_id: str,
     npc_name: str,
     persona: dict[str, Any],
-    npc_extras: dict[str, Any],
-    trust: int,
-    fear: int,
-    suspicion: int,
+    npc_memory: dict[str, Any],
+    stats: dict[str, int],
     long_term_plan: str,
     llm: GenerativeAgentsLLM,
     current_turn: int = 1,
 ) -> str:
-    """턴 수준 단기 계획."""
+    """턴 수준 단기 계획.
+
+    Args:
+        npc_memory: NPCState.memory dict
+        stats: NPC 스탯 Dict (예: {"affection": 50, "fear": 80})
+    """
     persona_str = format_persona(persona)
-    emotion_str = format_emotion(trust, fear, suspicion)
+    emotion_str = format_emotion(stats)
 
     # 최근 기억 검색
     query = f"{npc_name}의 다음 행동 계획"
-    recent = retrieve_memories(npc_extras, query, llm, current_turn=current_turn, k=5)
+    recent = retrieve_memories(npc_memory, query, llm, current_turn=current_turn, k=5)
     memory_ctx = "\n".join(f"- {m.description}" for m in recent) if recent else "(최근 기억 없음)"
 
     prompt = (
@@ -83,33 +86,36 @@ def update_plan(
     npc_id: str,
     npc_name: str,
     persona: dict[str, Any],
-    npc_extras: dict[str, Any],
-    npc_trust: int,
-    npc_fear: int,
-    npc_suspicion: int,
+    npc_memory: dict[str, Any],
+    stats: dict[str, int],
     turn: int,
     turn_limit: int,
     scenario_title: str,
     llm: GenerativeAgentsLLM,
 ) -> str:
-    """장기+단기 계획을 갱신하고 extras에 저장. 단기 계획 텍스트 반환."""
+    """장기+단기 계획을 갱신하고 memory에 저장. 단기 계획 텍스트 반환.
+
+    Args:
+        npc_memory: NPCState.memory dict
+        stats: NPC 스탯 Dict (예: {"affection": 50, "fear": 80})
+    """
     # 장기 계획 (없으면 생성)
-    if "long_term_plan" not in npc_extras:
+    if "long_term_plan" not in npc_memory:
         lt_plan = generate_long_term_plan(
             npc_id, npc_name, persona, turn, turn_limit, scenario_title, llm,
         )
-        npc_extras["long_term_plan"] = lt_plan
+        npc_memory["long_term_plan"] = lt_plan
     else:
-        lt_plan = npc_extras["long_term_plan"]
+        lt_plan = npc_memory["long_term_plan"]
 
     # 단기 계획
     st_plan = generate_short_term_plan(
-        npc_id, npc_name, persona, npc_extras,
-        npc_trust, npc_fear, npc_suspicion, lt_plan, llm, current_turn=turn,
+        npc_id, npc_name, persona, npc_memory,
+        stats, lt_plan, llm, current_turn=turn,
     )
 
-    # extras에 저장
-    npc_extras["current_plan"] = {
+    # memory에 저장
+    npc_memory["current_plan"] = {
         "plan_text": st_plan,
         "created_at_turn": turn,
     }
@@ -124,6 +130,6 @@ def update_plan(
         current_turn=turn,
         memory_type=MEMORY_PLAN,
     )
-    add_memory(npc_extras, entry)
+    add_memory(npc_memory, entry)
 
     return st_plan

@@ -4,11 +4,10 @@ app - Interactive Scenario Game Server
 텍스트 기반 인터랙티브 시나리오 게임 서버 패키지
 """
 from app.loader import ScenarioAssets, ScenarioLoader, load_scenario_assets
-from app.models import (
+from app.schemas import (
     Intent,
     NightResult,
     NPCState,
-    ParsedInput,
     StateDelta,
     StepRequest,
     StepResponse,
@@ -30,7 +29,7 @@ __all__ = [
     "load_scenario_assets",
     # Models
     "Intent",
-    "ParsedInput",
+    # "ParsedInput",
     "WorldState",
     "NPCState",
     "ToolCall",

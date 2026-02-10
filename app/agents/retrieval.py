@@ -84,14 +84,18 @@ def _retrieval_score(
 
 # ── 공개 API ─────────────────────────────────────────────────
 def retrieve_memories(
-    npc_extras: dict[str, Any],
+    npc_memory: dict[str, Any],
     query: str,
     llm: GenerativeAgentsLLM,
     current_turn: int,
     k: int = DEFAULT_K,
 ) -> list[MemoryEntry]:
-    """NPC의 Memory Stream에서 query에 가장 관련 높은 k개 기억 반환."""
-    stream = get_memory_stream(npc_extras)
+    """NPC의 Memory Stream에서 query에 가장 관련 높은 k개 기억 반환.
+
+    Args:
+        npc_memory: NPCState.memory dict (이전의 npc_extras)
+    """
+    stream = get_memory_stream(npc_memory)
     if not stream:
         return []
 
