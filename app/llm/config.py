@@ -6,8 +6,8 @@ import os
 from typing import Literal
 
 # 기본 모델 설정 (여기서 모델을 변경하세요)
-DEFAULT_MODEL = "LGAI-EXAONE/EXAONE-3.5-7.8B-Instruct"
-ALTERNATIVE_MODEL = "Qwen/Qwen2.5-7B-Instruct"
+DEFAULT_MODEL = "Qwen/Qwen2.5-7B-Instruct"
+ALTERNATIVE_MODEL = "LGAI-EXAONE/EXAONE-3.5-7.8B-Instruct"
 
 # LLM 백엔드 타입
 LLMBackend = Literal["langchain", "transformers"]

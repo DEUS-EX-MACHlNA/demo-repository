@@ -92,8 +92,6 @@ from app.schemas.world_meta_data import (
     CurrentStateSchema,
     LockSchema,
     LocksSchemaList,
-    StoryNodeSchema,
-    StoryGraphSchema,
     EndingSchema,
     ScenarioSchema,
     WorldDataSchema,
@@ -147,8 +145,7 @@ __all__ = [
     "GameClientSyncSchema",
     # World Data
     "CurrentStateSchema", "LockSchema", "LocksSchemaList",
-    "StoryNodeSchema", "StoryGraphSchema", "EndingSchema",
-    "ScenarioSchema", "WorldDataSchema",
+    "EndingSchema", "ScenarioSchema", "WorldDataSchema",
     # Ending / Lock / Condition
     "EndingInfo", "EndingCheckResult",
     "UnlockedInfo", "LockCheckResult",

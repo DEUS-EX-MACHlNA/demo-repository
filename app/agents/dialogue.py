@@ -7,8 +7,10 @@ NPC간 대화 생성 — Generative Agents (Park et al. 2023) Section 3.5
 """
 from __future__ import annotations
 
+import json
 import logging
 import random
+import re
 from typing import Any
 
 from app.llm import GenerativeAgentsLLM
@@ -62,7 +64,7 @@ def determine_dialogue_pairs(
 
 
 # ── 단일 발화 생성 ───────────────────────────────────────────
-def _generate_utterance(
+def generate_utterance(
     speaker_id: str,
     speaker_name: str,
     speaker_persona: dict[str, Any],
@@ -136,7 +138,7 @@ def generate_dialogue(
 
     for _ in range(max_turns):
         # NPC1 발화
-        u1 = _generate_utterance(
+        u1 = generate_utterance(
             npc1_id, npc1_name, npc1_persona, npc1_memory,
             npc1_stats,
             npc2_name, conversation, llm, current_turn,
@@ -144,7 +146,7 @@ def generate_dialogue(
         conversation.append({"speaker": npc1_name, "text": u1})
 
         # NPC2 발화
-        u2 = _generate_utterance(
+        u2 = generate_utterance(
             npc2_id, npc2_name, npc2_persona, npc2_memory,
             npc2_stats,
             npc1_name, conversation, llm, current_turn,
@@ -201,12 +203,18 @@ def analyze_conversation_impact(
     conversation: list[dict[str, str]],
     llm: GenerativeAgentsLLM,
     stat_names: list[str] | None = None,
-) -> dict[str, dict[str, int]]:
-    """대화가 양측 NPC 감정에 미친 영향 분석. {npc_id: {stat: delta}} 반환.
+) -> dict[str, Any]:
+    """대화가 양측 감정에 미친 영향 분석.
 
     Args:
         stat_names: 분석할 스탯 이름 리스트 (예: ["affection", "fear", "humanity"])
                     None이면 자동 감지
+
+    Returns:
+        {
+            "npc_stats": {npc_id: {stat: delta(-2~+2)}},
+            "event_description": ["핵심 사건 묘사"]
+        }
     """
     conv_text = "\n".join(f"{c['speaker']}: {c['text']}" for c in conversation)
     p1 = format_persona(npc1_persona)
@@ -215,34 +223,113 @@ def analyze_conversation_impact(
     # 동적 스탯 이름으로 프롬프트 생성
     if stat_names:
         stat_list_str = ", ".join(stat_names)
-        example_line = ", ".join(f"{s}: 0" for s in stat_names)
+        stat_example = ", ".join(f'"{s}": 0' for s in stat_names)
     else:
         stat_list_str = "각 스탯"
-        example_line = "stat1: 0, stat2: 0"
+        stat_example = '"stat1": 0, "stat2": 0'
 
     prompt = (
-        "다음 대화를 분석하여 각 인물의 감정 변화를 예측하세요.\n\n"
+        "다음 대화를 분석하여 각 인물의 감정 변화와 핵심 사건을 추출하세요.\n\n"
         f"대화:\n{conv_text}\n\n"
         f"{npc1_name} 페르소나: {p1}\n"
         f"{npc2_name} 페르소나: {p2}\n\n"
-        f"각 인물의 {stat_list_str} 변화를 -2~+2 범위로 답하세요.\n\n"
-        f"{npc1_name} 변화 - {example_line}\n"
-        f"{npc2_name} 변화 - {example_line}"
+        f"각 인물의 {stat_list_str} 변화를 -2~+2 범위의 델타값으로 답하세요.\n"
+        "event_description은 대화에서 발생한 핵심 사건을 간결하게 묘사하세요.\n\n"
+        "반드시 아래 JSON 형식으로만 응답하세요:\n"
+        "```json\n"
+        "{\n"
+        f'  "npc_stats": {{\n'
+        f'    "{npc1_id}": {{{stat_example}}},\n'
+        f'    "{npc2_id}": {{{stat_example}}}\n'
+        f"  }},\n"
+        '  "event_description": ["핵심 사건 묘사 1문장"]\n'
+        "}\n"
+        "```"
     )
-    resp = llm.generate(prompt, max_tokens=100, temperature=0.3)
+    resp = llm.generate(prompt, max_tokens=200, temperature=0.3)
 
-    result: dict[str, dict[str, int]] = {}
-    if resp:
-        lines = resp.strip().splitlines()
-        for line in lines:
-            if npc1_name in line:
-                result[npc1_id] = parse_stat_changes_text(line, stat_names)
-            elif npc2_name in line:
-                result[npc2_id] = parse_stat_changes_text(line, stat_names)
-
-    # fallback: 분석 실패 시 빈 변화
-    result.setdefault(npc1_id, {})
-    result.setdefault(npc2_id, {})
-
+    result = _parse_impact_response(resp, npc1_id, npc1_name, npc2_id, npc2_name, stat_names)
     logger.debug(f"conversation_impact: {result}")
     return result
+
+
+def _parse_impact_response(
+    resp: str,
+    npc1_id: str,
+    npc1_name: str,
+    npc2_id: str,
+    npc2_name: str,
+    stat_names: list[str] | None,
+) -> dict[str, Any]:
+    """analyze_conversation_impact의 LLM 응답을 파싱."""
+    fallback: dict[str, Any] = {
+        "npc_stats": {npc1_id: {}, npc2_id: {}},
+        "event_description": [],
+    }
+    if not resp:
+        return fallback
+
+    # JSON 블록 추출
+    json_match = re.search(r'```json\s*(.*?)\s*```', resp, re.DOTALL)
+    if json_match:
+        json_str = json_match.group(1)
+    else:
+        json_match = re.search(r'\{.*\}', resp, re.DOTALL)
+        if json_match:
+            json_str = json_match.group(0)
+        else:
+            # JSON 파싱 실패 시 기존 텍스트 파싱으로 폴백
+            logger.warning(f"[analyze_impact] JSON 파싱 실패, 텍스트 파싱 시도: {resp[:100]}")
+            return _parse_impact_text_fallback(resp, npc1_id, npc1_name, npc2_id, npc2_name, stat_names)
+
+    try:
+        data = json.loads(json_str)
+        npc_stats = data.get("npc_stats", {})
+        event_description = data.get("event_description", [])
+
+        # stat 값 클램핑 (-2 ~ +2)
+        for npc_id in [npc1_id, npc2_id]:
+            if npc_id in npc_stats:
+                npc_stats[npc_id] = {
+                    k: max(-2, min(2, int(v)))
+                    for k, v in npc_stats[npc_id].items()
+                }
+            else:
+                npc_stats[npc_id] = {}
+
+        if isinstance(event_description, str):
+            event_description = [event_description]
+
+        return {
+            "npc_stats": npc_stats,
+            "event_description": event_description,
+        }
+    except (json.JSONDecodeError, ValueError) as e:
+        logger.warning(f"[analyze_impact] JSON 디코드 실패: {e}, 텍스트 파싱 시도")
+        return _parse_impact_text_fallback(resp, npc1_id, npc1_name, npc2_id, npc2_name, stat_names)
+
+
+def _parse_impact_text_fallback(
+    resp: str,
+    npc1_id: str,
+    npc1_name: str,
+    npc2_id: str,
+    npc2_name: str,
+    stat_names: list[str] | None,
+) -> dict[str, Any]:
+    """JSON 파싱 실패 시 기존 텍스트 파싱 방식으로 폴백."""
+    npc_stats: dict[str, dict[str, int]] = {}
+    lines = resp.strip().splitlines()
+    for line in lines:
+        if npc1_name in line:
+            npc_stats[npc1_id] = parse_stat_changes_text(line, stat_names)
+        elif npc2_name in line:
+            npc_stats[npc2_id] = parse_stat_changes_text(line, stat_names)
+
+    npc_stats.setdefault(npc1_id, {})
+    npc_stats.setdefault(npc2_id, {})
+
+    return {
+        "npc_stats": npc_stats,
+        "event_description": [],
+    }
