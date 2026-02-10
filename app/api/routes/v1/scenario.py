@@ -1,4 +1,4 @@
-from app.schemas import GameClientSyncSchema
+from app.schemas import GameClientSyncSchema, GameResponse
 from app.loader import get_loader
 from app.services.scenario import ScenarioService
 from fastapi import APIRouter, HTTPException, Depends
@@ -11,22 +11,6 @@ from app.config import SCENARIOS_BASE_PATH
 
 router = APIRouter(tags=["scenario"])
 
-# 출력 테스팅용 스키마
-from typing import Dict, Any, Optional
-from pydantic import BaseModel
-
-class GameResponse(BaseModel):
-    id: int
-    user_id: int  # DB 모델이 String이면 str, Integer면 int로 맞춰주세요
-    scenarios_id: int
-    # DB에 값이 없을 수도 있다면 Optional 처리 추천
-    world_state: Optional[Dict[str, Any]] = None
-    player_state: Optional[Dict[str, Any]] = None
-    npc_state: Optional[Dict[str, Any]] = None
-
-    # 👇 [수정 포인트] Pydantic V1용 ORM 설정
-    class Config:
-        orm_mode = True
 
 @router.get("/", summary="사용 가능한 시나리오 목록")
 def list_scenarios() -> dict:

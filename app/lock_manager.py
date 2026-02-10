@@ -10,9 +10,8 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, List, Optional, Set
 
-from pydantic import BaseModel, Field
-
 from app.schemas import WorldState
+from app.schemas.lock import UnlockedInfo, LockCheckResult
 from app.condition_eval import evaluate_condition
 
 logger = logging.getLogger(__name__)
@@ -20,23 +19,6 @@ logger = logging.getLogger(__name__)
 # 해금된 정보의 메모리 타입 및 중요도
 MEMORY_TYPE_SECRET = "unlocked_secret"
 SECRET_IMPORTANCE_SCORE = 9.5  # 매우 높은 중요도 (최대 10)
-
-
-class UnlockedInfo(BaseModel):
-    """해금된 정보"""
-    info_id: str
-    info_title: str
-    description: str
-    reveal_trigger: str
-    linked_info_id: Optional[str] = None
-    allowed_npcs: List[str] = Field(default_factory=list)
-
-
-class LockCheckResult(BaseModel):
-    """Lock 체크 결과"""
-    newly_unlocked: List[UnlockedInfo]
-    all_unlocked_ids: Set[str]
-    triggered_events: List[str]
 
 
 class LockManager:

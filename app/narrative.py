@@ -68,7 +68,7 @@ class NarrativeLayer:
         self._model = None
         self._tokenizer = None
         self._lm_loaded = False
-
+    
     def render_day(
         self,
         event_description: list[str],

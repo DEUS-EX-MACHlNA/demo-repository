@@ -6,7 +6,7 @@ from typing import List, Dict, Any, Optional
 
 from pydantic import BaseModel, Field
 
-from app.schemas.enums import NPCStatus
+from app.schemas.status import NPCStatus
 
 
 class NpcSchema(BaseModel):

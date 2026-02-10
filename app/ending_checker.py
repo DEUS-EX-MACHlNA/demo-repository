@@ -9,28 +9,13 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field
-
 from app.schemas import WorldState
+from app.schemas.ending import EndingInfo, EndingCheckResult
+from app.schemas.condition import EvalContext
 from app.loader import ScenarioAssets
-from app.condition_eval import EvalContext, get_condition_evaluator
+from app.condition_eval import get_condition_evaluator
 
 logger = logging.getLogger(__name__)
-
-
-class EndingInfo(BaseModel):
-    """도달한 엔딩 정보"""
-    ending_id: str
-    name: str
-    epilogue_prompt: str
-    on_enter_events: List[Dict[str, Any]] = Field(default_factory=list)
-
-
-class EndingCheckResult(BaseModel):
-    """엔딩 체크 결과"""
-    reached: bool
-    ending: Optional[EndingInfo] = None
-    triggered_delta: Dict[str, Any] = Field(default_factory=dict)
 
 
 class EndingChecker:

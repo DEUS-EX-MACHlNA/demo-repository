@@ -6,7 +6,7 @@ from typing import List, Dict, Any, Optional
 
 from pydantic import BaseModel, Field
 
-from app.schemas.item import ItemsCollectionSchema
+from app.schemas.item_info import ItemsCollectionSchema
 
 
 class CurrentStateSchema(BaseModel):

@@ -4,9 +4,9 @@ app/schemas/client_sync.py
 """
 from pydantic import BaseModel, Field
 
-from app.schemas.npc import NpcCollectionSchema
-from app.schemas.player import PlayerSchema
-from app.schemas.world_data import WorldDataSchema
+from app.schemas.npc_info import NpcCollectionSchema
+from app.schemas.player_info import PlayerSchema
+from app.schemas.world_meta_data import WorldDataSchema
 
 
 class GameClientSyncSchema(BaseModel):

@@ -67,7 +67,6 @@ class WorldState(BaseModel):
     inventory: List[str] = Field(default_factory=list)
     locks: Dict[str, bool] = Field(default_factory=dict)
     vars: Dict[str, Any] = Field(default_factory=dict)
-    active_events: List[str] = Field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return self.model_dump()
@@ -87,7 +86,6 @@ class WorldState(BaseModel):
             inventory=data.get("inventory", []),
             locks=data.get("locks", {}),
             vars=data.get("vars", {}),
-            active_events=data.get("active_events", []),
         )
 
 

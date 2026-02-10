@@ -10,18 +10,10 @@ import logging
 import re
 from typing import Any, Dict, List, Optional, Union
 
-from pydantic import BaseModel, Field
-
 from app.schemas import WorldState
+from app.schemas.condition import EvalContext
 
 logger = logging.getLogger(__name__)
-
-
-class EvalContext(BaseModel):
-    """조건 평가에 필요한 컨텍스트"""
-    world_state: WorldState
-    turn_limit: int = 50
-    extra_vars: Dict[str, Any] = Field(default_factory=dict)
 
 
 class ConditionEvaluator:
