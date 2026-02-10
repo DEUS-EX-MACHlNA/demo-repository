@@ -4,9 +4,11 @@ app/db_models
 """
 from app.db_models.scenario import Scenario
 from app.db_models.game import Games, GameStatus
+from app.db_models.chat_log import ChatLogs
 
 __all__ = [
     "Scenario",
     "Games",
     "GameStatus",
+    "ChatLogs",
 ]

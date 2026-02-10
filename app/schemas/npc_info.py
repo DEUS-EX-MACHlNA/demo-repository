@@ -23,8 +23,8 @@ class NpcSchema(BaseModel):
     # current_code = npc의 현재 위치
     current_node: str = Field(..., description="NPC가 현재 위치하고 있는 스토리 노드 ID")
 
-    # memory: 기억 데이터 (TODO: LIST로 만드시오)
-    memory: Dict[str, Any] = Field(default_factory=dict, description="LLM용 기억 데이터")
+    # memory: 기억 데이터
+    memory: List[Dict[str, Any]] = Field(default_factory=list, description="LLM용 기억 데이터")
 
 class NpcCollectionSchema(BaseModel):
     # 최상위 리스트 구조는 유지

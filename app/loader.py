@@ -336,8 +336,8 @@ def print_assets(assets: ScenarioAssets):
     print("=" * 60)
 
     # assets 데이터를 json타입으로 출력
-    # print("\n[10] ScenarioAssets JSON 출력:")
-    # print(json.dumps(assets.__dict__, indent=4, ensure_ascii=False))
+    print("\n[10] ScenarioAssets JSON 출력:")
+    print(json.dumps(assets.__dict__, indent=4, ensure_ascii=False))
 
 # JSON을 DB에 저장
 # sqlalchemy ORM을 사용하여 저장
@@ -351,48 +351,22 @@ def save_assets_to_db(assets: ScenarioAssets):
     
     db = SessionLocal()
     try:
-        # 1. base_system_prompt 추출
-        #    scenario 블록 내 title, genre, tone, pov, turn_limit, global_rules, memory_rules만 추출
-        base_system_prompt = {}
-        scenario_data = assets.scenario
+        # ScenarioAssets 자체를 딕셔너리로 변환하여 저장
+        # dataclasses.asdict(assets)를 사용하거나, __dict__를 사용
+        # 여기서는 __dict__를 사용하여 간단하게 처리 (메서드 등은 제외됨)
+        # 하지만 dataclass라 asdict가 더 안전할 수 있음 -> assets는 dataclass임
+        from dataclasses import asdict
+        world_asset_data = asdict(assets)
         
-        fields_to_extract = ["title", "genre", "tone", "pov", "turn_limit", "global_rules", "memory_rules"]
-        for field in fields_to_extract:
-            if field in scenario_data:
-                base_system_prompt[field] = scenario_data[field]
-        
-        # 2. default_world_data 생성
-        #    assets의 모든 데이터 중 base_system_prompt에 포함된 항목은 제외
-        default_world_data = {
-            "scenario": assets.scenario,
-            "story_graph": assets.story_graph,
-            "npcs": assets.npcs,
-            "items": assets.items,
-            "locks": assets.locks if hasattr(assets, 'locks') else {},
-        }
-
-        # 추가 필드 (있으면 추가) - memory_rules는 base_system_prompt으로 이동하므로 제외
-        for key, value in assets.__dict__.items():
-            if key not in ["scenario_id", "scenario", "story_graph", "npcs", "items", "memory_rules", "locks"]:
-                default_world_data[key] = value
-
-        # 2.1 memory_rules를 base_system_prompt으로 옮김 (assets.memory_rules 우선)
-        if assets.memory_rules:
-            base_system_prompt["memory_rules"] = assets.memory_rules
-        # 만약 scenario 블록에 중복된 memory_rules가 있다면 scenario의 값을 우선 사용
-        if "memory_rules" in scenario_data and scenario_data.get("memory_rules"):
-            base_system_prompt["memory_rules"] = scenario_data.get("memory_rules")
-        
-        # 3. 현재 시간
+        # 현재 시간
         now = datetime.utcnow()
         
-        # 4. 기존 데이터 확인 (title으로 검색)
+        # 기존 데이터 확인 (title으로 검색)
         existing_scenario = db.query(Scenario).filter(Scenario.title == assets.scenario_id).first()
         
         if existing_scenario:
             # 기존 데이터 수정
-            existing_scenario.base_system_prompt = base_system_prompt
-            existing_scenario.default_world_data = default_world_data
+            existing_scenario.world_asset_data = world_asset_data
             existing_scenario.update_time = now
             db.merge(existing_scenario)
             logger.info(f"✓ Scenario updated: {assets.scenario_id}")
@@ -400,8 +374,7 @@ def save_assets_to_db(assets: ScenarioAssets):
             # 새로운 데이터 생성 (id는 autoincrement)
             new_scenario = Scenario(
                 title=assets.scenario_id,
-                base_system_prompt=base_system_prompt,
-                default_world_data=default_world_data,
+                world_asset_data=world_asset_data,
                 create_time=now,
                 update_time=now,
             )
@@ -453,7 +426,8 @@ if __name__ == "__main__":
     for scenario_id in scenarios:
         print(f"\n[3] 시나리오 로드: {scenario_id}")
         assets = loader.load(scenario_id)
-        print_assets(assets)
+        if scenario_id == "coraline":
+            print_assets(assets)
         save_assets_to_db(assets)
         # 여기서 DB에 저장하는 로직 추가 
     

@@ -8,7 +8,8 @@ from app.schemas.item_info import ItemsCollectionSchema
 class CurrentStateSchema(BaseModel):
     # 1. 시스템 상태
     turn: int = Field(..., description="현재 턴")
-    
+    date: str = Field(..., description="현재 날짜")
+
     # 2. 변수와 플래그 (가장 중요!)
     # 여기는 값이 계속 변하므로 Dict[str, Any]로 유연하게 받습니다.
     vars: Dict[str, int] = Field(
@@ -19,13 +20,6 @@ class CurrentStateSchema(BaseModel):
         default_factory=dict, 
         description="현재 플래그 상태 (예: {'met_boss': True})"
     )
-    
-    # 3. (선택) 활성화된 이벤트
-    active_events: List[str] = Field(
-        default_factory=list, 
-        description="현재 적용 중인 이벤트 ID 목록"
-    )
-
 
 # =========================================================
 # 1. [Extras & Locks] 잠금 정보
@@ -61,24 +55,6 @@ class LocksSchemaList(BaseModel):
     locks: List[LockSchema]
 
 # =========================================================
-# 2. [Story Graph] 스토리 구조
-#    - 노드 ID와 요약은 LLM에게 필수
-#    - 분기(Branch) 로직은 너무 다양하므로 List[Dict]로 처리
-# =========================================================
-class StoryNodeSchema(BaseModel):
-    # [Strict]
-    node_id: str = Field(..., description="노드 ID")
-    summary: str = Field(..., description="씬 요약")
-    
-    # [Flexible] 분기 조건(condition), 다음 노드(next_node), 이벤트(events) 등
-    # 백엔드 로직이 바뀌어도 스키마 수정 불필요
-    exit_branches: List[Dict[str, Any]] = Field(default_factory=list, description="분기 정보 리스트")
-
-class StoryGraphSchema(BaseModel):
-    nodes: List[StoryNodeSchema]
-
-
-# =========================================================
 # 3. [Scenario] 시나리오 메타 & 룰
 #    - 제목, 장르 등 메타데이터는 엄격하게
 #    - 엔딩 조건이나 초기 상태값(State Schema)은 유연하게
@@ -88,20 +64,9 @@ class EndingSchema(BaseModel):
     ending_id: str
     name: str
     epilogue_prompt: str
-    
-    # [Flexible] 조건식이나 진입 이벤트 등
-    condition: str
-    on_enter_events: List[Dict[str, Any]] = Field(default_factory=list)
+
 
 class ScenarioSchema(BaseModel):
-    # [Strict] 메타데이터
-    id: str
-    title: str
-    genre: str
-    tone: str
-    pov: str
-    turn_limit: int
-
     # [Strict] 규칙 (텍스트 리스트라 구조가 단순함)
     global_rules: List[str]
     victory_conditions: List[str]
@@ -109,9 +74,6 @@ class ScenarioSchema(BaseModel):
     
     # [Flexible] 엔딩과 상태 설정
     endings: List[EndingSchema]
-    
-    # state_schema는 vars, flags, system 등 구조가 복잡하므로 통으로 Dict 처리
-    state_schema: Dict[str, Any] = Field(..., description="초기 상태 설정 (Vars, Flags, System)")
 
 
 # =========================================================
@@ -120,6 +82,5 @@ class ScenarioSchema(BaseModel):
 class WorldDataSchema(BaseModel):
     state: CurrentStateSchema
     scenario: ScenarioSchema
-    story_graph: StoryGraphSchema
     locks: LocksSchemaList
     items: ItemsCollectionSchema # 이미 만들어둔 실용 버전 스키마 사용

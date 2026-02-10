@@ -21,4 +21,7 @@ class PlayerSchema(BaseModel):
         description="플레이어의 수첩(메모) 기록 목록"
     )
 
-    memory: Dict[str, Any] = Field(default_factory=dict, description="LLM용 기억 데이터")
+    # 여기 안에 humanity를 넣기
+    stats: Dict[str, Any] = Field(default_factory=dict, description="플레이어의 현재 상황")
+
+    memory: List[Dict[str, Any]] = Field(default_factory=list, description="LLM용 기억 데이터")

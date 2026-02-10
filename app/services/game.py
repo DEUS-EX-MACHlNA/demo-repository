@@ -11,280 +11,93 @@ from typing import Any, Dict
 from app.crud import game as crud_game
 from app.redis_client import get_redis_client
 
-# 정의하신 스키마들 import
-from app.schemas.llm_payload_input import (
-    LLMInputPayload, 
-    UserInputSchema, 
-    WorldInfoSchema, 
-    PlayerSchema as LLMPlayerSchema, 
-    ItemCollectionSchema,
-    LogicContextSchema, 
-    ModelConfigSchema,
-)
 from app.schemas.client_sync import GameClientSyncSchema
-from app.schemas.world_meta_data import WorldDataSchema
+from app.schemas.world_meta_data import WorldDataSchema, LocksSchemaList
 from app.schemas.npc_info import NpcCollectionSchema
 from app.schemas.player_info import PlayerSchema
-from app.schemas.llm_response_schema import LLMResponseSchema
+from app.schemas.player_info import PlayerSchema
+from app.models import WorldState, NPCState, ToolResult
+from app.day_controller import get_day_controller
+from app.loader import ScenarioLoader, ScenarioAssets
+from pathlib import Path
 
 from sqlalchemy.orm.attributes import flag_modified
 
 
-# (가상의 LLM 호출 함수 import - 나중에 구현 필요)
-# from app.services.llm_client import call_llm_api 
-
-
 class GameService:
+
     @staticmethod
-    def execute_turn_with_llm(game: Any, input_data: Dict[str, Any]) -> LLMInputPayload:
+    def _create_world_state(game: Games) -> WorldState:
         """
-        DB 데이터(game 객체)를 LLMInputPayload 스키마로 변환하여 반환합니다.
-        이미지의 컬럼명(world_data_snapshot, player_data, npc_data)을 반영했습니다.
-        
-        Args:
-            game: SQLAlchemy Game 모델 인스턴스
-            input_data: 유저 입력 딕셔너리
-            
-        Returns:
-            LLMInputPayload: Pydantic 객체
+        Game 모델에서 WorldState 객체를 생성합니다.
         """
-
-        # ---------------------------------------------------------
-        # 0. DB 데이터 접근 (이미지 기준 컬럼명 매핑)
-        # ---------------------------------------------------------
-        # DB 컬럼: world_data_snapshot (JSONB) - 메타, 아이템, 룰, 상태 등 포함
-        snapshot = game.world_data_snapshot or {}
+        # 1. World Meta Data (Turn, Flags, Vars, Locks)
+        meta = game.world_meta_data or {}
+        state_data = meta.get("state", {})
         
-        # DB 컬럼: player_data (JSONB)
-        raw_player_data = copy.deepcopy(game.player_data or {})
+        turn = state_data.get("turn", 1)
+        flags = state_data.get("flags", {})
+        vars_ = state_data.get("vars", {})
         
-        # DB 컬럼: npc_data (JSONB)
-        raw_npc_data = game.npc_data or {"npcs": []}
-
-
-        # =========================================================
-        # 1. [Arg 1] 유저 입력 (User Input)
-        # =========================================================
-        arg1 = UserInputSchema(
-            chat_input=input_data.get("chat_input", ""),
-            npc_name=input_data.get("npc_name"),
-            item_name=input_data.get("item_name")
-        )
-
-
-        # =========================================================
-        # 2. [Arg 2] 월드 정보 (World Info)
-        # =========================================================
-        
-        # [Player] 'memo' 제거 및 'memory' 보장
-        if "memo" in raw_player_data:
-            del raw_player_data["memo"] # LLM에게 메모장은 보여주지 않음 (토큰 절약 & 역할 분리)
-            
-        player_obj = LLMPlayerSchema(
-            current_node=raw_player_data.get("current_node", "start"),
-            inventory=raw_player_data.get("inventory", []),
-            memory=raw_player_data.get("memory", {}) # 없으면 빈 dict
-        )
-
-        # [NPC] DB 데이터 -> 스키마 변환
-        # 이미지의 npc_data가 {"npcs": [...]} 형태라고 가정
-        # 만약 {"family": {...}} 형태라면 변환 로직이 필요하지만, 
-        # 최신 스키마(NpcCollectionSchema)를 따르신다면 이대로 OK
-        npcs_obj = NpcCollectionSchema(**raw_npc_data)
-
-        # [Items] Snapshot 안에 있는 items 가져오기
-        # snapshot 구조: { "items": { "items": [...] }, ... }
-        items_source = snapshot.get("items", {"items": []})
-        items_obj = ItemCollectionSchema(**items_source)
-
-        # Arg 2 래퍼 생성
-        arg2 = WorldInfoSchema(
-            player=player_obj,
-            npcs=npcs_obj,
-            items=items_obj
-        )
-
-
-        # =========================================================
-        # 3. [Arg 3] 로직 컨텍스트 (Logic Context)
-        # =========================================================
-        
-
-        # TODO: locks 추가
-        # Snapshot에서 Meta, State, Rules 추출
-        # 이미지의 world_data_snapshot 안에 'meta', 'state' 키가 보입니다.
-        
-        # 1) Snapshot 가져오기
-        snapshot = game.world_data_snapshot or {}
-        
-        # 2) Scenario 데이터 접근 (여기에 Meta와 Rules가 다 들어있음!)
-        scenario_data = snapshot.get("scenario", {}) 
-        
-        # 3) Meta 정보 추출 (scenario_data 내부에서 꺼내기)
-        meta_info = {
-            "title": scenario_data.get("title", ""),
-            "genre": scenario_data.get("genre", ""),
-            "tone": scenario_data.get("tone", ""),
-            "pov": scenario_data.get("pov", ""),
+        # Locks: list -> dict mapping
+        locks_wrapper = meta.get("locks", {})
+        locks_list = locks_wrapper.get("locks", [])
+        locks = {
+            l["info_id"]: l["is_unlocked"] 
+            for l in locks_list 
+            if "info_id" in l and "is_unlocked" in l
         }
-        
-        # 4) Rules 정보 추출 (scenario_data 내부에서 꺼내기)
-        rules_info = {
-            "global_rules": scenario_data.get("global_rules", []),
-            "victory_conditions": scenario_data.get("victory_conditions", []),
-            "failure_conditions": scenario_data.get("failure_conditions", []),
-            "endings": scenario_data.get("endings", [])
-        }
-    
-        # 5) State 정보 (이건 최상위에 있는 게 맞음)
-        state_info = snapshot.get("state", {})
 
-        # 조립
-        arg3 = LogicContextSchema(
-            meta=meta_info,
-            state=state_info, 
-            rules=rules_info
+        # 2. Player Data (Inventory)
+        player = game.player_data or {}
+        inventory = player.get("inventory", [])
+
+        # 3. NPC Data (NPCState)
+        target_npc_data = game.npc_data or {"npcs": []}
+        npcs = {}
+        for npc in target_npc_data.get("npcs", []):
+            nid = npc.get("npc_id")
+            if not nid:
+                continue
+            
+            stats = npc.get("stats", {})
+            npcs[nid] = NPCState(
+                npc_id=nid,
+                trust=stats.get("trust", 0),
+                fear=stats.get("fear", 0),
+                suspicion=stats.get("suspicion", 0),
+                humanity=stats.get("humanity", 10),
+                extras=npc # 전체 데이터를 extras로 저장하거나 필요한거만 넣을 수 있음
+            )
+
+        return WorldState(
+            turn=turn,
+            npcs=npcs,
+            flags=flags,
+            inventory=inventory,
+            locks=locks,
+            vars=vars_
         )
-
-
-        # =========================================================
-        # 4. [Arg 4] 모델 설정 (Model Config)
-        # =========================================================
-        # 필요시 DB나 환경변수에서 로드
-        arg4 = ModelConfigSchema(
-            model_name="gpt-4-turbo",
-            temperature=0.7
-        )
-
-
-        # =========================================================
-        # 👑 [최종] 페이로드 조립 및 반환
-        # =========================================================
-        payload = LLMInputPayload(
-            arg1_user_input=arg1,
-            arg2_world_info=arg2,
-            arg3_logic_context=arg3,
-            arg4_model_config=arg4
-        )
-        
-        return payload
-
-
 
     @staticmethod
-    def mock_llm_process(input_payload: dict) -> LLMResponseSchema:
-        """
-        [TODO: 실제 LLM 호출로 교체될 부분]
-        지금은 무조건 고정된 가짜 데이터를 반환합니다.
-        """
-        
-        # 입력받은 데이터에서 유저 질문을 확인(로그용)
-        user_msg = input_payload["arg1_user_input"]["chat_input"]
-        print(f"DEBUG: LLM received input: {user_msg}")
-
-        # 가상의 LLM 응답 생성
-        mock_response = LLMResponseSchema(
-            response_text=f"([시스템] 가짜 응답입니다) 당신은 '{user_msg}'라고 말했습니다. NPC가 흥미를 보입니다.",
-            
-            # 변수 업데이트 테스트: 신뢰도 +5
-            update_vars={"trust": 5, "clue_count": 1},
-            
-            # 아이템 획득 테스트
-            items_to_add=[""],
-            
-            # 메모 추가 테스트
-            new_memo="NPC와의 대화에서 수상한 점을 발견함.",
-            
-            # 다음 노드 (없으면 None)
-            next_node=None 
-        )
-        
-        return mock_response
-
-    @staticmethod
-    def apply_llm_response_to_game(game, response: LLMResponseSchema):
-        """
-        LLM 응답(response)을 게임 객체(game)에 반영합니다.
-        #TODO 일단은 이대로 갈 지 안갈지 모르기 때문에 이대로 둡시다
-        """
-        
-        # =================================================
-        # 1. World State 업데이트 (Vars, Flags, Turn)
-        # =================================================
-        # DB에서 가져오기 (없으면 빈 딕셔너리)
-        snapshot = dict(game.world_data_snapshot or {})
-        state = snapshot.get("state", {})
-        
-        # (1) Vars 병합 (기존 값 + 변동 값 / 혹은 덮어쓰기 로직)
-        # 여기서는 단순 덮어쓰기/추가 로직으로 구현 (기획에 따라 += 가능)
-        current_vars = state.get("vars", {})
-        current_vars.update(response.update_vars) # 딕셔너리 병합
-        state["vars"] = current_vars
-
-        # (2) Flags 병합
-        current_flags = state.get("flags", {})
-        current_flags.update(response.update_flags)
-        state["flags"] = current_flags
-        
-        # (3) 턴 증가 (대화 한 번당 1턴 소모라고 가정 시)
-        # current_turn = state.get("turn", 1)
-        # state["turn"] = current_turn + 1
-        
-        # 다시 할당 (JSONB 변경 감지용)
-        snapshot["state"] = state
-        game.world_data_snapshot = snapshot
-
-
-        # =================================================
-        # 2. Player Data 업데이트 (Inventory, Memo, Node)
-        # =================================================
-        p_data = dict(game.player_data or {})
-        
-        # (1) 아이템 추가
-        inventory = set(p_data.get("inventory", [])) # 중복 방지 set
-        for item in response.items_to_add:
-            inventory.add(item)
-        for item in response.items_to_remove:
-            if item in inventory:
-                inventory.remove(item)
-        p_data["inventory"] = list(inventory)
-        
-        # (2) 메모 추가
-        if response.new_memo:
-            memos = p_data.get("memo", [])
-            # 간단하게 문자열 리스트로 관리하거나, PlayerMemoSchema 구조를 따를 수도 있음
-            # 여기서는 간단히 텍스트 추가로 예시
-            new_id = len(memos) + 1
-            memos.append({"id": new_id, "text": response.new_memo, "created_at_turn": state.get("turn", 0)})
-            p_data["memo"] = memos
-
-        # (3) 노드 이동 (씬 변경)
-        if response.next_node:
-            p_data["current_node"] = response.next_node
-
-        # (4) LLM 기억(Memory) 업데이트
-        current_memory = p_data.get("memory", {})
-        current_memory.update(response.update_memory)
-        p_data["memory"] = current_memory
-
-        # 다시 할당
-        game.player_data = p_data
-        
-        return game
-
-    @staticmethod
-    def apply_chat_result(game: Games, result: dict[str, Any]) -> None:
+    def apply_chat_result(game: Games, result: ToolResult | dict) -> None:
         """
         DayController 실행 결과(ToolResult)를 DB 모델(game)에 반영합니다.
         
         Args:
             game: SQLAlchemy Games 인스턴스
-            result: DayController 결과 (state_delta, memory, ...)
+            result: DayController 결과 (ToolResult 객체 또는 dict)
         """
-        delta = result.get("state_delta", {})
+        # ToolResult 객체면 dict로 변환 (기존 로직 호환성)
+        if hasattr(result, "state_delta"):
+            delta = result.state_delta
+            memory_update = result.memory
+        else:
+            delta = result.get("state_delta", {})
+            memory_update = result.get("memory", {})
 
         # (1) World Snapshot 업데이트
-        snapshot = game.world_data_snapshot or {}
+        snapshot = game.world_meta_data or {}
         
         # 1-1. State (Flags, Vars, Turn)
         state_data = snapshot.get("state", {})
@@ -326,8 +139,9 @@ class GameService:
         snapshot["locks"] = locks_wrapper
         
         # 중요: 변경된 dict를 다시 할당 (SQLAlchemy JSONB 변경 감지)
-        game.world_data_snapshot = snapshot
-        flag_modified(game, "world_data_snapshot") # Explicitly flag as modified
+        # 중요: 변경된 dict를 다시 할당 (SQLAlchemy JSONB 변경 감지)
+        game.world_meta_data = snapshot
+        flag_modified(game, "world_meta_data") # Explicitly flag as modified
 
         # (2) Player Data 업데이트
         p_data = game.player_data or {}
@@ -342,8 +156,9 @@ class GameService:
         p_data["inventory"] = list(current_inv)
         
         # Memory
-        mem = p_data.get("memory", {})
-        mem.update(result.get("memory", {}))
+        mem = p_data.get("memory", [])
+        if memory_update:
+            mem.append(memory_update)
         p_data["memory"] = mem
         
         game.player_data = p_data
@@ -372,93 +187,105 @@ class GameService:
     @classmethod
     def process_turn(cls, db: Session, game_id: int, input_data: dict, game: Games) -> dict:
         """
-        1. DB에서 게임 데이터를 가져와 LLM용 컨텍스트(Prompt)를 구성합니다.
-        2. LLM에게 요청을 보냅니다.
-        3. LLM의 응답(JSON)을 파싱하여 반환합니다.
+        필요한 인자
+        1. 유저 입력
+        2. game state data
+        3. 시나리오 에셋
         """
+
+        ## 임시 출력용 input_dict
+        print("\n\n\n")
+        print("input_data: ", input_data)
+        print("\n\n\n")
+
+        # 2. WorldState 생성
+        world_state = cls._create_world_state(game)
+
+        # 3. Scenario Assets 로드
+        assets = None
+        if game.scenario and game.scenario.world_asset_data:
+            try:
+                # DB에 저장된 에셋 사용
+                # world_asset_data는 dict 형태여야 함
+                assets = ScenarioAssets(**game.scenario.world_asset_data)
+                print(f"[GameService] Loaded assets from DB for scenario: {game.scenario.title}")
+            except Exception as e:
+                print(f"[GameService] Failed to load assets from DB: {e}")
+
+        if not assets:
+            # Fallback: 파일 로드
+            scenario_title = game.scenario.title if game.scenario else "coraline"
+            project_root = Path(__file__).parent.parent.parent
+            scenarios_dir = project_root / "scenarios"
+            loader = ScenarioLoader(base_path=scenarios_dir)
+            assets = loader.load(scenario_title)
+            print(f"[GameService] Loaded assets from FILE for scenario: {scenario_title}")
+
+
+
+
+
+
+        # 4. DayController 실행
+        controller = get_day_controller()
         
-        # 1. LLM용 컨텍스트 구성
-        input_dict = cls.execute_turn_with_llm(game, input_data)
+        # User Input 문자열 추출
+        user_msg = input_data.get("chat_input", "")
+        # NPC Name, Item Name 등이 있다면 user_input 전처리가 필요할 수 있음
+        # 일단은 chat_input을 그대로 전달
+        
+        tool_result = controller.process(
+            user_input=user_msg,
+            world_state=world_state,
+            assets=assets
+        )
 
-        # 2. input dict를 llm에서 처리해서 반환
-        # TODO : 실제 LLM 호출 로직으로 교체 필요
-        # llm_response_obj = cls.mock_llm_process(input_dict.dict())
-
-        # # 대충 이렇게 나왔다 칩시다
-        mock_day_controller_result = {
-            "event_description": [
+        
+        # [TESTING] Mock Data Preservation (User Request)
+        # 이 변수는 테스팅 목적이나 Fallback으로 사용될 수 있습니다.
+        # ToolResult 객체로 변환하여 보존
+        mock_day_controller_result = ToolResult(
+            event_description=[
                 "플레이어가 새엄마에게 말을 걸었습니다.",
                 "새엄마는 경계하는 눈빛을 보였습니다."
             ],
-            "state_delta": {
+            state_delta={
                 "npc_stats": {
-                    "stepmother": {
-                        "trust": 2,
-                        "suspicion": 5
-                    },
-                    "brother": {
-                        "fear": -1
-                    }
+                    "stepmother": { "trust": 2, "suspicion": 5 },
+                    "brother": { "fear": -1 }
                 },
-                "flags": {
-                    "met_mother": True,
-                    "heard_rumor": True
-                },
-                "inventory_add": [
-                    "old_key",
-                    "strange_note"
-                ],
-                "inventory_remove": [
-                    "apple"
-                ],
-                "locks": {
-                    "basement_door": False
-                },
-                "vars": {
-                    "investigation_progress": 10
-                },
+                "flags": { "met_mother": True, "heard_rumor": True },
+                "inventory_add": ["old_key", "strange_note"],
+                "inventory_remove": ["apple"],
+                "locks": { "basement_door": False },
+                "vars": { "investigation_progress": 10 },
                 "turn_increment": 1
             },
-            "memory": {
+            memory={
                 "last_interaction": "talked_to_mother",
                 "clue_found": "old_key"
             }
-        }
+        )
+        
+        print(f"[GameService] DayController Result: {tool_result}")
 
-        # # 3. 수정된 내용을 적용 (Mock Result 적용)
-        # TODO: 실제로는 DayController가 반환한 ToolResult 객체를 사용해야 함
+        # 5. 결과 반영 (apply_chat_result가 ToolResult 객체 처리하도록 수정됨)
+        
+        #cls.apply_chat_result(game, tool_result)
         cls.apply_chat_result(game, mock_day_controller_result)
 
         # [VERIFICATION] API 호출 시 바로 테스트 결과 확인
         print("\n=== [GameService] Apply Result Verification ===")
-        print(f"Turn: {game.world_data_snapshot.get('state', {}).get('turn')} (Expected: incremented)")
+        print(f"Turn: {game.world_meta_data.get('state', {}).get('turn')} (Expected: incremented)")
         print(f"Inventory: {game.player_data.get('inventory')}")
         print(f"Memory: {game.player_data.get('memory')}")
-        
-        # NPC Stats Check
-        npcs = game.npc_data['npcs']
-        mother = next((n for n in npcs if n['npc_id'] == 'button_mother'), None)
-        if mother:
-            print(f"Mother (button_mother) Stats: {mother.get('stats')} (Expected: trust+=2, suspicion+=5)")
-        else:
-            print("Mother not found in NPC list")
-            
-        daughter = next((n for n in npcs if n['npc_id'] == 'button_daughter'), None)
-        if daughter:
-            print(f"Daughter (button_daughter) Stats: {daughter.get('stats')} (Expected: fear-=1)")
-            
-        # Locks Check
-        locks = game.world_data_snapshot.get('locks', {}).get('locks', [])
-        basement = next((l for l in locks if l.get('info_id') == 'basement_door'), None)
-        if basement:
-             print(f"Lock (basement_door): {basement.get('is_unlocked')} (Expected: False as per mock input)")
-
         print("===============================================\n")
 
-        # 4. 저장 및 결과 반환
+        # 6. 저장
         crud_game.update_game(db, game)
 
-        return mock_day_controller_result
+        #return tool_result.__dict__ # Dict 반환
+        return mock_day_controller_result.__dict__
 
     # 게임 id를 받아서 진행된 게임을 불러오기
     @staticmethod
@@ -474,7 +301,7 @@ class GameService:
         # 1. World Data
         # snapshot은 이미 WorldDataSchema 구조(dict)로 저장되어 있다고 가정
         # 만약 타입 불일치가 걱정된다면 **unpacking으로 안전하게 생성
-        world_obj = WorldDataSchema(**(game.world_data_snapshot or {}))
+        world_obj = WorldDataSchema(**(game.world_meta_data or {}))
 
         # 2. Player Data
         # DB에 저장된 player_data를 PlayerSchema로 변환

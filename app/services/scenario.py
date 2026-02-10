@@ -21,13 +21,11 @@ from app.schemas.player_info import PlayerSchema, PlayerMemoSchema
 from app.schemas.world_meta_data import (
     WorldDataSchema,
     ScenarioSchema,
-    StoryGraphSchema,
     ItemsCollectionSchema,
     LockSchema,
     LocksSchemaList,
     CurrentStateSchema,
     ScenarioSchema,
-    StoryNodeSchema,
     EndingSchema,
     )
 from app.schemas.item_info import ItemSchema
@@ -69,11 +67,11 @@ class ScenarioService:
                 # persona: JSON에 있는 그대로 가져오기
                 persona=npc_data.get("persona", {}),
                 
-                #npc 현재 위치 (는 없으니까 기본으로 한다)
-                current_node="start_node",
+                #npc 현재 위치(있으면 넣고 없으면 기본값)
+                current_node=npc_data.get("current_node", ""),
                 
                 # memory: 초기 상태니 빈 dict로 시작
-                memory={} 
+                memory=[]
             )
             
             valid_npc_list.append(npc_obj)
@@ -83,8 +81,6 @@ class ScenarioService:
         collection = NpcCollectionSchema(npcs=valid_npc_list)
         
         # 4. DB(JSONB) 저장을 위해 딕셔너리로 변환하여 반환
-        # Pydantic v2: collection.model_dump()
-        # Pydantic v1: collection.dict()
         return collection.dict()
 
     @staticmethod
@@ -128,7 +124,7 @@ class ScenarioService:
             current_node=start_node,
             inventory=start_inventory, # -> ["item_id_1", "item_id_2"] 형태
             memo=initial_memos,
-            memory={}
+            memory=[]
         )
         
         # [5] 딕셔너리로 변환하여 반환 (DB 저장용)
@@ -152,7 +148,8 @@ class ScenarioService:
         state_schema = scenario_meta.get("state_schema", {})
         source_items = world_data.get("items", {}).get("items", [])
         source_locks = world_data.get("extras", {}).get("locks", {}).get("locks", [])
-        source_nodes = world_data.get("story_graph", {}).get("nodes", [])
+        source_locks = world_data.get("extras", {}).get("locks", {}).get("locks", [])
+        # source_nodes removed
 
         # =========================================================
         # 1. [Scenario] 시나리오 메타 및 규칙 (Static)
@@ -170,32 +167,14 @@ class ScenarioService:
             ))
 
         scenario_obj = ScenarioSchema(
-            id=scenario_meta["id"],
-            title=scenario_meta["title"],
-            genre=scenario_meta["genre"],
-            tone=scenario_meta["tone"],
-            pov=scenario_meta["pov"],
-            turn_limit=scenario_meta["turn_limit"],
             global_rules=scenario_meta.get("global_rules", []),
             victory_conditions=scenario_meta.get("victory_conditions", []),
             failure_conditions=scenario_meta.get("failure_conditions", []),
             endings=endings_list,
-            state_schema=state_schema # 통으로 Dict 처리
+            # state_schema는 제외됨
         )
 
-        # =========================================================
-        # 2. [Story Graph] 스토리 구조 (Static)
-        # =========================================================
-        
-        nodes_list = []
-        for node in source_nodes:
-            nodes_list.append(StoryNodeSchema(
-                node_id=node["node_id"],
-                summary=node["summary"],
-                exit_branches=node.get("exit_branches", [])
-            ))
-            
-        story_graph_obj = StoryGraphSchema(nodes=nodes_list)
+        # [Story Graph] 제거됨 (Static Data 분리)
 
         # =========================================================
         # 3. [Items] 아이템 도감 (Static)
@@ -209,7 +188,10 @@ class ScenarioService:
                 type=item["type"],
                 description=item["description"],
                 acquire=item["acquire"],
-                use=item["use"]
+                use=item["use"],
+                used=item.get("used", False),
+                state=item.get("state", ""),
+                location=item.get("location", "")
             ))
             
         items_obj = ItemsCollectionSchema(items=items_list)
@@ -256,9 +238,10 @@ class ScenarioService:
         # (3) Current State 생성
         current_state_obj = CurrentStateSchema(
             turn=state_schema.get("system", {}).get("turn", {}).get("default", 1),
+            date=state_schema.get("system", {}).get("date", {}).get("default", "Unknown Date"),
             vars=initial_vars,
             flags=initial_flags,
-            active_events=[]
+            # active_events=[] # 삭제됨
         )
 
         # =========================================================
@@ -268,7 +251,7 @@ class ScenarioService:
         full_world_data = WorldDataSchema(
             state=current_state_obj,
             scenario=scenario_obj,
-            story_graph=story_graph_obj,
+            # story_graph=story_graph_obj, # 제거됨
             locks=locks_obj,
             items=items_obj
         )
@@ -331,23 +314,17 @@ class ScenarioService:
                 raise ValueError(f"Scenario not found: {scenario_id}")
 
             # default_world_data에서 데이터 추출
-            default_world = scenario.default_world_data or {}
+            default_world = scenario.world_asset_data or {}
             
             # 클래스 메서드로 변경됨에 따라 cls.메서드 호출
             npc_data = cls.extract_initial_npc_data(default_world)
             player_data = cls.extract_initial_player_data(default_world)
-            world_snapshot = cls.extract_initial_world_data(default_world)
-            
-            # TODO 여기에 summary 생성 로직 추가
-            
-            #summary = 여기에 summary 생성 로직 추가
-            
-            # TODO 해당 정보를 가지고 모델을 로드
-            
+            world_state_data = cls.extract_initial_world_data(default_world)
+
             game = Games(
                 scenarios_id=scenario.id,
                 user_id=user_id,
-                world_data_snapshot=world_snapshot,
+                world_meta_data=world_state_data,
                 player_data=player_data,
                 npc_data=npc_data,
                 summary={},  # TODO: 이 부분은 추후 LLM에 넣어 둘 내용을 의미
@@ -359,7 +336,7 @@ class ScenarioService:
             # 보통은 그냥 객체를 반환하거나 ID만 반환하기도 함.
             # 반환 스키마에 맞춰서 데이터 주입
             return GameClientSyncSchema(
-                world=world_snapshot,
+                world=world_state_data,
                 player=player_data,
                 npcs=npc_data
             )

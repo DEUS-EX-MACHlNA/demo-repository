@@ -2254,3 +2254,9 @@ INFO:     Waiting for application startup.
 2026-02-09 10:03:56,965 - app.main - INFO - Scenarios path: /Users/juhpark/Documents/maratang/demo-repository/scenarios
 2026-02-09 10:03:56,965 - app.main - INFO - Available scenarios: ['coraline', 'culprit_ai', 'zzapraline']
 INFO:     Application startup complete.
+WARNING:  StatReload detected changes in 'app/services/game.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-02-09 10:14:47,835 - app.main - INFO - Shutting down scenario server...
+INFO:     Application shutdown complete.
+INFO:     Finished server process [69012]

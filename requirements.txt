@@ -6,3 +6,4 @@ python-dotenv==1.0.0
 PyYAML
 redis
 pydantic>=2.0.0
+alembic

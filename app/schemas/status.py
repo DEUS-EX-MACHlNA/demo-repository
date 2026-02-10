@@ -18,3 +18,8 @@ class GameStatus(str, Enum):
     """게임 상태"""
     LIVE = "live"        # 진행 중
     ENDING = "ending"    # 종료됨
+
+class ItemStatus(str, Enum):
+    """아이템 상태"""
+    FINE = "fine"        # 정상
+    BURNED = "burned"    # 불가

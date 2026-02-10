@@ -27,7 +27,7 @@ class Games(Base):
     user_id = Column(Integer, nullable=False, default=1)
     
     # ERD: 게임 진행 중 현재 세계관 스냅샷
-    world_data_snapshot = Column(JSONB, nullable=False, default={})
+    world_meta_data = Column(JSONB, nullable=False, default={})
     
     # ERD: 플레이어 데이터 (인벤토리, 상태 등)
     player_data = Column(JSONB, nullable=False, default={})
