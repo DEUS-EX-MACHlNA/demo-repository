@@ -55,7 +55,9 @@ class LockManager:
             info_id = lock.get("info_id", "")
 
             # 이미 해금된 건 스킵
-            if info_id in self._unlocked_ids:
+            # if info_id in self._unlocked_ids:
+            #     continue
+            if world_state.locks[info_id]:
                 continue
 
             # 조건 평가 (공용 ConditionEvaluator 사용)
@@ -64,6 +66,9 @@ class LockManager:
                 # 해금!
                 self._unlocked_ids.add(info_id)
 
+                # NEW! 해금 여부 저장
+                world_state.locks[info_id] = True
+                
                 unlocked_info = UnlockedInfo(
                     info_id=info_id,
                     info_title=lock.get("info_title", ""),
