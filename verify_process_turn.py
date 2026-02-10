@@ -29,7 +29,19 @@ def test_process_turn():
         
         if result:
             print("process_turn Result Keys:", result.keys())
-            
+
+        # Verify DB Updates
+        db.refresh(game)
+        print(f"Post-Process Turn: {game.world_meta_data.get('state', {}).get('turn')}")
+        
+        # Check if turn incremented (assuming it started at 1 and delta adds 1)
+        # Note: DayController mock/real execution seems to return turn_increment=1 based on previous logs
+        
+        # Verify ChatLog
+        from app.db_models.chat_log import ChatLogs
+        last_log = db.query(ChatLogs).filter_by(game_id=game.id).order_by(ChatLogs.id.desc()).first()
+        if last_log:
+            print(f"ChatLog Found! ID: {last_log.id}, Turn: {last_log.turn_number}")
         print("Test Passed!")
         
     except Exception as e:

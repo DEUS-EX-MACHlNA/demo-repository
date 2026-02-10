@@ -34,6 +34,7 @@ import copy
 from typing import Dict, Any
 from app.crud import scenario as crud_scenario
 from app.crud import game as crud_game
+from app.schemas.client_sync import GameClientSyncSchema
 
 
 class ScenarioService:

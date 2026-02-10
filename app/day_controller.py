@@ -12,7 +12,7 @@ import logging
 from typing import Optional
 
 from app.loader import ScenarioAssets
-from app.schemas import ToolResult, WorldState, UserInputSchema
+from app.schemas import ToolResult, WorldState, StepRequestSchema
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +33,7 @@ class DayController:
 
     def process(
         self,
-        user_input: str | UserInputSchema,
+        user_input: str,
         world_state: WorldState,
         assets: ScenarioAssets,
     ) -> ToolResult:
@@ -41,7 +41,7 @@ class DayController:
         사용자 입력을 처리합니다 (tool_calling -> tool_execute -> rule_engine).
 
         Args:
-            user_input: 사용자 입력 (str 또는 UserInputSchema)
+            user_input: 사용자 입력 (str 또는 StepRequestSchema)
             world_state: 현재 월드 상태
             assets: 시나리오 에셋
 
@@ -51,16 +51,10 @@ class DayController:
         from app.tools import call_tool, TOOLS, _final_values_to_delta
         from app.rule_engine import apply_memory_rules, merge_rule_delta
 
-        # UserInputSchema를 문자열로 변환
-        if isinstance(user_input, UserInputSchema):
-            user_input_str = user_input.to_combined_string()
-        else:
-            user_input_str = user_input
-
-        logger.info(f"[DayController] 처리 시작: user_input={user_input_str[:50]}...")
+        logger.info(f"[DayController] 처리 시작: user_input={user_input[:50]}...")
 
         # 1. Tool Calling: LLM이 tool, args, intent 선택
-        tool_selection = call_tool(user_input_str, world_state, assets)
+        tool_selection = call_tool(user_input, world_state, assets)
         tool_name = tool_selection["tool_name"]
         tool_args = tool_selection["args"]
         intent = tool_selection.get("intent", "neutral")
@@ -69,7 +63,7 @@ class DayController:
         # 의사결정 로그에 기록 (intent 포함)
         self._decision_log.append({
             "turn": world_state.turn,
-            "user_input": user_input_str,
+            "user_input": user_input,
             "tool_selection": tool_selection,
             "intent": intent,
         })
@@ -80,7 +74,7 @@ class DayController:
             result = tool_fn(**tool_args)
         else:
             logger.warning(f"[DayController] 알 수 없는 tool: {tool_name}")
-            result = TOOLS["action"](action=user_input_str)
+            result = TOOLS["action"](action=user_input)
 
         # 5. Tool 결과를 delta로 변환
         tool_delta = _final_values_to_delta(

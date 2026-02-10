@@ -7,35 +7,9 @@ from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
 
 
-# ============================================================
-# 유저 입력
-# ============================================================
-class UserInputSchema(BaseModel):
-    """유저 입력"""
-    chat_input: str
-    npc_name: Optional[str] = None
-    item_name: Optional[str] = None
-
-
-# ============================================================
-# Step (Day) 요청/응답
-# ============================================================
-class StepRequest(BaseModel):
-    """POST /v1/scenario/{scenario_id}/step 요청 바디"""
-    user_id: str
-    text: str
-
-
-class StepResponse(BaseModel):
-    """POST /v1/scenario/{scenario_id}/step 응답"""
-    dialogue: str
-    ending: Optional[Dict[str, Any]] = None
-    debug: Dict[str, Any] = Field(default_factory=dict)
-
-
-class TurnResult(BaseModel):
+class StepResponseSchema(BaseModel):
     """낮 파이프라인 실행 결과"""
-    narrative: str
+    narrative: List[str]
     ending_info: Optional[Dict[str, Any]] = None
     state_delta: Dict[str, Any] = Field(default_factory=dict)
     debug: Dict[str, Any] = Field(default_factory=dict)
@@ -49,6 +23,17 @@ class StepRequestSchema(BaseModel):
     chat_input: str
     npc_name: Optional[str] = None
     item_name: Optional[str] = None
+
+    def to_combined_string(self) -> str:
+        """입력 컨텍스트(NPC, 아이템)를 포함한 문자열 반환"""
+        parts = []
+        if self.npc_name:
+            parts.append(f"(target: {self.npc_name})")
+        if self.item_name:
+            parts.append(f"(use: {self.item_name})")
+        
+        parts.append(self.chat_input)
+        return " ".join(parts)
 
 
 # ============================================================

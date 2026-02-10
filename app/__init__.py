@@ -9,8 +9,6 @@ from app.schemas import (
     NightResult,
     NPCState,
     StateDelta,
-    StepRequest,
-    StepResponse,
     ToolCall,
     ToolName,
     ToolResult,

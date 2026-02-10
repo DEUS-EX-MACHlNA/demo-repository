@@ -47,10 +47,8 @@ from app.schemas.tool import (
 
 # Request/Response
 from app.schemas.request_response import (
-    UserInputSchema,
-    StepRequest,
-    StepResponse,
-    TurnResult,
+
+    StepResponseSchema,
     StepRequestSchema,
     NightRequestBody,
     NightTurnResult,
@@ -92,8 +90,6 @@ from app.schemas.world_meta_data import (
     CurrentStateSchema,
     LockSchema,
     LocksSchemaList,
-    StoryNodeSchema,
-    StoryGraphSchema,
     EndingSchema,
     ScenarioSchema,
     WorldDataSchema,
@@ -133,7 +129,7 @@ __all__ = [
     # Tool
     "ToolCall", "ToolResult",
     # Request/Response
-    "UserInputSchema", "StepRequest", "StepResponse", "TurnResult",
+    "StepResponseSchema",
     "StepRequestSchema", "NightRequestBody", "NightTurnResult",
     "ScenarioInfoResponse", "StateResponse", "GameResponse",
     # Memory

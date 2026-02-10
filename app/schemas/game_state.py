@@ -38,7 +38,10 @@ class NPCState(BaseModel):
                 if key in data:
                     stats[key] = data[key]
 
-        memory = data.get("memory", {})
+        memory = data.get("memory", [])
+        if isinstance(memory, list):
+            memory = {}
+
         if not memory:
             extras = data.get("extras", {})
             if extras:

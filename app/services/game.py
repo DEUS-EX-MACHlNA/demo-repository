@@ -18,7 +18,6 @@ from app.schemas.world_meta_data import WorldDataSchema, LocksSchemaList
 from app.schemas.npc_info import NpcCollectionSchema
 from app.schemas.player_info import PlayerSchema
 from app.schemas.player_info import PlayerSchema
-from app.models import WorldState, NPCState, ToolResult
 from app.day_controller import get_day_controller
 from app.loader import ScenarioLoader, ScenarioAssets
 from pathlib import Path
@@ -31,8 +30,40 @@ from app.db_models.scenario import Scenario
 from app.crud import game as crud_game
 from app.loader import ScenarioAssets
 from app.schemas.game_state import NPCState, WorldState, StateDelta
-from app.schemas.request_response import TurnResult, NightTurnResult
+from app.schemas.request_response import StepResponseSchema, NightTurnResult, StepRequestSchema
+
 from app.schemas.tool import ToolResult
+
+from app.lock_manager import get_lock_manager
+from app.ending_checker import check_ending
+from app.narrative import get_narrative_layer
+from app.day_controller import get_day_controller
+from app.night_controller import get_night_controller
+import logging
+
+logger=logging.getLogger(__name__)
+
+
+def _scenario_to_assets(game: Games) -> ScenarioAssets:
+    assets = None
+    if game.scenario and game.scenario.world_asset_data:
+        try:
+            # DB에 저장된 에셋 사용
+            # world_asset_data는 dict 형태여야 함
+            assets = ScenarioAssets(**game.scenario.world_asset_data)
+            print(f"[GameService] Loaded assets from DB for scenario: {game.scenario.title}")
+        except Exception as e:
+            print(f"[GameService] Failed to load assets from DB: {e}")
+
+    if not assets:
+        # Fallback: 파일 로드
+        scenario_title = game.scenario.title if game.scenario else "coraline"
+        project_root = Path(__file__).parent.parent.parent
+        scenarios_dir = project_root / "scenarios"
+        loader = ScenarioLoader(base_path=scenarios_dir)
+        assets = loader.load(scenario_title)
+        print(f"[GameService] Loaded assets from FILE for scenario: {scenario_title}")
+    return assets
 
 # ============================================================
 # Delta 적용 로직
@@ -131,20 +162,18 @@ class GameService:
         # 3. NPC Data (NPCState)
         target_npc_data = game.npc_data or {"npcs": []}
         npcs = {}
-        for npc in target_npc_data.get("npcs", []):
-            nid = npc.get("npc_id")
-            if not nid:
+        for npc_dict in target_npc_data.get("npcs", []):
+            if not isinstance(npc_dict, dict):
                 continue
             
-            stats = npc.get("stats", {})
-            npcs[nid] = NPCState(
-                npc_id=nid,
-                trust=stats.get("trust", 0),
-                fear=stats.get("fear", 0),
-                suspicion=stats.get("suspicion", 0),
-                humanity=stats.get("humanity", 10),
-                extras=npc # 전체 데이터를 extras로 저장하거나 필요한거만 넣을 수 있음
-            )
+            # NPCState.from_dict()를 사용하여 안전하게 생성
+            # (stats dict, memory dict 등을 처리)
+            try:
+                npc_obj = NPCState.from_dict(npc_dict)
+                npcs[npc_obj.npc_id] = npc_obj
+            except Exception as e:
+                print(f"[GameService] Failed to parse NPC state: {e}")
+                continue
 
         return WorldState(
             turn=turn,
@@ -156,118 +185,79 @@ class GameService:
         )
 
     @staticmethod
-    def apply_chat_result(game: Games, result: ToolResult | dict) -> None:
+    def _world_state_to_games(game: Games, world_state: WorldState) -> None:
         """
-        DayController 실행 결과(ToolResult)를 DB 모델(game)에 반영합니다.
-        
-        Args:
-            game: SQLAlchemy Games 인스턴스
-            result: DayController 결과 (ToolResult 객체 또는 dict)
+        WorldState 객체를 Games DB 모델에 반영합니다.
         """
-        # ToolResult 객체면 dict로 변환 (기존 로직 호환성)
-        if hasattr(result, "state_delta"):
-            delta = result.state_delta
-            memory_update = result.memory
-        else:
-            delta = result.get("state_delta", {})
-            memory_update = result.get("memory", {})
-
-        # (1) World Snapshot 업데이트
-        snapshot = game.world_meta_data or {}
+        # 1. World Meta Data
+        meta = game.world_meta_data or {}
         
-        # 1-1. State (Flags, Vars, Turn)
-        state_data = snapshot.get("state", {})
-        
-        # [DEBUG] Turn Check Before
-        print(f"[DEBUG] apply_chat_result - Before Turn: {state_data.get('turn')}, Increment: {delta.get('turn_increment')}")
-        
-        # Flags
-        state_data.setdefault("flags", {}).update(delta.get("flags", {}))
-        
-        # Vars (단순 덮어쓰기 예시 - 실제로는 증감 로직 필요할 수 있음)
-        vars_delta = delta.get("vars", {})
-        current_vars = state_data.setdefault("vars", {})
-        for k, v in vars_delta.items():
-            current_vars[k] = v
-            
-        # Turn
-        old_turn = state_data.get("turn", 1)
-        increment = delta.get("turn_increment", 0)
-        state_data["turn"] = old_turn + increment
-        
-        # [DEBUG] Turn Check After
-        print(f"[DEBUG] apply_chat_result - After Turn: {state_data['turn']}")
-        
-        snapshot["state"] = state_data
+        # 1-1. State (Turn, Flags, Vars)
+        state_data = meta.get("state", {})
+        state_data["turn"] = world_state.turn
+        state_data["flags"] = world_state.flags
+        state_data["vars"] = world_state.vars
+        meta["state"] = state_data
         
         # 1-2. Locks
-        locks_wrapper = snapshot.get("locks", {})
+        # 기존 locks 구조 유지하면서 is_unlocked만 업데이트
+        locks_wrapper = meta.get("locks", {})
         locks_list = locks_wrapper.get("locks", [])
-        locks_delta = delta.get("locks", {})
         
-        if locks_delta:
-            for lock_item in locks_list:
-                lid = lock_item.get("info_id")
-                if lid and lid in locks_delta:
-                    lock_item["is_unlocked"] = locks_delta[lid]
+        # world_state.locks는 {info_id: bool} 형태
+        for lock_item in locks_list:
+            info_id = lock_item.get("info_id")
+            if info_id and info_id in world_state.locks:
+                lock_item["is_unlocked"] = world_state.locks[info_id]
         
         locks_wrapper["locks"] = locks_list
-        snapshot["locks"] = locks_wrapper
+        meta["locks"] = locks_wrapper
         
-        # 중요: 변경된 dict를 다시 할당 (SQLAlchemy JSONB 변경 감지)
-        # 중요: 변경된 dict를 다시 할당 (SQLAlchemy JSONB 변경 감지)
-        game.world_meta_data = snapshot
-        flag_modified(game, "world_meta_data") # Explicitly flag as modified
+        game.world_meta_data = meta
+        flag_modified(game, "world_meta_data")
 
-        # (2) Player Data 업데이트
-        p_data = game.player_data or {}
+        # 2. Player Data (Inventory)
+        player = game.player_data or {}
+        player["inventory"] = world_state.inventory
+        # player["memory"] 등은 WorldState에 없으므로 기존 값 유지
         
-        # Inventory
-        current_inv = set(p_data.get("inventory", []))
-        for item in delta.get("inventory_add", []):
-            current_inv.add(item)
-        for item in delta.get("inventory_remove", []):
-            if item in current_inv:
-                current_inv.remove(item)
-        p_data["inventory"] = list(current_inv)
-        
-        # Memory
-        mem = p_data.get("memory", [])
-        if memory_update:
-            mem.append(memory_update)
-        p_data["memory"] = mem
-        
-        game.player_data = p_data
-        flag_modified(game, "player_data") # Explicitly flag as modified
+        game.player_data = player
+        flag_modified(game, "player_data")
 
-        # (3) NPC Data 업데이트
-        n_data = game.npc_data or {"npcs": []}
-        npc_list = n_data.get("npcs", [])
-        npc_stats_delta = delta.get("npc_stats", {})
+        # 3. NPC Data (Stats, Memory)
+        npc_data = game.npc_data or {"npcs": []}
+        npc_list = npc_data.get("npcs", [])
         
-        for npc in npc_list:
-            nid = npc.get("npc_id")
-            if nid and nid in npc_stats_delta:
-                changes = npc_stats_delta[nid]
-                if "stats" not in npc:
-                    npc["stats"] = {}
+        for npc_dict in npc_list:
+            npc_id = npc_dict.get("npc_id")
+            if npc_id and npc_id in world_state.npcs:
+                npc_state = world_state.npcs[npc_id]
                 
-                for stat_k, stat_v in changes.items():
-                    current_val = npc["stats"].get(stat_k, 0)
-                    npc["stats"][stat_k] = current_val + stat_v
-                    
-        n_data["npcs"] = npc_list
-        game.npc_data = n_data
-        flag_modified(game, "npc_data") # Explicitly flag as modified
+                # Stats 업데이트
+                npc_dict["stats"] = npc_state.stats
+                
+                # Memory 업데이트
+                # 기존 memory가 있으면 병합하거나 덮어쓰기. 여기서는 덮어쓰기/병합
+                # NPCState.memory는 dict 형태임
+                current_mem = npc_dict.get("memory", {})
+                if isinstance(current_mem, list): # 구버전 데이터 호환
+                     current_mem = {}
+                
+                current_mem.update(npc_state.memory)
+                npc_dict["memory"] = current_mem
+        
+        npc_data["npcs"] = npc_list
+        game.npc_data = npc_data
+        flag_modified(game, "npc_data")
 
     @classmethod
     def process_turn(
         cls,
         db: Session,
         game_id: int,
-        input_data: Dict[str, Any],
+        input_data: StepRequestSchema,
         game: Games,
-    ) -> TurnResult:
+    ) -> StepResponseSchema:
         """
         필요한 인자
         1. 유저 입력
@@ -276,6 +266,7 @@ class GameService:
         낮 파이프라인 실행:
         LockManager → DayController → EndingChecker → NarrativeLayer
         """
+        debug: Dict[str, Any] = {"game_id": game_id, "steps": []}
 
         ## 임시 출력용 input_dict
         print("\n\n\n")
@@ -286,24 +277,7 @@ class GameService:
         world_state = cls._create_world_state(game)
 
         # 3. Scenario Assets 로드
-        assets = None
-        if game.scenario and game.scenario.world_asset_data:
-            try:
-                # DB에 저장된 에셋 사용
-                # world_asset_data는 dict 형태여야 함
-                assets = ScenarioAssets(**game.scenario.world_asset_data)
-                print(f"[GameService] Loaded assets from DB for scenario: {game.scenario.title}")
-            except Exception as e:
-                print(f"[GameService] Failed to load assets from DB: {e}")
-
-        if not assets:
-            # Fallback: 파일 로드
-            scenario_title = game.scenario.title if game.scenario else "coraline"
-            project_root = Path(__file__).parent.parent.parent
-            scenarios_dir = project_root / "scenarios"
-            loader = ScenarioLoader(base_path=scenarios_dir)
-            assets = loader.load(scenario_title)
-            print(f"[GameService] Loaded assets from FILE for scenario: {scenario_title}")
+        assets = _scenario_to_assets(game)
 
         # ── Step 3: LockManager - 정보 해금 ──
         lock_manager = get_lock_manager()
@@ -315,10 +289,10 @@ class GameService:
         })
 
         # ── Step 4: DayController - 낮 턴 실행 ──
-        user_text = input_data.get("chat_input", "")
+        user_input = input_data.to_combined_string()
         day_controller = get_day_controller()
         tool_result: ToolResult = day_controller.process(
-            user_text,
+            user_input,
             world_state,
             assets,
         )
@@ -330,7 +304,7 @@ class GameService:
         # [TESTING] Mock Data Preservation (User Request)
         # 이 변수는 테스팅 목적이나 Fallback으로 사용될 수 있습니다.
         # ToolResult 객체로 변환하여 보존
-        mock_day_controller_result = ToolResult(
+        tool_result = ToolResult(
             event_description=[
                 "플레이어가 새엄마에게 말을 걸었습니다.",
                 "새엄마는 경계하는 눈빛을 보였습니다."
@@ -378,29 +352,39 @@ class GameService:
         })
 
         # ── Step 7: NarrativeLayer - 나레이션 생성 ──
-        narrative_layer = get_narrative_layer()
-        if ending_info:
-            narrative = narrative_layer.render_ending(
-                ending_info,
-                world_after,
-                assets,
-            )
-        else:
-            narrative = narrative_layer.render_day(
-                tool_result.event_description,
-                tool_result.state_delta,
-                world_after,
-                assets,
-            )
+        try:
+            narrative_layer = get_narrative_layer()
+            if ending_info:
+                narrative = narrative_layer.render_ending(
+                    ending_info,
+                    world_after,
+                    assets,
+                )
+            else:
+                narrative = narrative_layer.render_day(
+                    tool_result.event_description,
+                    tool_result.state_delta,
+                    world_after,
+                    assets,
+                )
+        except ImportError as e:
+            print(f"[GameService] NarrativeLayer skipped due to missing dependency: {e}")
+            narrative = ""
+        except Exception as e:
+             print(f"[GameService] NarrativeLayer failed: {e}")
+             narrative = ""
 
-        # TODO : WorldState -> game 으로 형식 변경 후 저장
+        cls._world_state_to_games(game, world_after)
 
         # 6. 저장
         crud_game.update_game(db, game)
 
-        # TODO : return 형식 변경 -> TurnResult
-        #return tool_result.__dict__ # Dict 반환
-        return mock_day_controller_result.__dict__
+        return StepResponseSchema(
+            narrative=narrative,
+            ending_info=ending_info,
+            state_delta=tool_result.state_delta,
+            debug=debug,
+        )
 
     @classmethod
     def process_night(
@@ -426,10 +410,10 @@ class GameService:
 
         # ── Step 1: Scenario → ScenarioAssets ──
         scenario: Scenario = game.scenario
-        assets = _scenario_to_assets(scenario)
+        assets = cls._scenario_to_assets(scenario)
 
         # ── Step 2: Games → WorldState ──
-        world_state = _games_to_world_state(game)
+        world_state = cls._create_world_state(game)
         debug["turn_before"] = world_state.turn
 
         # ── Step 3: LockManager - 정보 해금 ──
@@ -487,7 +471,7 @@ class GameService:
             )
 
         # ── Step 8: WorldState → DB 반영 + 저장 ──
-        _world_state_to_games(game, world_after)
+        cls._world_state_to_games(game, world_after)
         crud_game.update_game(db, game)
 
         logger.info(

@@ -11,7 +11,7 @@ from app.schemas.status import GameStatus
 from app.db_models.scenario import Scenario
 from app.schemas.client_sync import GameClientSyncSchema
 from app.crud import game as crud_game
-from app.schemas.request_response import StepRequestSchema, NightTurnResult
+from app.schemas.request_response import StepRequestSchema, NightTurnResult, StepResponseSchema
 from app.schemas.night import (
     NightLogResponse,
     NightExposedLog,
@@ -52,15 +52,15 @@ def get_games(db: Session = Depends(get_db)):
 # 메모 삭제
 #@router.delete("/{game_id}/memos/{memo_id}", summary="게임 메모 삭제")
 
-# 대화 요청
-@router.post("/{game_id}/step", summary="게임 대화 요청")
-def step_game(game_id: int, request: StepRequestSchema, db: Session = Depends(get_db)) -> dict:
+# 대화 요청(낮)
+@router.post("/{game_id}/step", summary="게임 대화 요청", response_model=StepResponseSchema)
+def step_game(game_id: int, request: StepRequestSchema, db: Session = Depends(get_db)) -> StepResponseSchema:
     # 1. 게임 정보 조회
     game = db.query(Games).filter(Games.id == game_id).first()
     if not game:
         raise HTTPException(status_code=404, detail="게임을 찾을 수 없습니다.")
 
-    result = GameService.process_turn(db, game_id, request.dict(), game)
+    result = GameService.process_turn(db, game_id, request, game)
 
     return result
 
@@ -86,7 +86,7 @@ def night_game(game_id: int, db: Session = Depends(get_db)) -> NightTurnResult:
 
 
 # 밤의 대화 결과 조회(재접속/히스토리)
-@router.get("/{game_id}/nights}", summary="밤의 대화 요청", response_model=NightLogResponse)
+@router.get("/{game_id}/nights", summary="밤의 대화 요청", response_model=NightLogResponse)
 def get_night_log(game_id: int, db: Session = Depends(get_db)):
     # 일단 요청받은 예시 데이터를 그대로 Mock으로 반환합니다.
     # 추후 DB 조회 로직이 필요하면 구현합니다.
