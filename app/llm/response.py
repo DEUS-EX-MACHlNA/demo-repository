@@ -126,3 +126,15 @@ def parse_tool_call_response(raw_output: str, fallback_input: str) -> Dict[str, 
             "args": {"action": fallback_input},
             "intent": "neutral",
         }
+
+
+def parse_narrative_response(raw_text: str) -> str:
+    """내러티브 LLM 응답에서 서술 텍스트 추출 — [출력] 마커 이후 텍스트 반환"""
+    text = clean_text(raw_text)
+    marker = "[출력]"
+    idx = text.rfind(marker)
+    if idx >= 0:
+        text = text[idx + len(marker):].strip()
+    if not text:
+        return "(서술 생성 실패)"
+    return text

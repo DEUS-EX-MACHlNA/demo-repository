@@ -520,10 +520,6 @@ class GameService:
                 "vars": { "investigation_progress": 10 },
                 "turn_increment": 1
             },
-            memory={
-                "last_interaction": "talked_to_mother",
-                "clue_found": "old_key"
-            }
         )
         
         print(f"[GameService] DayController Result: {tool_result}")
@@ -553,11 +549,12 @@ class GameService:
                 assets,
             )
         else:
-            narrative = narrative_layer.render_day(
-                tool_result.event_description,
-                tool_result.state_delta,
+            narrative = narrative_layer.render(
                 world_after,
                 assets,
+                event_description=tool_result.event_description,
+                state_delta=tool_result.state_delta,
+                npc_response=tool_result.npc_response,
             )
 
         _world_state_to_games(game, world_after)
@@ -647,10 +644,10 @@ class GameService:
                 assets,
             )
         else:
-            narrative = narrative_layer.render_night(
+            narrative = narrative_layer.render(
                 world_after,
                 assets,
-                night_result.night_conversation,
+                night_conversation=night_result.night_conversation,
             )
 
         # ── Step 8: WorldState → DB 반영 + 저장 ──
