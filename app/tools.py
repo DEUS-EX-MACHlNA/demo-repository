@@ -173,7 +173,20 @@ def interact(target: str, interact: str) -> Dict[str, Any]:
     npc_name = npc_info.get("name", target)
     npc_persona = npc_info.get("persona", {})
 
-    # 2. NPC 대사 생성 (메모리 검색은 generate_utterance 내부에서 수행)
+    # 2. world_snapshot 조립
+    world_snapshot = {
+        "day": world_state.vars.get("day", 1),
+        "turn": world_state.turn,
+        "suspicion_level": world_state.vars.get("suspicion_level", 0),
+        "player_humanity": world_state.vars.get("humanity", 100),
+        "flags": {k: v for k, v in world_state.flags.items() if v},
+        "node_id": world_state.vars.get("node_id", "unknown"),
+        "inventory": world_state.inventory,
+        "genre": assets.scenario.get("genre", ""),
+        "tone": assets.scenario.get("tone", ""),
+    }
+
+    # 3. NPC 대사 생성 (메모리 검색은 generate_utterance 내부에서 수행)
     npc_response = generate_utterance(
         speaker_id=target,
         speaker_name=npc_name,
@@ -184,10 +197,15 @@ def interact(target: str, interact: str) -> Dict[str, Any]:
         conversation_history=[{"speaker": "플레이어", "text": interact}],
         llm=llm_engine,
         current_turn=world_state.turn,
+        world_snapshot=world_snapshot,
     )
     logger.info(f"NPC 응답: {npc_response[:80]}...")
 
-    # 3. 영향 분석 (state_delta + event_description)
+    # 4. 영향 분석 (state_delta + event_description)
+    world_context = {
+        "suspicion_level": world_state.vars.get("suspicion_level", 0),
+        "player_humanity": world_state.vars.get("humanity", 100),
+    }
     impact = _analyze_impact(
         user_input=interact,
         npc_response=npc_response,
@@ -196,9 +214,10 @@ def interact(target: str, interact: str) -> Dict[str, Any]:
         npc_persona=npc_persona,
         assets=assets,
         llm_engine=llm_engine,
+        world_context=world_context,
     )
 
-    # 4. 메모리 저장
+    # 5. 메모리 저장
     if npc_state:
         try:
             store_dialogue_memories(
@@ -233,6 +252,7 @@ def _analyze_impact(
     npc_persona: Dict[str, Any],
     assets: ScenarioAssets,
     llm_engine: Any,
+    world_context: Dict[str, Any] | None = None,
 ) -> Dict[str, Any]:
     """대화의 영향을 분석하여 state_delta와 event_description을 반환.
 
@@ -259,6 +279,7 @@ def _analyze_impact(
         conversation=conversation,
         llm=llm_engine,
         stat_names=stat_names,
+        world_context=world_context,
     )
 
     # NPC의 stat delta만 추출하여 state_delta로 구성

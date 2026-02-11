@@ -74,12 +74,14 @@ def generate_utterance(
     conversation_history: list[dict[str, str]],
     llm: GenerativeAgentsLLM,
     current_turn: int = 1,
+    world_snapshot: dict[str, Any] | None = None,
 ) -> str:
     """단일 발화 생성.
 
     Args:
         speaker_memory: NPCState.memory dict
         speaker_stats: NPC 스탯 Dict (예: {"affection": 50, "fear": 80})
+        world_snapshot: 월드 상태 요약 dict (None이면 간단 프롬프트 사용)
     """
     persona_str = format_persona(speaker_persona)
     emotion_str = format_emotion(speaker_stats)
@@ -96,20 +98,95 @@ def generate_utterance(
     if not history:
         history = "(대화 시작)"
 
-    prompt = (
-        f"당신은 {speaker_name}입니다.\n\n"
-        f"페르소나: {persona_str}\n"
-        f"현재 감정: {emotion_str}\n"
-        f"현재 계획: {plan_text}\n\n"
-        f"관련 기억:\n{mem_ctx}\n\n"
-        f"대화 기록:\n{history}\n\n"
-        f"{listener_name}에게 무엇을 말하겠습니까? (자연스럽고 간결하게, 1~2문장)\n\n"
-        "발화:"
-    )
+    if world_snapshot:
+        prompt = _build_rich_utterance_prompt(
+            speaker_name, speaker_persona, persona_str, emotion_str,
+            plan_text, mem_ctx, history, listener_name, world_snapshot,
+        )
+    else:
+        # 폴백: 간단 프롬프트
+        prompt = (
+            f"당신은 {speaker_name}입니다.\n\n"
+            f"페르소나: {persona_str}\n"
+            f"현재 감정: {emotion_str}\n"
+            f"현재 계획: {plan_text}\n\n"
+            f"관련 기억:\n{mem_ctx}\n\n"
+            f"대화 기록:\n{history}\n\n"
+            f"{listener_name}에게 무엇을 말하겠습니까? (자연스럽고 간결하게, 1~2문장)\n\n"
+            "발화:"
+        )
+
     resp = llm.generate(prompt, max_tokens=80)
     if not resp:
         resp = f"...{speaker_name}은(는) 잠시 말을 아꼈다."
     return resp.strip()
+
+
+def _build_rich_utterance_prompt(
+    speaker_name: str,
+    speaker_persona: dict[str, Any],
+    persona_str: str,
+    emotion_str: str,
+    plan_text: str,
+    mem_ctx: str,
+    history: str,
+    listener_name: str,
+    ws: dict[str, Any],
+) -> str:
+    """world_snapshot이 있을 때 사용하는 구체화된 NPC 발화 프롬프트."""
+    genre = ws.get("genre", "")
+    tone = ws.get("tone", "")
+
+    # 트리거/금기 추출
+    triggers = speaker_persona.get("triggers", {})
+    triggers_plus = ", ".join(triggers.get("plus", [])) or "(없음)"
+    triggers_minus = ", ".join(triggers.get("minus", [])) or "(없음)"
+    taboos = ", ".join(speaker_persona.get("taboos", [])) or "(없음)"
+
+    # flags 요약 (true인 것만)
+    flags = ws.get("flags", {})
+    flags_summary = ", ".join(f"{k}={v}" for k, v in flags.items() if v) if flags else "(없음)"
+
+    # 인벤토리
+    inventory = ", ".join(ws.get("inventory", [])) or "(없음)"
+
+    return (
+        f"[ROLE]\n"
+        f"너는 NPC \"{speaker_name}\"이다. 장르는 '{genre}'. {tone}.\n"
+        f"과장된 소설체 금지. 너의 목표: (a) 캐릭터성 유지 (b) 규칙 준수 (c) 1~2문장 반응.\n\n"
+        f"[ABSOLUTE RULES]\n"
+        f"- 새로운 사실/새 탈출구/새 인물 생성 금지. (확정된 세계관/상태만 사용)\n"
+        f"- 아래 '금기(taboos)'를 위반하는 발화는 피하거나 돌려 말해라.\n"
+        f"- 결과/판정/서술은 하지 말고 \"대사\"만 말해라.\n\n"
+        f"[NPC PROFILE]\n"
+        f"페르소나: {persona_str}\n"
+        f"금기(taboos): {taboos}\n"
+        f"트리거(+): {triggers_plus}\n"
+        f"트리거(-): {triggers_minus}\n"
+        f"현재 감정: {emotion_str}\n"
+        f"현재 계획(단기): {plan_text}\n"
+        f"스탯 반영 가이드:\n"
+        f"- fear↑: 더 집착/불안/통제\n"
+        f"- humanity↑: 더 인간적/망설임/죄책감\n"
+        f"- affection↓: 더 차갑고 거리감\n\n"
+        f"[WORLD SNAPSHOT]\n"
+        f"day={ws.get('day', 1)}, turn={ws.get('turn', 1)}, "
+        f"suspicion_level={ws.get('suspicion_level', 0)}, "
+        f"player_humanity={ws.get('player_humanity', 100)}\n"
+        f"flags={flags_summary}\n"
+        f"현재 장소: {ws.get('node_id', 'unknown')}\n"
+        f"플레이어 인벤토리: {inventory}\n\n"
+        f"[MEMORY]\n"
+        f"{mem_ctx}\n\n"
+        f"[RECENT DIALOGUE]\n"
+        f"{history}\n\n"
+        f"[YOUR TASK]\n"
+        f"\"{listener_name}\"에게 지금 무엇을 말할지 결정하고 말하라.\n"
+        f"- 1~2문장, 자연스럽고 간결.\n"
+        f"- 트리거(plus/minus)와 금기(taboos)를 고려.\n"
+        f"- 의심도가 높으면: 더 확인 질문/견제/감시 톤 강화.\n\n"
+        f"발화:"
+    )
 
 
 # ── NPC간 대화 생성 ──────────────────────────────────────────
@@ -203,12 +280,14 @@ def analyze_conversation_impact(
     conversation: list[dict[str, str]],
     llm: GenerativeAgentsLLM,
     stat_names: list[str] | None = None,
+    world_context: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """대화가 양측 감정에 미친 영향 분석.
 
     Args:
         stat_names: 분석할 스탯 이름 리스트 (예: ["affection", "fear", "humanity"])
                     None이면 자동 감지
+        world_context: 분석에 참고할 월드 컨텍스트 (suspicion_level, player_humanity 등)
 
     Returns:
         {
@@ -228,21 +307,50 @@ def analyze_conversation_impact(
         stat_list_str = "각 스탯"
         stat_example = '"stat1": 0, "stat2": 0'
 
+    # 트리거 추출
+    t1 = npc1_persona.get("triggers", {})
+    triggers_plus_1 = ", ".join(t1.get("plus", [])) or "(없음)"
+    triggers_minus_1 = ", ".join(t1.get("minus", [])) or "(없음)"
+
+    t2 = npc2_persona.get("triggers", {})
+    triggers_plus_2 = ", ".join(t2.get("plus", [])) or "(없음)"
+    triggers_minus_2 = ", ".join(t2.get("minus", [])) or "(없음)"
+
+    # world_context 섹션
+    context_section = ""
+    if world_context:
+        context_section = (
+            f"\n[CONTEXT]\n"
+            f"suspicion_level={world_context.get('suspicion_level', 0)}, "
+            f"player_humanity={world_context.get('player_humanity', 100)}\n"
+        )
+
     prompt = (
-        "다음 대화를 분석하여 각 인물의 감정 변화와 핵심 사건을 추출하세요.\n\n"
-        f"대화:\n{conv_text}\n\n"
-        f"{npc1_name} 페르소나: {p1}\n"
-        f"{npc2_name} 페르소나: {p2}\n\n"
-        f"각 인물의 {stat_list_str} 변화를 -2~+2 범위의 델타값으로 답하세요.\n"
-        "event_description은 대화에서 발생한 핵심 사건을 간결하게 묘사하세요.\n\n"
-        "반드시 아래 JSON 형식으로만 응답하세요:\n"
+        f"[TASK] 아래 대화를 분석하여 NPC 감정 변화(stat delta)와 핵심 사건을 추출하세요.\n\n"
+        f"[CONVERSATION]\n{conv_text}\n\n"
+        f"[NPC1: {npc1_name}]\n"
+        f"페르소나: {p1}\n"
+        f"트리거(+): {triggers_plus_1}  (이 행동이 있으면 스탯 상승)\n"
+        f"트리거(-): {triggers_minus_1}  (이 행동이 있으면 스탯 하락)\n\n"
+        f"[NPC2: {npc2_name}]\n"
+        f"페르소나: {p2}\n"
+        f"트리거(+): {triggers_plus_2}  (이 행동이 있으면 스탯 상승)\n"
+        f"트리거(-): {triggers_minus_2}  (이 행동이 있으면 스탯 하락)\n"
+        f"{context_section}\n"
+        f"[RULES]\n"
+        f"- 각 인물의 {stat_list_str} 변화를 -2~+2 범위의 **델타값**으로 판정.\n"
+        f"- 트리거(+) 해당 행동 → 관련 스탯 +1~+2.\n"
+        f"- 트리거(-) 해당 행동 → 관련 스탯 -1~-2.\n"
+        f"- 해당 없으면 0.\n"
+        f"- event_description: 핵심 사건 1~2문장.\n\n"
+        f"[OUTPUT - JSON ONLY]\n"
         "```json\n"
         "{\n"
         f'  "npc_stats": {{\n'
         f'    "{npc1_id}": {{{stat_example}}},\n'
         f'    "{npc2_id}": {{{stat_example}}}\n'
         f"  }},\n"
-        '  "event_description": ["핵심 사건 묘사 1문장"]\n'
+        '  "event_description": ["핵심 사건 묘사"]\n'
         "}\n"
         "```"
     )

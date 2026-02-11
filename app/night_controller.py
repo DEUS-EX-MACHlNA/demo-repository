@@ -79,11 +79,28 @@ class NightController:
         # Phase 2: 계획 수립
         self._run_planning(world_snapshot, assets, npc_ids, turn, llm)
 
+        # world_snapshot dict / world_context 조립 (낮과 동일 구조)
+        ws_dict = {
+            "day": world_snapshot.vars.get("day", 1),
+            "turn": turn,
+            "suspicion_level": world_snapshot.vars.get("suspicion_level", 0),
+            "player_humanity": world_snapshot.vars.get("humanity", 100),
+            "flags": {k: v for k, v in world_snapshot.flags.items() if v},
+            "node_id": world_snapshot.vars.get("node_id", "unknown"),
+            "inventory": world_snapshot.inventory,
+            "genre": assets.scenario.get("genre", ""),
+            "tone": assets.scenario.get("tone", ""),
+        }
+        world_context = {
+            "suspicion_level": world_snapshot.vars.get("suspicion_level", 0),
+            "player_humanity": world_snapshot.vars.get("humanity", 100),
+        }
+
         # Phase 3: 그룹 대화 생성 (3명이 함께 대화)
-        night_conversation = self._run_dialogues(world_snapshot, assets, npc_ids, turn, llm)
+        night_conversation = self._run_dialogues(world_snapshot, assets, npc_ids, turn, llm, ws_dict)
 
         # Phase 4: 대화 영향 분석
-        night_description = self._analyze_impacts(night_conversation, npc_ids, assets, llm, night_delta)
+        night_description = self._analyze_impacts(night_conversation, npc_ids, assets, llm, night_delta, world_context)
 
         logger.info(
             f"[NightController] done: utterances={len(night_conversation)}, descriptions={len(night_description)}"
@@ -153,6 +170,7 @@ class NightController:
         npc_ids: list[str],
         turn: int,
         llm: GenerativeAgentsLLM,
+        ws_dict: dict[str, Any] | None = None,
     ) -> list[dict[str, str]]:
         """Caroline의 NPC 3명이 함께 대화. 총 6번 발화."""
         if len(npc_ids) < 2:
@@ -194,6 +212,7 @@ class NightController:
                 conversation,
                 llm,
                 current_turn=turn,
+                world_snapshot=ws_dict,
             )
             conversation.append({"speaker": speaker["name"], "text": utterance})
 
@@ -225,6 +244,7 @@ class NightController:
         assets: ScenarioAssets,
         llm: GenerativeAgentsLLM,
         night_delta: dict[str, Any],
+        world_context: dict[str, Any] | None = None,
     ) -> list[str]:
         """그룹 대화가 각 NPC에 미친 영향 분석.
 
@@ -250,6 +270,7 @@ class NightController:
                     npc2_id, d2.get("name", npc2_id), d2.get("persona", {}),
                     conversation, llm,
                     stat_names=stat_names,
+                    world_context=world_context,
                 )
 
                 # npc_stats 집계
