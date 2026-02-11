@@ -18,5 +18,5 @@ class ToolResult(BaseModel):
     state_delta: Dict[str, Any]
     event_description: List[str]
     npc_response: Optional[str] # interact()만 존재
-    npc_id: str # interact()만 존재
-    item_id: str # use()만 존재
+    npc_id: Optional[str] # interact()만 존재
+    item_id: Optional[str] # use()만 존재
