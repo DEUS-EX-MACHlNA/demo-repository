@@ -33,6 +33,14 @@ from app.loader import ScenarioAssets
 from app.schemas.game_state import NPCState, WorldState, StateDelta
 from app.schemas.request_response import TurnResult, NightTurnResult
 from app.schemas.tool import ToolResult
+from app.lock_manager import get_lock_manager
+from app.ending_checker import check_ending
+from app.narrative import get_narrative_layer
+from app.day_controller import get_day_controller
+from app.night_controller import get_night_controller
+import logging
+
+logger=logging.getLogger(__name__)
 
 # ============================================================
 # Delta 적용 로직
@@ -98,6 +106,74 @@ def _apply_delta(
             world_state.npcs[npc_id].memory.update(memory_data)
 
     return world_state
+
+
+def _world_state_to_games(game: Games, world_state: WorldState) -> None:
+    # 1) World Meta Data (turn, flags, vars, locks)
+    snapshot = game.world_meta_data or {}
+    state_data = snapshot.get("state", {})
+    state_data["turn"] = world_state.turn
+    state_data["flags"] = world_state.flags or {}
+    state_data["vars"] = world_state.vars or {}
+    snapshot["state"] = state_data
+
+    locks_wrapper = snapshot.get("locks", {})
+    locks_list = locks_wrapper.get("locks", [])
+    ws_locks = world_state.locks or {}
+    if isinstance(locks_list, list) and ws_locks:
+        for lock_item in locks_list:
+            if not isinstance(lock_item, dict):
+                continue
+            info_id = lock_item.get("info_id")
+            if info_id in ws_locks:
+                lock_item["is_unlocked"] = ws_locks[info_id]
+    locks_wrapper["locks"] = locks_list
+    snapshot["locks"] = locks_wrapper
+
+    game.world_meta_data = snapshot
+    flag_modified(game, "world_meta_data")
+
+    # 2) Player Data (inventory)
+    player_data = game.player_data or {}
+    player_data["inventory"] = list(world_state.inventory or [])
+    game.player_data = player_data
+    flag_modified(game, "player_data")
+
+    # 3) NPC Data (stats, memory)
+    npc_data = game.npc_data or {"npcs": []}
+    npc_list = npc_data.get("npcs", [])
+    if not isinstance(npc_list, list):
+        npc_list = []
+
+    npc_index = {}
+    for npc in npc_list:
+        if isinstance(npc, dict):
+            npc_id = npc.get("npc_id")
+            if npc_id:
+                npc_index[npc_id] = npc
+
+    for npc_id, npc_state in (world_state.npcs or {}).items():
+        target = npc_index.get(npc_id)
+        if target is None:
+            target = {"npc_id": npc_id}
+            npc_list.append(target)
+            npc_index[npc_id] = target
+
+        stats = getattr(npc_state, "stats", None)
+        if stats is None and isinstance(npc_state, dict):
+            stats = npc_state.get("stats")
+        if stats is not None:
+            target["stats"] = stats
+
+        memory = getattr(npc_state, "memory", None)
+        if memory is None and isinstance(npc_state, dict):
+            memory = npc_state.get("memory")
+        if memory is not None:
+            target["memory"] = memory
+
+    npc_data["npcs"] = npc_list
+    game.npc_data = npc_data
+    flag_modified(game, "npc_data")
 
 
 class GameService:
@@ -260,6 +336,111 @@ class GameService:
         game.npc_data = n_data
         flag_modified(game, "npc_data") # Explicitly flag as modified
 
+    # ============================================================
+    # 코랩 테스팅용 목업 데이터 생성 함수 (YAML 파일 기반)
+    # ============================================================
+
+    @staticmethod
+    def mock_load_scenario_assets_from_yaml(scenario_id: str = "coraline") -> ScenarioAssets:
+        """
+        [TESTING] 실제 YAML 파일을 읽어서 ScenarioAssets 생성
+        코랩에서 DB 없이 테스트할 때 사용
+
+        Args:
+            scenario_id: 로드할 시나리오 ID (기본값: "coraline")
+
+        Returns:
+            ScenarioAssets: 로드된 시나리오 에셋
+        """
+        project_root = Path(__file__).parent.parent.parent
+        scenarios_dir = project_root / "scenarios"
+
+        loader = ScenarioLoader(base_path=scenarios_dir)
+        assets = loader.load(scenario_id)
+
+        print(f"[MOCK] Loaded ScenarioAssets from YAML: {scenario_id}")
+        print(f"  - NPCs: {len(assets.get_all_npc_ids())}")
+        print(f"  - Items: {len(assets.get_all_item_ids())}")
+        print(f"  - State Schema Vars: {list(assets.get_state_schema().get('vars', {}).keys())}")
+
+        return assets
+
+    @staticmethod
+    def mock_create_world_state_from_yaml(scenario_id: str = "coraline") -> WorldState:
+        """
+        [TESTING] 실제 YAML 파일을 읽어서 초기 WorldState 생성
+        코랩에서 DB 없이 테스트할 때 사용
+
+        Args:
+            scenario_id: 로드할 시나리오 ID (기본값: "coraline")
+
+        Returns:
+            WorldState: 초기화된 월드 상태
+        """
+        # 1. ScenarioAssets 로드
+        project_root = Path(__file__).parent.parent.parent
+        scenarios_dir = project_root / "scenarios"
+        loader = ScenarioLoader(base_path=scenarios_dir)
+        assets = loader.load(scenario_id)
+
+        # 2. NPCState 생성 (YAML의 npcs 데이터 기반)
+        npcs = {}
+        for npc_dict in assets.npcs.get("npcs", []):
+            npc_id = npc_dict.get("npc_id")
+            if not npc_id:
+                continue
+
+            # stats 필드에서 초기 스탯 가져오기
+            stats = npc_dict.get("stats", {})
+
+            npcs[npc_id] = NPCState(
+                npc_id=npc_id,
+                stats=dict(stats),  # affection, fear, humanity 등
+                memory={}  # 초기 메모리는 비어있음
+            )
+
+        # 3. 초기 인벤토리 (YAML items에서 acquire.method == "start"인 것들)
+        initial_inventory = assets.get_initial_inventory()
+
+        # 4. 초기 locks (모두 잠금 상태로 시작)
+        locks = {}
+        if "locks" in assets.extras:
+            locks_data = assets.extras["locks"]
+            if isinstance(locks_data, dict) and "locks" in locks_data:
+                for lock in locks_data["locks"]:
+                    info_id = lock.get("info_id")
+                    if info_id:
+                        locks[info_id] = lock.get("is_unlocked", False)
+
+        # 5. 초기 vars (state_schema에서 default 값 가져오기)
+        vars_data = {}
+        state_schema = assets.get_state_schema()
+        for var_name, var_config in state_schema.get("vars", {}).items():
+            vars_data[var_name] = var_config.get("default", 0)
+
+        # 6. 초기 flags (state_schema에서 default 값 가져오기)
+        flags_data = {}
+        for flag_name, flag_config in state_schema.get("flags", {}).items():
+            flags_data[flag_name] = flag_config.get("default", None)
+
+        world_state = WorldState(
+            turn=1,
+            npcs=npcs,
+            flags=flags_data,
+            inventory=initial_inventory,
+            locks=locks,
+            vars=vars_data
+        )
+
+        print(f"[MOCK] Created WorldState from YAML: {scenario_id}")
+        print(f"  - Turn: {world_state.turn}")
+        print(f"  - NPCs: {list(world_state.npcs.keys())}")
+        print(f"  - Initial Inventory: {world_state.inventory}")
+        print(f"  - Vars: {world_state.vars}")
+        print(f"  - Flags: {world_state.flags}")
+
+        return world_state
+
     @classmethod
     def process_turn(
         cls,
@@ -309,10 +490,6 @@ class GameService:
         lock_manager = get_lock_manager()
         locks_data = assets.extras.get("locks", {})
         lock_result = lock_manager.check_unlocks(world_state, locks_data)
-        debug["steps"].append({
-            "step": "lock_check",
-            "newly_unlocked": [info.info_id for info in lock_result.newly_unlocked],
-        })
 
         # ── Step 4: DayController - 낮 턴 실행 ──
         user_text = input_data.get("chat_input", "")
@@ -322,10 +499,6 @@ class GameService:
             world_state,
             assets,
         )
-        debug["steps"].append({
-            "step": "day_turn",
-            "state_delta": tool_result.state_delta,
-        })
 
         # [TESTING] Mock Data Preservation (User Request)
         # 이 변수는 테스팅 목적이나 Fallback으로 사용될 수 있습니다.
@@ -358,7 +531,6 @@ class GameService:
 
         # ── Step 5: Delta 적용 ──
         world_after = _apply_delta(world_state, tool_result.state_delta, assets)
-        debug["turn_after"] = world_after.turn
 
         # ── Step 6: EndingChecker - 엔딩 체크 ──
         ending_result = check_ending(world_after, assets)
@@ -371,11 +543,6 @@ class GameService:
             }
             if ending_result.triggered_delta:
                 _apply_delta(world_after, ending_result.triggered_delta, assets)
-
-        debug["steps"].append({
-            "step": "ending_check",
-            "reached": ending_result.reached,
-        })
 
         # ── Step 7: NarrativeLayer - 나레이션 생성 ──
         narrative_layer = get_narrative_layer()
@@ -393,7 +560,7 @@ class GameService:
                 assets,
             )
 
-        # TODO : WorldState -> game 으로 형식 변경 후 저장
+        _world_state_to_games(game, world_after)
 
         # 6. 저장
         crud_game.update_game(db, game)
