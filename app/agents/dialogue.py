@@ -388,6 +388,7 @@ def _parse_impact_response(
         else:
             # JSON 파싱 실패 시 기존 텍스트 파싱으로 폴백
             logger.warning(f"[analyze_impact] JSON 파싱 실패, 텍스트 파싱 시도: {resp[:100]}")
+            logger.info(f"[analyze_impact] 원본 LLM 응답 : {resp}")
             return _parse_impact_text_fallback(resp, npc1_id, npc1_name, npc2_id, npc2_name, stat_names)
 
     try:
@@ -414,6 +415,7 @@ def _parse_impact_response(
         }
     except (json.JSONDecodeError, ValueError) as e:
         logger.warning(f"[analyze_impact] JSON 디코드 실패: {e}, 텍스트 파싱 시도")
+        logger.info(f"[analyze_impact] 원본 LLM 응답 : {resp}")
         return _parse_impact_text_fallback(resp, npc1_id, npc1_name, npc2_id, npc2_name, stat_names)
 
 
