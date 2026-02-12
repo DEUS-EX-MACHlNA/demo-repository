@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, List, Optional, Set
 
-from app.schemas import WorldState
+from app.schemas import WorldStatePipelinePipeline
 from app.schemas.lock import UnlockedInfo, LockCheckResult
 from app.condition_eval import evaluate_condition
 
@@ -33,7 +33,7 @@ class LockManager:
 
     def check_unlocks(
         self,
-        world_state: WorldState,
+        world_state: WorldStatePipeline,
         locks_data: Dict[str, Any],
     ) -> LockCheckResult:
         """
@@ -148,7 +148,7 @@ class LockManager:
     def _inject_to_npc_memory(
         self,
         unlocked_info: UnlockedInfo,
-        world_state: WorldState,
+        world_state: WorldStatePipeline,
     ) -> List[str]:
         """
         해금된 정보를 해당 NPC들의 메모리에 즉시 추가합니다.
@@ -211,7 +211,7 @@ if __name__ == "__main__":
     import logging
     from pathlib import Path
     from app.loader import ScenarioLoader
-    from app.schemas import NPCState, WorldState
+    from app.schemas import NPCState, WorldStatePipeline
 
     logging.basicConfig(level=logging.INFO)
 
@@ -247,7 +247,7 @@ if __name__ == "__main__":
     print(f"\n[3] 테스트 1: 초기 상태 (조건 미충족)")
     print("-" * 60)
 
-    world1 = WorldState(
+    world1 = WorldStatePipeline(
         turn=1,
         npcs={
             "brother": NPCState(
@@ -274,7 +274,7 @@ if __name__ == "__main__":
     print(f"\n[4] 테스트 2: 동생 호감도 높음 (brother.affection >= 70)")
     print("-" * 60)
 
-    world2 = WorldState(
+    world2 = WorldStatePipeline(
         turn=5,
         npcs={
             "brother": NPCState(
@@ -313,7 +313,7 @@ if __name__ == "__main__":
     print(f"\n[6] 테스트 3: 복합 조건 충족 (humanity 낮음 + suspicion 높음 + day >= 4)")
     print("-" * 60)
 
-    world3 = WorldState(
+    world3 = WorldStatePipeline(
         turn=35,
         npcs={
             "brother": NPCState(

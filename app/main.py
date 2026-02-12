@@ -25,7 +25,7 @@ from app.schemas import (
     StepRequest,
     StepResponse,
     NightRequestBody,
-    NightTurnResult,
+    NightResponseResult,
     ScenarioInfoResponse,
     StateResponse,
     EndingCheckResult,
@@ -412,14 +412,14 @@ async def day_turn(
 
 @app.post(
     "/v1/scenario/{scenario_id}/night",
-    response_model=NightTurnResult,
+    response_model=NightResponseResult,
     summary="밤 페이즈 실행",
     description="밤 페이즈를 진행합니다. (NightController → EndingChecker)"
 )
 async def night_phase(
     scenario_id: str,
     body: NightRequestBody
-) -> NightTurnResult:
+) -> NightResponseResult:
     """밤 페이즈 실행"""
     logger.info(f"Night request: scenario={scenario_id}, user={body.user_id}")
 
@@ -433,7 +433,7 @@ async def night_phase(
             scenario_id,
         )
 
-        return NightTurnResult(
+        return NightResponseResult(
             dialogue=dialogue,
             night_conversation=conversation,
             ending=ending,

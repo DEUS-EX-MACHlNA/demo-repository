@@ -10,12 +10,11 @@ DEFAULT_MODEL = "Qwen/Qwen2.5-7B-Instruct"
 ALTERNATIVE_MODEL = "LGAI-EXAONE/EXAONE-3.5-7.8B-Instruct"
 
 # LLM 백엔드 타입
-LLMBackend = Literal["langchain", "transformers"]
-DEFAULT_BACKEND: LLMBackend = "transformers"
+LLMBackend = Literal["vLLM", "transformers"]
+DEFAULT_BACKEND: LLMBackend = "vLLM"
 
-# LangChain 설정
-LANGCHAIN_BASE_URL = "https://router.huggingface.co/v1"
-LANGCHAIN_TEMPERATURE = 0.7
+# vLLM 설정
+VLLM_BASE_URL = "https://nontheatrical-judiciarily-susanne.ngrok-free.dev/v1"
 
 # Transformers 설정
 TRANSFORMERS_DEVICE = None  # None이면 자동 감지 (cuda/cpu)
@@ -35,12 +34,12 @@ def get_model_config(backend: LLMBackend | None = None) -> dict:
     """백엔드별 모델 설정 반환"""
     backend = backend or DEFAULT_BACKEND
 
-    if backend == "langchain":
+    if backend == "vLLM":
         return {
             "model": DEFAULT_MODEL,
-            "base_url": LANGCHAIN_BASE_URL,
-            "temperature": LANGCHAIN_TEMPERATURE,
-            "api_key": HF_TOKEN,
+            "base_url": VLLM_BASE_URL,
+            "temperature": DEFAULT_TEMPERATURE,
+            "api_key": "EMPTY",
         }
     elif backend == "transformers":
         return {

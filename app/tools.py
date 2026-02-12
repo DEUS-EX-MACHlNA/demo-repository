@@ -12,7 +12,7 @@ import logging
 from typing import Any, Dict, Optional
 
 from app.loader import ScenarioAssets
-from app.schemas import WorldState
+from app.schemas import WorldStatePipelinePipeline
 from app.llm import UnifiedLLMEngine
 from app.llm.prompt import build_tool_call_prompt
 from app.llm.response import parse_tool_call_response
@@ -41,7 +41,7 @@ _tool_context: Dict[str, Any] = {}
 
 
 def set_tool_context(
-    world_state: WorldState,
+    world_state: WorldStatePipeline,
     assets: ScenarioAssets,
     llm_engine: UnifiedLLMEngine,
 ) -> None:
@@ -61,7 +61,7 @@ def get_tool_context() -> Dict[str, Any]:
 # ============================================================
 def call_tool(
     user_input: str,
-    world_state: WorldState,
+    world_state: WorldStatePipeline,
     assets: ScenarioAssets,
 ) -> Dict[str, Any]:
     """
@@ -407,7 +407,7 @@ TOOLS: Dict[str, callable] = {
 # ============================================================
 def _final_values_to_delta(
     raw_delta: Dict[str, Any],
-    world_state: WorldState,
+    world_state: WorldStatePipeline,
 ) -> Dict[str, Any]:
     """
     LLM이 출력한 최종값을 delta(변화량)로 변환합니다.

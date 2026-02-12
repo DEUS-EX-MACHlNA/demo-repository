@@ -11,7 +11,7 @@ from app.schemas.status import GameStatus
 from app.db_models.scenario import Scenario
 from app.schemas.client_sync import GameClientSyncSchema
 from app.crud import game as crud_game
-from app.schemas.request_response import StepRequestSchema, NightTurnResult
+from app.schemas.request_response import StepRequestSchema, NightResponseResult
 from app.schemas.night import (
     NightLogResponse,
     NightExposedLog,
@@ -75,8 +75,8 @@ def get_game(game_id: int, db: Session = Depends(get_db)) -> GameClientSyncSchem
     return game
 
 # 밤 파이프라인 실행
-@router.post("/{game_id}/night", summary="밤 파이프라인 실행", response_model=NightTurnResult)
-def night_game(game_id: int, db: Session = Depends(get_db)) -> NightTurnResult:
+@router.post("/{game_id}/night", summary="밤 파이프라인 실행", response_model=NightResponseResult)
+def night_game(game_id: int, db: Session = Depends(get_db)) -> NightResponseResult:
     game = db.query(Games).filter(Games.id == game_id).first()
     if not game:
         raise HTTPException(status_code=404, detail="게임을 찾을 수 없습니다.")

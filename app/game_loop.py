@@ -30,7 +30,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from app.loader import ScenarioLoader, ScenarioAssets
-from app.schemas import WorldState, NPCState, NightResult
+from app.schemas import WorldStatePipelinePipeline, NPCState, NightResult
 from app.narrative import get_narrative_layer, NarrativeLayer
 from app.night_controller import get_night_controller, NightController
 from app.day_controller import get_day_controller, DayController
@@ -50,7 +50,7 @@ class GameLoop:
         self,
         scenario_id: str,
         scenarios_path: Path | str | None = None,
-        world: WorldState | None = None,
+        world: WorldStatePipeline | None = None,
     ):
         """
         GameLoop 초기화
@@ -81,7 +81,7 @@ class GameLoop:
 
         logger.info(f"[GameLoop] initialized: scenario={scenario_id}")
 
-    def _init_world_from_scenario(self) -> WorldState:
+    def _init_world_from_scenario(self) -> WorldStatePipeline:
         """시나리오에서 초기 월드 상태 생성"""
         schema = self._assets.scenario.get("state_schema", {})
         vars_schema = schema.get("vars", {})
@@ -107,7 +107,7 @@ class GameLoop:
                     stats=dict(stats),
                 )
 
-        return WorldState(
+        return WorldStatePipeline(
             turn=1,
             npcs=npcs,
             inventory=[],
@@ -115,7 +115,7 @@ class GameLoop:
         )
 
     @property
-    def world(self) -> WorldState:
+    def world(self) -> WorldStatePipeline:
         """현재 월드 상태"""
         return self._world
 

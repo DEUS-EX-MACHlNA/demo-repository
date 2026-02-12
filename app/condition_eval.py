@@ -2,7 +2,7 @@
 app/condition_eval.py
 공용 조건 평가기 — LockManager, EndingChecker 등에서 공통 사용
 
-조건 문자열을 파싱하고 WorldState 기반으로 평가합니다.
+조건 문자열을 파싱하고 WorldStatePipeline 기반으로 평가합니다.
 """
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ import logging
 import re
 from typing import Any, Dict, List, Optional, Union
 
-from app.schemas import WorldState
+from app.schemas import WorldStatePipelinePipeline
 from app.schemas.condition import EvalContext
 
 logger = logging.getLogger(__name__)
@@ -42,7 +42,7 @@ class ConditionEvaluator:
 
         Args:
             condition: 조건 문자열
-            context: 평가 컨텍스트 (WorldState, turn_limit 등)
+            context: 평가 컨텍스트 (WorldStatePipeline, turn_limit 등)
 
         Returns:
             조건 충족 여부
@@ -221,7 +221,7 @@ def get_condition_evaluator() -> ConditionEvaluator:
 # ============================================================
 def evaluate_condition(
     condition: str,
-    world_state: WorldState,
+    world_state: WorldStatePipeline,
     turn_limit: int = 50,
 ) -> bool:
     """
@@ -245,7 +245,7 @@ def evaluate_condition(
 # ============================================================
 if __name__ == "__main__":
     import logging
-    from app.schemas import NPCState, WorldState
+    from app.schemas import NPCState, WorldStatePipeline
 
     logging.basicConfig(level=logging.INFO)
 
@@ -254,7 +254,7 @@ if __name__ == "__main__":
     print("=" * 60)
 
     # 테스트용 월드 상태 생성
-    world = WorldState(
+    world = WorldStatePipeline(
         turn=5,
         npcs={
             "button_mother": NPCState(
