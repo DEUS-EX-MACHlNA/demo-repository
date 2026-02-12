@@ -181,17 +181,10 @@ async def execute_day_pipeline(
         # Step 6: EndingChecker - 엔딩 체크
         step_start = time.time()
         ending_result: EndingCheckResult = check_ending(world_after, assets)
-        ending_info = None
+        ending_info = ending_result.to_ending_info_dict()
         if ending_result.reached:
-            ending_info = {
-                "ending_id": ending_result.ending.ending_id,
-                "name": ending_result.ending.name,
-                "epilogue_prompt": ending_result.ending.epilogue_prompt,
-            }
-            # 엔딩 delta 적용 (flag_set 등)
-            if ending_result.triggered_delta:
-                wsm.apply_delta(user_id, scenario_id, ending_result.triggered_delta, assets)
-                wsm.persist(user_id, scenario_id, world_after)
+            wsm.apply_delta(user_id, scenario_id, ending_result.triggered_delta.to_dict(), assets)
+            wsm.persist(user_id, scenario_id, world_after)
 
         debug["steps"].append({
             "step": "ending_check",
@@ -313,16 +306,10 @@ async def execute_night_pipeline(
         # Step 5: EndingChecker - 엔딩 체크
         step_start = time.time()
         ending_result: EndingCheckResult = check_ending(world_after, assets)
-        ending_info = None
+        ending_info = ending_result.to_ending_info_dict()
         if ending_result.reached:
-            ending_info = {
-                "ending_id": ending_result.ending.ending_id,
-                "name": ending_result.ending.name,
-                "epilogue_prompt": ending_result.ending.epilogue_prompt,
-            }
-            if ending_result.triggered_delta:
-                wsm.apply_delta(user_id, scenario_id, ending_result.triggered_delta, assets)
-                wsm.persist(user_id, scenario_id, world_after)
+            wsm.apply_delta(user_id, scenario_id, ending_result.triggered_delta.to_dict(), assets)
+            wsm.persist(user_id, scenario_id, world_after)
 
         debug["steps"].append({
             "step": "ending_check",

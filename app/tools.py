@@ -12,10 +12,11 @@ import logging
 from typing import Any, Dict, Optional
 
 from app.loader import ScenarioAssets
-from app.schemas import WorldStatePipelinePipeline
+from app.schemas import WorldStatePipeline
 from app.llm import UnifiedLLMEngine
 from app.llm.prompt import build_tool_call_prompt
 from app.llm.response import parse_tool_call_response
+from app.postprocess import postprocess_npc_dialogue
 
 logger = logging.getLogger(__name__)
 
@@ -198,6 +199,14 @@ def interact(target: str, interact: str) -> Dict[str, Any]:
         llm=llm_engine,
         current_turn=world_state.turn,
         world_snapshot=world_snapshot,
+    )
+
+    # 3-1. NPC 대사 후처리 (글리치/광기 효과 적용)
+    npc_humanity = npc_state.stats.get("humanity", 100) if npc_state else 100
+    npc_response = postprocess_npc_dialogue(
+        text=npc_response,
+        npc_id=target,
+        humanity=npc_humanity,
     )
     logger.info(f"NPC 응답: {npc_response[:80]}...")
 
