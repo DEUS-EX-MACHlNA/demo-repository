@@ -549,7 +549,7 @@ class GameService:
         db: Session,
         game_id: int,
         game: Games,
-    ) -> NightTurnResult:
+    ) -> NightResponseResult:
         """
         밤 파이프라인 실행:
         LockManager → NightController → Delta 적용 → EndingChecker → NarrativeLayer
