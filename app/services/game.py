@@ -24,10 +24,19 @@ from app.schemas.world_meta_data import WorldDataSchema, LocksSchemaList
 from app.schemas.npc_info import NpcCollectionSchema
 from app.schemas.player_info import PlayerSchema
 from app.schemas.item_info import ItemSchema
-from app.schemas.request_response import StepRequestSchema, StepResponseSchema, NightTurnResult
+from app.schemas.request_response import StepRequestSchema, StepResponseSchema, NightResponseResult
 from app.schemas.status import ItemStatus, LogType
 from app.schemas.game_state import NPCState, WorldStatePipeline, StateDelta
 from app.schemas.tool import ToolResult
+from app.schemas.night import NightResult
+from app.lock_manager import get_lock_manager
+from app.ending_checker import check_ending
+from app.narrative import get_narrative_layer
+from app.day_controller import get_day_controller
+from app.night_controller import get_night_controller
+import logging
+
+logger=logging.getLogger(__name__)
 
 from app.crud.chat_log import create_chat_log
 from app.day_controller import get_day_controller
@@ -155,7 +164,7 @@ def _apply_delta(
     delta_dict: Dict[str, Any],
     assets: ScenarioAssets | None = None,
 ) -> WorldStatePipeline:
-    """StateDelta를 WorldState에 적용 (in-place 변경 후 반환)"""
+    """StateDelta를 WorldStatePipeline에 적용 (in-place 변경 후 반환)"""
     delta = StateDelta.from_dict(delta_dict)
 
     # 1. NPC stats (delta + clamp 0~100)
@@ -338,6 +347,111 @@ class GameService:
         game.npc_data = npc_data
         flag_modified(game, "npc_data")
 
+    # ============================================================
+    # 코랩 테스팅용 목업 데이터 생성 함수 (YAML 파일 기반)
+    # ============================================================
+
+    @staticmethod
+    def mock_load_scenario_assets_from_yaml(scenario_id: str = "coraline") -> ScenarioAssets:
+        """
+        [TESTING] 실제 YAML 파일을 읽어서 ScenarioAssets 생성
+        코랩에서 DB 없이 테스트할 때 사용
+
+        Args:
+            scenario_id: 로드할 시나리오 ID (기본값: "coraline")
+
+        Returns:
+            ScenarioAssets: 로드된 시나리오 에셋
+        """
+        project_root = Path(__file__).parent.parent.parent
+        scenarios_dir = project_root / "scenarios"
+
+        loader = ScenarioLoader(base_path=scenarios_dir)
+        assets = loader.load(scenario_id)
+
+        print(f"[MOCK] Loaded ScenarioAssets from YAML: {scenario_id}")
+        print(f"  - NPCs: {len(assets.get_all_npc_ids())}")
+        print(f"  - Items: {len(assets.get_all_item_ids())}")
+        print(f"  - State Schema Vars: {list(assets.get_state_schema().get('vars', {}).keys())}")
+
+        return assets
+
+    @staticmethod
+    def mock_create_world_state_from_yaml(scenario_id: str = "coraline") -> WorldStatePipeline:
+        """
+        [TESTING] 실제 YAML 파일을 읽어서 초기 WorldState 생성
+        코랩에서 DB 없이 테스트할 때 사용
+
+        Args:
+            scenario_id: 로드할 시나리오 ID (기본값: "coraline")
+
+        Returns:
+            WorldState: 초기화된 월드 상태
+        """
+        # 1. ScenarioAssets 로드
+        project_root = Path(__file__).parent.parent.parent
+        scenarios_dir = project_root / "scenarios"
+        loader = ScenarioLoader(base_path=scenarios_dir)
+        assets = loader.load(scenario_id)
+
+        # 2. NPCState 생성 (YAML의 npcs 데이터 기반)
+        npcs = {}
+        for npc_dict in assets.npcs.get("npcs", []):
+            npc_id = npc_dict.get("npc_id")
+            if not npc_id:
+                continue
+
+            # stats 필드에서 초기 스탯 가져오기
+            stats = npc_dict.get("stats", {})
+
+            npcs[npc_id] = NPCState(
+                npc_id=npc_id,
+                stats=dict(stats),  # affection, fear, humanity 등
+                memory={}  # 초기 메모리는 비어있음
+            )
+
+        # 3. 초기 인벤토리 (YAML items에서 acquire.method == "start"인 것들)
+        initial_inventory = assets.get_initial_inventory()
+
+        # 4. 초기 locks (모두 잠금 상태로 시작)
+        locks = {}
+        if "locks" in assets.extras:
+            locks_data = assets.extras["locks"]
+            if isinstance(locks_data, dict) and "locks" in locks_data:
+                for lock in locks_data["locks"]:
+                    info_id = lock.get("info_id")
+                    if info_id:
+                        locks[info_id] = lock.get("is_unlocked", False)
+
+        # 5. 초기 vars (state_schema에서 default 값 가져오기)
+        vars_data = {}
+        state_schema = assets.get_state_schema()
+        for var_name, var_config in state_schema.get("vars", {}).items():
+            vars_data[var_name] = var_config.get("default", 0)
+
+        # 6. 초기 flags (state_schema에서 default 값 가져오기)
+        flags_data = {}
+        for flag_name, flag_config in state_schema.get("flags", {}).items():
+            flags_data[flag_name] = flag_config.get("default", None)
+
+        world_state = WorldStatePipeline(
+            turn=1,
+            npcs=npcs,
+            flags=flags_data,
+            inventory=initial_inventory,
+            locks=locks,
+            vars=vars_data
+        )
+
+        print(f"[MOCK] Created WorldState from YAML: {scenario_id}")
+        print(f"  - Turn: {world_state.turn}")
+        print(f"  - NPCs: {list(world_state.npcs.keys())}")
+        print(f"  - Initial Inventory: {world_state.inventory}")
+        print(f"  - Vars: {world_state.vars}")
+        print(f"  - Flags: {world_state.flags}")
+
+        return world_state
+
     @classmethod
     def process_turn(
         cls,
@@ -347,12 +461,8 @@ class GameService:
         game: Games,
     ) -> StepResponseSchema:
         """
-        필요한 인자
-        1. 유저 입력
-        2. game state data
-        3. 시나리오 에셋
         낮 파이프라인 실행:
-        LockManager → DayController → EndingChecker → NarrativeLayer
+        LockManager → DayController → EndingChecker → NarrativeLayer → DB 저장
         """
         
         
@@ -368,10 +478,6 @@ class GameService:
         lock_manager = get_lock_manager()
         locks_data = assets.extras.get("locks", {})
         lock_result = lock_manager.check_unlocks(world_state, locks_data)
-        debug["steps"].append({
-            "step": "lock_check",
-            "newly_unlocked": [info.info_id for info in lock_result.newly_unlocked],
-        })
 
         # ── Step 4: DayController - 낮 턴 실행 ──
         user_input = input_data.to_combined_string()
@@ -391,12 +497,10 @@ class GameService:
         # ToolResult 객체로 변환하여 보존
         tool_result = make_mock_tool_result(user_input)
         
-        print(f"[GameService] DayController Result: {tool_result}")
-
+        logger.debug(f"DayController result: {tool_result}")
 
         # ── Step 5: Delta 적용 ──
         world_after = _apply_delta(world_state, tool_result.state_delta, assets)
-        debug["turn_after"] = world_after.turn
 
         # ── Step 6: EndingChecker - 엔딩 체크 ──
         ending_result = check_ending(world_after, assets)
@@ -409,11 +513,6 @@ class GameService:
             }
             if ending_result.triggered_delta:
                 _apply_delta(world_after, ending_result.triggered_delta, assets)
-
-        debug["steps"].append({
-            "step": "ending_check",
-            "reached": ending_result.reached,
-        })
 
         # ── Step 7: NarrativeLayer - 나레이션 생성 ──
         try:
@@ -470,7 +569,7 @@ class GameService:
         db: Session,
         game_id: int,
         game: Games,
-    ) -> NightTurnResult:
+    ) -> NightResponseResult:
         """
         밤 파이프라인 실행:
         LockManager → NightController → Delta 적용 → EndingChecker → NarrativeLayer
@@ -496,23 +595,16 @@ class GameService:
         lock_manager = get_lock_manager()
         locks_data = assets.extras.get("locks", {})
         lock_result = lock_manager.check_unlocks(world_state, locks_data)
-        debug["steps"].append({
-            "step": "lock_check",
-            "newly_unlocked": [info.info_id for info in lock_result.newly_unlocked],
-        })
 
         # ── Step 4: NightController - 밤 턴 실행 ──
         night_controller = get_night_controller()
-        night_result = night_controller.process(world_state, assets)
-        debug["steps"].append({
-            "step": "night_turn",
-            "night_delta": night_result.night_delta,
-            "utterance_count": len(night_result.night_conversation),
-        })
+        night_result: NightResult = night_controller.process(
+            world_state, 
+            assets
+            )
 
         # ── Step 5: Delta 적용 ──
         world_after = _apply_delta(world_state, night_result.night_delta, assets)
-        debug["turn_after"] = world_after.turn
 
         # ── Step 6: EndingChecker - 엔딩 체크 ──
         ending_result = check_ending(world_after, assets)
@@ -526,11 +618,6 @@ class GameService:
             if ending_result.triggered_delta:
                 _apply_delta(world_after, ending_result.triggered_delta, assets)
 
-        debug["steps"].append({
-            "step": "ending_check",
-            "reached": ending_result.reached,
-        })
-
         # ── Step 7: NarrativeLayer - 나레이션 생성 ──
         narrative_layer = get_narrative_layer()
         if ending_info:
@@ -540,10 +627,12 @@ class GameService:
                 assets,
             )
         else:
-            narrative = narrative_layer.render_night(
+            narrative = narrative_layer.render(
                 world_after,
                 assets,
-                night_result.night_conversation,
+                event_description=night_result.night_description,
+                state_delta=night_result.night_delta,
+                night_conversation=night_result.night_conversation,
             )
 
         # ── Step 8: WorldStatePipeline → DB 반영 + 저장 ──
@@ -561,11 +650,10 @@ class GameService:
             f"turn={world_after.turn}, ending={ending_result.reached}"
         )
 
-        return NightTurnResult(
-            dialogue=narrative,
-            night_conversation=night_result.night_conversation,
-            ending=ending_info,
-            debug=debug,
+        return NightResponseResult(
+            narrative=narrative,
+            world_state=world_after.to_dict(),
+            ending_info=ending_info,
         )
 
     @staticmethod

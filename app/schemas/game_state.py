@@ -68,6 +68,8 @@ class WorldStatePipeline(BaseModel):
     npcs: Dict[str, NPCState] = Field(default_factory=dict)
     flags: Dict[str, Any] = Field(default_factory=dict)
     inventory: List[str] = Field(default_factory=list)
+    # item_state_changes
+
     locks: Dict[str, bool] = Field(default_factory=dict)
     vars: Dict[str, Any] = Field(default_factory=dict)
 
@@ -107,7 +109,7 @@ class StateDelta(BaseModel):
     inventory_remove: List[str] = Field(default_factory=list)
     locks: Dict[str, bool] = Field(default_factory=dict)
     vars: Dict[str, Any] = Field(default_factory=dict)
-    turn_increment: int = 0
+    turn_increment: int = 1
     memory_updates: Dict[str, Any] = Field(default_factory=dict)
     next_node: Optional[str] = None
 

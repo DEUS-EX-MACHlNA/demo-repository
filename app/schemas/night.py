@@ -5,7 +5,7 @@ Night 페이즈 관련 스키마
 from typing import Any, Dict, List, Optional
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class NightResult(BaseModel):
@@ -15,6 +15,7 @@ class NightResult(BaseModel):
     """
     night_delta: Dict[str, Any]
     night_conversation: List[Dict[str, str]]
+    night_description: List[str] = Field(default_factory=list)
 
 
 class NightExposedLog(BaseModel):

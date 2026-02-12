@@ -7,20 +7,9 @@ from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
 
 
-class StepResponseSchema(BaseModel):
-    """낮 파이프라인 실행 결과"""
-    narrative: str
-    ending_info: Optional[Dict[str, Any]] = None
-
-    # 이 부분은 나중에 아이템 상태를 부르거나 npc의 상태를 추가로 넣으면 되겠지
-    state_result: Dict[str, Any] = Field(default_factory=dict) # Renamed to result
-    debug: Dict[str, Any] = Field(default_factory=dict)
-
-
-
 
 # ============================================================
-# Step 요청 (game 라우터용)
+# Step 요청/응답 (game 라우터용)
 # ============================================================
 class StepRequestSchema(BaseModel):
     """게임 대화 요청 (game 라우터)"""
@@ -39,6 +28,13 @@ class StepRequestSchema(BaseModel):
         parts.append(self.chat_input)
         return " ".join(parts)
 
+class StepResponseSchema(BaseModel):
+    """낮 파이프라인 실행 결과"""
+    narrative: str
+    ending_info: Optional[Dict[str, Any]] = None
+    # 이 부분은 나중에 아이템 상태를 부르거나 npc의 상태를 추가로 넣으면 되겠지
+    state_result: Dict[str, Any] = Field(default_factory=dict) # Renamed to result
+    debug: Dict[str, Any] = Field(default_factory=dict)
 
 # ============================================================
 # Night 요청/응답
@@ -48,11 +44,11 @@ class NightRequestBody(BaseModel):
     user_id: str
 
 
-class NightTurnResult(BaseModel):
+class NightResponseResult(BaseModel):
     """밤 파이프라인 실행 결과"""
-    dialogue: str
-    night_conversation: List[Dict[str, str]]
-    ending: Optional[Dict[str, Any]] = None
+    narrative: str
+    ending_info: Optional[Dict[str, Any]] = None
+    world_state: Dict[str, Any] = Field(default_factory=dict)
     debug: Dict[str, Any] = Field(default_factory=dict)
 
 

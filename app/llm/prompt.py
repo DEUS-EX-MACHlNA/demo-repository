@@ -104,20 +104,6 @@ SYSTEM_PROMPT_FAMILY_MEETING = """당신은 호러 인터랙티브 노벨 "코�
 # ============================================================
 # 의도별 시스템 프롬프트
 # ============================================================
-SYSTEM_PROMPT_TALK = """당신은 인터랙티브 노벨 게임의 내러티브 엔진이다.
-사용자가 NPC에게 대화를 시도하거나 질문하는 상황을 처리하라.
-
-[목표]
-- NPC의 대화 반응을 생성
-- NPC 스탯 변화에 집중 (시나리오에 정의된 스탯 사용)
-- NPC의 성격, 기억, 현재 감정 상태를 반영
-
-[규칙]
-- 사건 묘사는 최대한 짧고 핵심만 담을 것 (한 문장 이내 권장)
-- NPC 스탯 변화는 반드시 state_delta.npc_stats에 최종값으로 출력
-- 과도한 설명·수식어 금지
-"""
-
 SYSTEM_PROMPT_ACTION = """당신은 인터랙티브 노벨 게임의 내러티브 엔진이다.
 사용자가 장소 이동, 조사, 관찰 등 일반적인 행동을 수행하는 상황을 처리하라.
 
@@ -169,52 +155,6 @@ SYSTEM_PROMPT = """당신은 인터랙티브 노벨 게임의 내러티브 엔�
 # ============================================================
 # 의도별 프롬프트 빌더
 # ============================================================
-def build_talk_prompt(
-    message: str,
-    user_memory: Dict[str, Any] | None = None,
-    npc_memory: Dict[str, Any] | None = None,
-    npc_context: List[str] | None = None,
-    world_state: Dict | None = None,
-    assets: "ScenarioAssets | None" = None,
-) -> str:
-    """talk 의도 전용 프롬프트 생성"""
-    prompt_parts = [SYSTEM_PROMPT_TALK]
-
-    if world_state:
-        prompt_parts.append(
-            "[세계 상태]\n" +
-            "\n".join(f"- {k}: {v}" for k, v in world_state.items())
-        )
-
-    if user_memory:
-        prompt_parts.append(
-            "[사용자 기억]\n" +
-            "\n".join(f"- {k}: {v}" for k, v in user_memory.items())
-        )
-
-    if npc_memory:
-        prompt_parts.append(
-            "[NPC 기억]\n" +
-            "\n".join(f"- {k}: {v}" for k, v in npc_memory.items())
-        )
-
-    if npc_context:
-        prompt_parts.append(
-            "[등장인물]\n" + "\n".join(npc_context)
-        )
-
-    prompt_parts.append(
-        "[대화 내용]\n" + message
-    )
-
-    # 동적 OUTPUT_FORMAT 생성
-    npc_stat_names = assets.get_npc_stat_names() if assets else None
-    prompt_parts.append(build_output_format(npc_stat_names))
-    prompt_parts.append("[출력]\n")
-
-    return "\n\n".join(prompt_parts)
-
-
 def build_action_prompt(
     action: str,
     user_state: Dict[str, Any] | None = None,
@@ -300,41 +240,97 @@ def build_item_prompt(
 
 
 # ============================================================
-# 기존 통합 프롬프트 빌더 (하위 호환성)
+# Tool Calling 프롬프트 빌더
 # ============================================================
-def build_prompt(
+def _format_npc_list(npc_info_list: list) -> str:
+    """NPC 목록을 포맷팅"""
+    if not npc_info_list:
+        return "없음"
+    lines = []
+    for npc in npc_info_list:
+        aliases = ", ".join(npc["aliases"]) if npc.get("aliases") else "없음"
+        lines.append(f"- {npc['name']} (ID: {npc['id']}, 별칭: {aliases})")
+    return "\n".join(lines)
+
+
+def _format_inventory(inventory_info: list) -> str:
+    """인벤토리를 포맷팅"""
+    if not inventory_info:
+        return "없음"
+    lines = []
+    for item in inventory_info:
+        lines.append(f"- {item['name']} (ID: {item['id']})")
+    return "\n".join(lines)
+
+
+def build_tool_call_prompt(
     user_input: str,
-    world_state: Dict,
-    memory_summary: str | None = None,
-    npc_context: List[str] | None = None,
+    npc_info_list: list,
+    inventory_info: list,
 ) -> str:
-    """프롬프트 생성 (기존 통합 방식)"""
-    prompt_parts = [SYSTEM_PROMPT]
+    """Tool calling 전용 프롬프트 생성
 
-    if world_state:
-        prompt_parts.append(
-            "[세계 상태]\n" +
-            "\n".join(f"- {k}: {v}" for k, v in world_state.items())
-        )
+    Args:
+        user_input: 사용자 입력 텍스트
+        npc_info_list: NPC 정보 리스트 [{"id": str, "name": str, "aliases": list}, ...]
+        inventory_info: 인벤토리 정보 리스트 [{"id": str, "name": str}, ...]
 
-    if memory_summary:
-        prompt_parts.append(
-            "[이전 요약]\n" + memory_summary
-        )
+    Returns:
+        Tool calling 프롬프트 문자열
+    """
+    return f"""당신은 텍스트 어드벤처 게임의 Tool 선택기입니다.
+사용자의 입력을 분석하여 적절한 tool, 인자, 그리고 행동 의도(intent)를 선택하세요.
 
-    if npc_context:
-        prompt_parts.append(
-            "[등장인물]\n" + "\n".join(npc_context)
-        )
+## 사용 가능한 Tools
 
-    prompt_parts.append(
-        "[사용자 입력]\n" + user_input
-    )
+1. **interact**: NPC와 대화/상호작용
+   - target: NPC ID (필수)
+   - interact: 대화 내용 (필수)
 
-    prompt_parts.append(OUTPUT_FORMAT)
-    prompt_parts.append("[출력]\n")
+2. **action**: 일반 행동 (이동, 조사, 관찰 등)
+   - action: 행동 내용 (필수)
 
-    return "\n\n".join(prompt_parts)
+3. **use**: 아이템 사용
+   - item: 아이템 ID (필수)
+   - action: 사용 방법 (필수)
+
+## Intent (행동 의도) 분류
+
+플레이어의 행동이 어떤 의도인지 판단하세요:
+
+- **investigate**: 조사, 탐색, 정보 수집 (예: "주변을 살펴본다", "서랍을 뒤진다", "수상한 곳을 조사한다")
+- **obey**: 복종, 순응, 가족의 지시 따르기 (예: "엄마 말대로 한다", "시키는 대로 한다", "착하게 행동한다")
+- **rebel**: 반항, 저항, 규칙 어기기 (예: "거부한다", "반항한다", "도망치려 한다", "공격한다")
+- **reveal**: 진실 폭로, 과거 상기시키기 (예: "진짜 가족사진을 보여준다", "정체를 폭로한다")
+- **summarize**: 하루 정리, 회상, 일기 쓰기 (예: "오늘 하루를 정리한다", "일기를 쓴다")
+- **neutral**: 위 어느 것에도 해당하지 않는 일반 행동
+
+## 현재 상황
+
+NPC 목록:
+{_format_npc_list(npc_info_list)}
+
+인벤토리:
+{_format_inventory(inventory_info)}
+
+## 사용자 입력
+"{user_input}"
+
+## 응답 형식
+반드시 아래 JSON 형식으로만 응답하세요:
+```json
+{{
+  "tool_name": "interact" | "action" | "use",
+  "args": {{ ... }},
+  "intent": "investigate" | "obey" | "rebel" | "reveal" | "summarize" | "neutral"
+}}
+```
+
+예시:
+- "엄마에게 순순히 인사한다" → {{"tool_name": "interact", "args": {{"target": "stepmother", "interact": "엄마에게 순순히 인사한다"}}, "intent": "obey"}}
+- "몰래 부엌을 뒤진다" → {{"tool_name": "action", "args": {{"action": "몰래 부엌을 뒤진다"}}, "intent": "investigate"}}
+- "진짜 가족사진을 아빠에게 보여준다" → {{"tool_name": "use", "args": {{"item": "real_family_photo", "action": "아빠에게 보여준다"}}, "intent": "reveal"}}
+"""
 
 
 # ============================================================

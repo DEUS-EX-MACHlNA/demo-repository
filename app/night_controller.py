@@ -21,7 +21,7 @@ from app.loader import ScenarioAssets
 from app.schemas import NightResult, WorldStatePipeline
 
 from app.agents.dialogue import (
-    _generate_utterance,
+    generate_utterance,
     analyze_conversation_impact,
     store_dialogue_memories,
 )
@@ -79,19 +79,37 @@ class NightController:
         # Phase 2: 계획 수립
         self._run_planning(world_snapshot, assets, npc_ids, turn, llm)
 
+        # world_snapshot dict / world_context 조립 (낮과 동일 구조)
+        ws_dict = {
+            "day": world_snapshot.vars.get("day", 1),
+            "turn": turn,
+            "suspicion_level": world_snapshot.vars.get("suspicion_level", 0),
+            "player_humanity": world_snapshot.vars.get("humanity", 100),
+            "flags": {k: v for k, v in world_snapshot.flags.items() if v},
+            "node_id": world_snapshot.vars.get("node_id", "unknown"),
+            "inventory": world_snapshot.inventory,
+            "genre": assets.scenario.get("genre", ""),
+            "tone": assets.scenario.get("tone", ""),
+        }
+        world_context = {
+            "suspicion_level": world_snapshot.vars.get("suspicion_level", 0),
+            "player_humanity": world_snapshot.vars.get("humanity", 100),
+        }
+
         # Phase 3: 그룹 대화 생성 (3명이 함께 대화)
-        night_conversation = self._run_dialogues(world_snapshot, assets, npc_ids, turn, llm)
+        night_conversation = self._run_dialogues(world_snapshot, assets, npc_ids, turn, llm, ws_dict)
 
         # Phase 4: 대화 영향 분석
-        self._analyze_impacts(night_conversation, npc_ids, assets, llm, night_delta)
+        night_description = self._analyze_impacts(night_conversation, npc_ids, assets, llm, night_delta, world_context)
 
         logger.info(
-            f"[NightController] done: utterances={len(night_conversation)}"
+            f"[NightController] done: utterances={len(night_conversation)}, descriptions={len(night_description)}"
         )
 
         return NightResult(
             night_delta=night_delta,
             night_conversation=night_conversation,
+            night_description=night_description,
         )
 
     # ── Phase 1: 성찰 ────────────────────────────────────────
@@ -152,6 +170,7 @@ class NightController:
         npc_ids: list[str],
         turn: int,
         llm: GenerativeAgentsLLM,
+        ws_dict: dict[str, Any] | None = None,
     ) -> list[dict[str, str]]:
         """Caroline의 NPC 3명이 함께 대화. 총 6번 발화."""
         if len(npc_ids) < 2:
@@ -183,7 +202,7 @@ class NightController:
             ]
             listener_str = ", ".join(other_names)
 
-            utterance = _generate_utterance(
+            utterance = generate_utterance(
                 speaker_id,
                 speaker["name"],
                 speaker["persona"],
@@ -193,6 +212,7 @@ class NightController:
                 conversation,
                 llm,
                 current_turn=turn,
+                world_snapshot=ws_dict,
             )
             conversation.append({"speaker": speaker["name"], "text": utterance})
 
@@ -224,13 +244,19 @@ class NightController:
         assets: ScenarioAssets,
         llm: GenerativeAgentsLLM,
         night_delta: dict[str, Any],
-    ) -> None:
+        world_context: dict[str, Any] | None = None,
+    ) -> list[str]:
         """그룹 대화가 각 NPC에 미친 영향 분석.
 
         모든 NPC 쌍에 대해 analyze_conversation_impact를 호출하여 집계.
+
+        Returns:
+            night_description: 대화에서 발생한 핵심 사건 묘사 리스트
         """
+        night_description: list[str] = []
+
         if len(npc_ids) < 2:
-            return
+            return night_description
 
         stat_names = assets.get_npc_stat_names()
 
@@ -239,13 +265,17 @@ class NightController:
             for npc2_id in npc_ids[i + 1:]:
                 d1 = assets.get_npc_by_id(npc1_id) or {}
                 d2 = assets.get_npc_by_id(npc2_id) or {}
-                changes = analyze_conversation_impact(
+                result = analyze_conversation_impact(
                     npc1_id, d1.get("name", npc1_id), d1.get("persona", {}),
                     npc2_id, d2.get("name", npc2_id), d2.get("persona", {}),
                     conversation, llm,
                     stat_names=stat_names,
+                    world_context=world_context,
                 )
-                for npc_id, stat_changes in changes.items():
+
+                # npc_stats 집계
+                npc_stats = result.get("npc_stats", {})
+                for npc_id, stat_changes in npc_stats.items():
                     if not stat_changes:
                         continue
                     night_delta["npc_stats"].setdefault(npc_id, {})
@@ -253,6 +283,11 @@ class NightController:
                         night_delta["npc_stats"][npc_id][stat] = (
                             night_delta["npc_stats"][npc_id].get(stat, 0) + val
                         )
+
+                # event_description 수집
+                night_description.extend(result.get("event_description", []))
+
+        return night_description
 
 
 # ── 싱글턴 ────────────────────────────────────────────────────

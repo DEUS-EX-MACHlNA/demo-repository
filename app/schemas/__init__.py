@@ -51,7 +51,7 @@ from app.schemas.request_response import (
     StepResponseSchema,
     StepRequestSchema,
     NightRequestBody,
-    NightTurnResult,
+    NightResponseResult,
     ScenarioInfoResponse,
     StateResponse,
     GameResponse,
@@ -129,8 +129,8 @@ __all__ = [
     # Tool
     "ToolCall", "ToolResult",
     # Request/Response
-    "StepResponseSchema",
-    "StepRequestSchema", "NightRequestBody", "NightTurnResult",
+    "UserInputSchema", "StepRequest", "StepResponse", "TurnResult",
+    "StepRequestSchema", "NightRequestBody", "NightResponseResult",
     "ScenarioInfoResponse", "StateResponse", "GameResponse",
     # Memory
     "MemoryEntrySchema", "MemoryStreamSchema",
@@ -143,8 +143,7 @@ __all__ = [
     "GameClientSyncSchema",
     # World Data
     "CurrentStateSchema", "LockSchema", "LocksSchemaList",
-    "StoryNodeSchema", "StoryGraphSchema", "EndingSchema",
-    "ScenarioSchema", "WorldDataSchema",
+    "EndingSchema", "ScenarioSchema", "WorldDataSchema",
     # Ending / Lock / Condition
     "EndingInfo", "EndingCheckResult",
     "UnlockedInfo", "LockCheckResult",

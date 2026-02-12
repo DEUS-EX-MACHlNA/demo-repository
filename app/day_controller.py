@@ -76,11 +76,11 @@ class DayController:
             logger.warning(f"[DayController] 알 수 없는 tool: {tool_name}")
             result = TOOLS["action"](action=user_input)
 
-        # 5. Tool 결과를 delta로 변환
-        tool_delta = _final_values_to_delta(
-            result.get("state_delta", {}),
-            world_state
-        )
+        # 5. Tool 결과를 delta로 변환 > delta를 반환하는 것으로 수정됨
+        # tool_delta = _final_values_to_delta(
+        #     result.get("state_delta", {}),
+        #     world_state
+        # )
 
         # 6. Rule Engine 적용: intent 기반 자동 상태 변화
         active_npc_id = result.get("npc_id")  # interact에서 반환되는 npc_id
@@ -92,7 +92,7 @@ class DayController:
         logger.info(f"[DayController] Rule Engine 적용: intent={intent}, rule_delta={rule_delta}")
 
         # 7. Tool delta + Rule delta 병합
-        merged_delta = merge_rule_delta(tool_delta, rule_delta)
+        merged_delta = merge_rule_delta(result.get("state_delta"), rule_delta)
         logger.info(f"[DayController] Delta 병합 완료: {merged_delta}")
 
         tool_result = ToolResult(

@@ -23,7 +23,7 @@ from app.schemas import (
     ToolResult,
     WorldStatePipeline,
     NightRequestBody,
-    NightTurnResult,
+    NightResponseResult,
     ScenarioInfoResponse,
     StateResponse,
     EndingCheckResult,
@@ -211,11 +211,12 @@ async def execute_day_pipeline(
             )
         else:
             dialogue = await asyncio.to_thread(
-                narrative.render_day,
+                narrative.render,
+                world_after,
+                assets,
                 tool_result.event_description,
                 tool_result.state_delta,
-                world_after,
-                assets
+                tool_result.npc_response,
             )
         debug["steps"].append({
             "step": "render",
@@ -341,9 +342,12 @@ async def execute_night_pipeline(
             )
         else:
             dialogue = await asyncio.to_thread(
-                narrative.render_night,
+                narrative.render,
                 world_after,
                 assets,
+                None,  # event_description
+                None,  # state_delta
+                None,  # npc_response
                 night_result.night_conversation,
             )
         debug["steps"].append({

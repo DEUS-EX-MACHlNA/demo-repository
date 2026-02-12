@@ -8,14 +8,14 @@ Tool 시스템 통합
 """
 from __future__ import annotations
 
-import json
 import logging
-import re
 from typing import Any, Dict, Optional
 
 from app.loader import ScenarioAssets
 from app.schemas import WorldStatePipeline
 from app.llm import UnifiedLLMEngine
+from app.llm.prompt import build_tool_call_prompt
+from app.llm.response import parse_tool_call_response
 
 logger = logging.getLogger(__name__)
 
@@ -97,7 +97,6 @@ def call_tool(
             npc_info_list.append({
                 "id": npc_id,
                 "name": npc.get("name", npc_id),
-                "aliases": npc.get("aliases", []),
             })
 
     inventory_info = []
@@ -109,152 +108,22 @@ def call_tool(
                 "name": item.get("name", item_id),
             })
 
-    # 3. Tool calling 프롬프트 생성 (intent 포함)
-    prompt = f"""당신은 텍스트 어드벤처 게임의 Tool 선택기입니다.
-사용자의 입력을 분석하여 적절한 tool, 인자, 그리고 행동 의도(intent)를 선택하세요.
-
-## 사용 가능한 Tools
-
-1. **interact**: NPC와 대화/상호작용
-   - target: NPC ID (필수)
-   - interact: 대화 내용 (필수)
-
-2. **action**: 일반 행동 (이동, 조사, 관찰 등)
-   - action: 행동 내용 (필수)
-
-3. **use**: 아이템 사용
-   - item: 아이템 ID (필수)
-   - action: 사용 방법 (필수)
-
-## Intent (행동 의도) 분류
-
-플레이어의 행동이 어떤 의도인지 판단하세요:
-
-- **investigate**: 조사, 탐색, 정보 수집 (예: "주변을 살펴본다", "서랍을 뒤진다", "수상한 곳을 조사한다")
-- **obey**: 복종, 순응, 가족의 지시 따르기 (예: "엄마 말대로 한다", "시키는 대로 한다", "착하게 행동한다")
-- **rebel**: 반항, 저항, 규칙 어기기 (예: "거부한다", "반항한다", "도망치려 한다", "공격한다")
-- **reveal**: 진실 폭로, 과거 상기시키기 (예: "진짜 가족사진을 보여준다", "정체를 폭로한다")
-- **summarize**: 하루 정리, 회상, 일기 쓰기 (예: "오늘 하루를 정리한다", "일기를 쓴다")
-- **neutral**: 위 어느 것에도 해당하지 않는 일반 행동
-
-## 현재 상황
-
-NPC 목록:
-{_format_npc_list(npc_info_list)}
-
-인벤토리:
-{_format_inventory(inventory_info)}
-
-## 사용자 입력
-"{user_input}"
-
-## 응답 형식
-반드시 아래 JSON 형식으로만 응답하세요:
-```json
-{{
-  "tool_name": "interact" | "action" | "use",
-  "args": {{ ... }},
-  "intent": "investigate" | "obey" | "rebel" | "reveal" | "summarize" | "neutral"
-}}
-```
-
-예시:
-- "엄마에게 순순히 인사한다" → {{"tool_name": "interact", "args": {{"target": "stepmother", "interact": "엄마에게 순순히 인사한다"}}, "intent": "obey"}}
-- "몰래 부엌을 뒤진다" → {{"tool_name": "action", "args": {{"action": "몰래 부엌을 뒤진다"}}, "intent": "investigate"}}
-- "진짜 가족사진을 아빠에게 보여준다" → {{"tool_name": "use", "args": {{"item": "real_family_photo", "action": "아빠에게 보여준다"}}, "intent": "reveal"}}
-"""
+    # 3. Tool calling 프롬프트 생성
+    prompt = build_tool_call_prompt(
+        user_input=user_input,
+        npc_info_list=npc_info_list,
+        inventory_info=inventory_info,
+    )
 
     # 4. LLM 호출
     raw_output = llm_engine.generate(prompt)
     logger.debug(f"[call_tool] LLM 응답: {raw_output}")
 
     # 5. JSON 파싱
-    result = _parse_tool_call_response(raw_output, user_input)
+    result = parse_tool_call_response(raw_output, user_input)
     logger.info(f"[call_tool] 선택된 tool: {result['tool_name']}, intent: {result.get('intent', 'neutral')}, args={result['args']}")
 
     return result
-
-
-def _format_npc_list(npc_info_list: list) -> str:
-    """NPC 목록을 포맷팅"""
-    if not npc_info_list:
-        return "없음"
-    lines = []
-    for npc in npc_info_list:
-        aliases = ", ".join(npc["aliases"]) if npc["aliases"] else "없음"
-        lines.append(f"- {npc['name']} (ID: {npc['id']}, 별칭: {aliases})")
-    return "\n".join(lines)
-
-
-def _format_inventory(inventory_info: list) -> str:
-    """인벤토리를 포맷팅"""
-    if not inventory_info:
-        return "없음"
-    lines = []
-    for item in inventory_info:
-        lines.append(f"- {item['name']} (ID: {item['id']})")
-    return "\n".join(lines)
-
-
-def _parse_tool_call_response(raw_output: str, fallback_input: str) -> Dict[str, Any]:
-    """
-    LLM의 tool call 응답을 파싱합니다.
-
-    Args:
-        raw_output: LLM 출력
-        fallback_input: 파싱 실패 시 action으로 사용할 입력
-
-    Returns:
-        {"tool_name": str, "args": dict, "intent": str}
-    """
-    VALID_INTENTS = ("investigate", "obey", "rebel", "reveal", "summarize", "neutral")
-
-    # JSON 블록 추출
-    json_match = re.search(r'```json\s*(.*?)\s*```', raw_output, re.DOTALL)
-    if json_match:
-        json_str = json_match.group(1)
-    else:
-        # ```json 없이 JSON만 있는 경우
-        json_match = re.search(r'\{.*\}', raw_output, re.DOTALL)
-        if json_match:
-            json_str = json_match.group(0)
-        else:
-            logger.warning(f"[call_tool] JSON 파싱 실패, fallback to action: {raw_output[:100]}")
-            return {
-                "tool_name": "action",
-                "args": {"action": fallback_input},
-                "intent": "neutral",
-            }
-
-    try:
-        data = json.loads(json_str)
-        tool_name = data.get("tool_name", "action")
-        args = data.get("args", {})
-        intent = data.get("intent", "neutral")
-
-        # tool 유효성 검사
-        if tool_name not in ("interact", "action", "use"):
-            logger.warning(f"[call_tool] 알 수 없는 tool: {tool_name}, fallback to action")
-            return {
-                "tool_name": "action",
-                "args": {"action": fallback_input},
-                "intent": "neutral",
-            }
-
-        # intent 유효성 검사
-        if intent not in VALID_INTENTS:
-            logger.warning(f"[call_tool] 알 수 없는 intent: {intent}, fallback to neutral")
-            intent = "neutral"
-
-        return {"tool_name": tool_name, "args": args, "intent": intent}
-
-    except json.JSONDecodeError as e:
-        logger.warning(f"[call_tool] JSON 디코드 실패: {e}, fallback to action")
-        return {
-            "tool_name": "action",
-            "args": {"action": fallback_input},
-            "intent": "neutral",
-        }
 
 
 # ============================================================
@@ -264,16 +133,22 @@ def interact(target: str, interact: str) -> Dict[str, Any]:
     """
     NPC와 상호작용합니다. NPC에게 말을 걸거나 질문할 때 사용합니다.
 
+    1) NPC 대사 생성 (generate_utterance)
+    2) 영향 분석 (_analyze_impact → state_delta + event_description)
+    3) 메모리 저장 (store_dialogue_memories)
+
     Args:
-        target: 상호작용할 NPC의 ID (예: "button_mother", "button_father")
+        target: 상호작용할 NPC의 ID (예: "stepmother", "stepfather")
         interact: NPC와 상호작용에 대한 구체적인 서술
 
     Returns:
-        상호작용 결과와 상태 변화 (event_description, state_delta)
+        {npc_response, event_description, state_delta, npc_id}
     """
-    from app.llm.prompt import build_talk_prompt
-    from app.llm.response import parse_response
-    from app.agents.retrieval import retrieve_memories
+    from app.agents.dialogue import (
+        generate_utterance,
+        store_dialogue_memories,
+    )
+    from app.agents.utils import format_persona
 
     ctx = _tool_context
     world_state = ctx["world_state"]
@@ -289,55 +164,131 @@ def interact(target: str, interact: str) -> Dict[str, Any]:
     if not npc_info:
         logger.warning(f"NPC를 찾을 수 없음: {target}")
         return {
+            "npc_response": "",
             "event_description": [f"{target}라는 NPC를 찾을 수 없습니다."],
             "state_delta": {},
             "npc_id": target,
         }
 
-    # 2. 메모리 검색 (NPCState.memory 사용)
-    retrieved_memories = []
-    if npc_state:
-        try:
-            retrieved_memories = retrieve_memories(
-                npc_memory=npc_state.memory,
-                query=interact,
-                llm=llm_engine,
-                current_turn=world_state.turn,
-                k=5,
-            )
-            logger.debug(f"검색된 메모리 수: {len(retrieved_memories)}")
-        except Exception as e:
-            logger.warning(f"메모리 검색 실패: {e}")
+    npc_name = npc_info.get("name", target)
+    npc_persona = npc_info.get("persona", {})
 
-    # 메모리를 dict 형태로 변환
-    npc_memory = None
-    if retrieved_memories:
-        npc_memory = {
-            f"memory_{i}": mem.description
-            for i, mem in enumerate(retrieved_memories)
-        }
+    # 2. world_snapshot 조립
+    world_snapshot = {
+        "day": world_state.vars.get("day", 1),
+        "turn": world_state.turn,
+        "suspicion_level": world_state.vars.get("suspicion_level", 0),
+        "player_humanity": world_state.vars.get("humanity", 100),
+        "flags": {k: v for k, v in world_state.flags.items() if v},
+        "node_id": world_state.vars.get("node_id", "unknown"),
+        "inventory": world_state.inventory,
+        "genre": assets.scenario.get("genre", ""),
+        "tone": assets.scenario.get("tone", ""),
+    }
 
-    # 3. 프롬프트 생성
-    prompt = build_talk_prompt(
-        message=interact,
-        user_memory=None,
-        npc_memory=npc_memory,
-        npc_context=assets.export_for_prompt(),
-        world_state=world_state.to_dict(),
+    # 3. NPC 대사 생성 (메모리 검색은 generate_utterance 내부에서 수행)
+    npc_response = generate_utterance(
+        speaker_id=target,
+        speaker_name=npc_name,
+        speaker_persona=npc_persona,
+        speaker_memory=npc_state.memory if npc_state else {},
+        speaker_stats=npc_state.stats if npc_state else {},
+        listener_name="플레이어",
+        conversation_history=[{"speaker": "플레이어", "text": interact}],
+        llm=llm_engine,
+        current_turn=world_state.turn,
+        world_snapshot=world_snapshot,
+    )
+    logger.info(f"NPC 응답: {npc_response[:80]}...")
+
+    # 4. 영향 분석 (state_delta + event_description)
+    world_context = {
+        "suspicion_level": world_state.vars.get("suspicion_level", 0),
+        "player_humanity": world_state.vars.get("humanity", 100),
+    }
+    impact = _analyze_impact(
+        user_input=interact,
+        npc_response=npc_response,
+        npc_id=target,
+        npc_name=npc_name,
+        npc_persona=npc_persona,
         assets=assets,
+        llm_engine=llm_engine,
+        world_context=world_context,
     )
 
-    # 4. LLM 호출 (응답 생성)
-    raw_output = llm_engine.generate(prompt)
-
-    # 5. 파싱 및 반환
-    llm_response = parse_response(raw_output)
+    # 5. 메모리 저장
+    if npc_state:
+        try:
+            store_dialogue_memories(
+                npc_id=target,
+                npc_name=npc_name,
+                other_name="플레이어",
+                conversation=[
+                    {"speaker": "플레이어", "text": interact},
+                    {"speaker": npc_name, "text": npc_response},
+                ],
+                npc_memory=npc_state.memory,
+                persona_summary=format_persona(npc_persona),
+                llm=llm_engine,
+                current_turn=world_state.turn,
+            )
+        except Exception as e:
+            logger.warning(f"메모리 저장 실패: {e}")
 
     return {
-        "event_description": llm_response.event_description,
-        "state_delta": llm_response.state_delta,
+        "npc_response": npc_response,
+        "event_description": impact["event_description"],
+        "state_delta": impact["state_delta"],
         "npc_id": target,
-        "retrieved_memories_count": len(retrieved_memories),
+    }
+
+
+def _analyze_impact(
+    user_input: str,
+    npc_response: str,
+    npc_id: str,
+    npc_name: str,
+    npc_persona: Dict[str, Any],
+    assets: ScenarioAssets,
+    llm_engine: Any,
+    world_context: Dict[str, Any] | None = None,
+) -> Dict[str, Any]:
+    """대화의 영향을 분석하여 state_delta와 event_description을 반환.
+
+    analyze_conversation_impact()를 호출하는 래퍼.
+    플레이어 입력 + NPC 응답을 conversation 형식으로 변환하여 전달하고,
+    NPC의 stat delta만 추출.
+    """
+    from app.agents.dialogue import analyze_conversation_impact
+
+    conversation = [
+        {"speaker": "플레이어", "text": user_input},
+        {"speaker": npc_name, "text": npc_response},
+    ]
+
+    stat_names = assets.get_npc_stat_names()
+
+    result = analyze_conversation_impact(
+        npc1_id="player",
+        npc1_name="플레이어",
+        npc1_persona={},
+        npc2_id=npc_id,
+        npc2_name=npc_name,
+        npc2_persona=npc_persona,
+        conversation=conversation,
+        llm=llm_engine,
+        stat_names=stat_names,
+        world_context=world_context,
+    )
+
+    # NPC의 stat delta만 추출하여 state_delta로 구성
+    npc_stats = result.get("npc_stats", {})
+    npc_stat_delta = npc_stats.get(npc_id, {})
+
+    return {
+        "state_delta": {"npc_stats": {npc_id: npc_stat_delta}} if npc_stat_delta else {},
+        "event_description": result.get("event_description", []),
     }
 
 

@@ -74,7 +74,7 @@ _store = InMemoryStateStore()
 # ============================================================
 # World State Manager
 # ============================================================
-class WorldStateManager:
+class WorldStatePipelineManager:
     """
     월드 상태 관리자
 
@@ -374,14 +374,14 @@ class WorldStateManager:
 # ============================================================
 # 모듈 레벨 인스턴스 (싱글턴)
 # ============================================================
-_wsm_instance: Optional[WorldStateManager] = None
+_wsm_instance: Optional[WorldStatePipelineManager] = None
 
 
-def get_world_state_manager() -> WorldStateManager:
-    """WorldStateManager 싱글턴 인스턴스 반환"""
+def get_world_state_manager() -> WorldStatePipelineManager:
+    """WorldStatePipelineManager 싱글턴 인스턴스 반환"""
     global _wsm_instance
     if _wsm_instance is None:
-        _wsm_instance = WorldStateManager()
+        _wsm_instance = WorldStatePipelineManager()
     return _wsm_instance
 
 
@@ -410,7 +410,7 @@ if __name__ == "__main__":
     print(f"\n[1] 시나리오 로드됨: {assets.scenario.get('title')}")
 
     # 상태 매니저 생성
-    wsm = WorldStateManager()
+    wsm = WorldStatePipelineManager()
     user_id = "test_user"
     scenario_id = scenarios[0]
 
