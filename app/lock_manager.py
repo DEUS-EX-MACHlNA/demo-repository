@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, List, Optional, Set
 
-from app.schemas import WorldStatePipelinePipeline
+from app.schemas import WorldStatePipeline
 from app.schemas.lock import UnlockedInfo, LockCheckResult
 from app.condition_eval import evaluate_condition
 
