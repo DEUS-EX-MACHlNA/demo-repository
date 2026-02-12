@@ -440,7 +440,7 @@ if __name__ == "__main__":
     for scenario_id in scenarios:
         print(f"\n[3] 시나리오 로드: {scenario_id}")
         assets = loader.load(scenario_id)
-        print_assets(assets)
+        # print_assets(assets)
         save_assets_to_db(assets)
         # 여기서 DB에 저장하는 로직 추가 
     

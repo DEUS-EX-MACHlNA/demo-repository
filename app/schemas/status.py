@@ -12,13 +12,6 @@ class NPCStatus(str, Enum):
     MISSING = "missing"
     UNKNOWN = "unknown"
 
-
-class ChatAt(str, Enum):
-    """채팅 턴"""
-    DAY = "day"
-    NIGHT = "night"
-
-
 class GameStatus(str, Enum):
     """게임 상태"""
     LIVE = "live"        # 진행 중
@@ -26,9 +19,9 @@ class GameStatus(str, Enum):
 
 class ItemStatus(str, Enum):
     """아이템 상태"""
-    LIVE = "live"
-    ENDING = "ending"
-
+    NOT_ACQUIRED = "not_acquired"
+    ACQUIRED = "acquired"
+    USED = "used"
 
 class Intent(str, Enum):
     """파싱된 의도 타입"""
@@ -54,3 +47,14 @@ class NpcId(str, Enum):
     DOG = "dog"
     GRANDMOTHER = "grandmother"
 
+class ChatAt(str, Enum):
+    """채팅 턴"""
+    DAY = "day"
+    NIGHT = "night"
+
+class LogType(str, Enum):
+    NARRATIVE = "narrative"       # 일반 서술 (행동 결과 등)
+    DIALOGUE = "dialogue"         # 1:1 대화
+    SYSTEM = "system"             # 시스템 메시지 (아이템 획득, 턴 경과)
+    NIGHT_EVENT = "night_event"   # 야간 대화 (스크립트 형태)
+    ERROR = "error"               # 에러 메시지

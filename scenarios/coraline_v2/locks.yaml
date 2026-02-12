@@ -1,0 +1,74 @@
+# 프로젝트: 인형의 집 - 정보 해금 시스템 (Locks)
+
+# TODO: 여기 나중에 뜯어고쳐야해요, 근데 아직 기획은 덜됨
+
+locks:
+  - info_id: br_00_01
+    info_title: "Broken Joint (부러진 관절)"
+    linked_info_id: "gm_00_01"
+    description: "동생의 팔꿈치 안쪽에서 미세한 기계 소음과 함께 찢어진 천 사이로 나무 골격이 보였다는 사실."
+    unlock_condition: "npc.brother.affection >= 70"
+    is_unlocked: false
+    reveal_trigger: "brother_injury_incident"
+    access:
+      allowed_npcs: ["brother"]
+
+  - info_id: sf_00_01
+    info_title: "Father's Regret (아빠의 후회)"
+    linked_info_id: "gm_00_02"
+    description: "새아빠는 사실 이 저택의 '관리자'가 아니라, 첫 번째로 '개조'된 희생자였다는 기억."
+    unlock_condition: "npc.stepfather.humanity >= 40 and has_item(real_family_photo)"
+    is_unlocked: false
+    reveal_trigger: "stepfather_old_photo_reaction"
+    access:
+      allowed_npcs: ["stepfather"]
+
+  - info_id: gm_00_01
+    info_title: "The Surgery Log (수술 일지)"
+    linked_info_id: "br_00_01"
+    description: "지하실 수술대 밑에서 발견된 일지. '루카스(동생) - 3차 공정 완료, 자아 삭제율 80%'라고 적혀 있다."
+    unlock_condition: "vars.humanity <= 60 and vars.suspicion_level >= 30"
+    is_unlocked: false
+    reveal_trigger: "basement_journal_find"
+    access:
+      allowed_npcs: ["grandmother"]
+
+  - info_id: gm_00_02
+    info_title: "Mothers' True Form (엄마의 본모습)"
+    linked_info_id: "sf_00_01"
+    description: "새엄마는 사람이 아니라, 주인이 버리고 간 거대한 '오르골 인형'이 자아를 얻은 존재라는 진실."
+    unlock_condition: "npc.grandmother.humanity >= 50 and vars.truth_revealed == true"
+    is_unlocked: false
+    reveal_trigger: "grandmother_final_warning"
+    access:
+      allowed_npcs: ["grandmother"]
+
+  - info_id: dg_00_01
+    info_title: "Scent of Decay (부패의 냄새)"
+    linked_info_id: "gm_00_01"
+    description: "강아지 바론이 주방 찬장 아래에서 계속 짖는 이유. 그곳에는 인형으로 만들다 실패한 '진짜 가족'의 유해가 숨겨져 있다."
+    unlock_condition: "npc.dog_baron.affection >= 80"
+    is_unlocked: false
+    reveal_trigger: "baron_digging_kitchen"
+    access:
+      allowed_npcs: ["dog_baron"]
+
+  - info_id: sys_00_01
+    info_title: "Your Serial Number (당신의 시리얼 넘버)"
+    linked_info_id: "gm_00_02"
+    description: "주인공의 발목 뒤에 새겨진 희미한 낙인. 당신 역시 이미 '반쯤 완성된 인형'이라는 충격적인 사실."
+    unlock_condition: "vars.humanity <= 30 or vars.day >= 4"
+    is_unlocked: false
+    reveal_trigger: "self_discovery_mirror"
+    access:
+      allowed_npcs: ["stepmother", "grandmother"]
+
+  - info_id: exit_00_01
+    info_title: "The Mirage Gateway (안개 너머의 진실)"
+    linked_info_id: "sys_00_01"
+    description: "정원 밖 안개는 사실 낭떠러지가 아니라, 외부 세계와의 연결을 차단하는 '인형사'의 마법적인 장벽이라는 정보."
+    unlock_condition: "vars.truth_revealed == true and vars.clue_count >= 5"
+    is_unlocked: false
+    reveal_trigger: "map_final_decipher"
+    access:
+      allowed_npcs: ["brother", "grandmother"]

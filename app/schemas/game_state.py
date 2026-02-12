@@ -3,7 +3,7 @@ app/schemas/game_state.py
 런타임 게임 상태 스키마
 
 - NPCState: NPC 런타임 상태 (npc_id, stats, memory)
-- WorldState: 월드 런타임 전체 상태
+- WorldStatePipeline: 월드 런타임 전체 상태
 - StateDelta: 상태 변경 델타 명세
 - merge_deltas: 여러 델타를 하나로 병합
 """
@@ -62,7 +62,7 @@ class NPCState(BaseModel):
         return new_value
 
 
-class WorldState(BaseModel):
+class WorldStatePipeline(BaseModel):
     """월드 런타임 전체 상태"""
     turn: int = 1
     npcs: Dict[str, NPCState] = Field(default_factory=dict)
@@ -75,7 +75,7 @@ class WorldState(BaseModel):
         return self.model_dump()
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> WorldState:
+    def from_dict(cls, data: dict[str, Any]) -> WorldStatePipeline:
         npcs = {}
         for npc_id, npc_data in data.get("npcs", {}).items():
             if isinstance(npc_data, dict):

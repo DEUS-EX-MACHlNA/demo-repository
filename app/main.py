@@ -21,7 +21,7 @@ from app.loader import ScenarioAssets, get_loader, load_scenario_assets
 from app.schemas import (
     NightResult,
     ToolResult,
-    WorldState,
+    WorldStatePipeline,
     NightRequestBody,
     NightTurnResult,
     ScenarioInfoResponse,
@@ -98,7 +98,7 @@ async def execute_day_pipeline(
 
     파이프라인:
     1) Assets 로드
-    2) WorldState 조회
+    2) WorldStatePipeline 조회
     3) LockManager.check_unlocks() - 정보 해금
     4) DayController.process() - 낮 턴 실행 (turn += 1)
     5) Delta 적용 & 저장
@@ -164,7 +164,7 @@ async def execute_day_pipeline(
         # Step 5: Delta 적용 & 저장
         step_start = time.time()
 
-        def apply_and_persist() -> WorldState:
+        def apply_and_persist() -> WorldStatePipeline:
             world_after = wsm.apply_delta(user_id, scenario_id, tool_result.state_delta, assets)
             wsm.persist(user_id, scenario_id, world_after)
             return world_after
@@ -247,7 +247,7 @@ async def execute_night_pipeline(
 
     파이프라인:
     1) Assets 로드
-    2) WorldState 조회
+    2) WorldStatePipeline 조회
     3) NightController.process() - 밤 페이즈 (turn 증가 없음)
     4) Delta 적용 & 저장
     5) EndingChecker.check() - 엔딩 체크
@@ -296,7 +296,7 @@ async def execute_night_pipeline(
         # Step 4: Delta 적용 & 저장
         step_start = time.time()
 
-        def apply_and_persist() -> WorldState:
+        def apply_and_persist() -> WorldStatePipeline:
             world_after = wsm.apply_delta(user_id, scenario_id, night_result.night_delta, assets)
             wsm.persist(user_id, scenario_id, world_after)
             return world_after

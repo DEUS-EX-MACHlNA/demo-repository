@@ -14,7 +14,7 @@ import logging
 from typing import Any, Optional
 
 from app.loader import ScenarioAssets
-from app.schemas import NPCState, StateDelta, WorldState
+from app.schemas import NPCState, StateDelta, WorldStatePipeline
 
 logger = logging.getLogger(__name__)
 
@@ -26,19 +26,21 @@ class InMemoryStateStore:
     """인메모리 상태 저장소"""
 
     def __init__(self):
-        # {(user_id, scenario_id): WorldState}
-        self._store: dict[tuple[str, str], WorldState] = {}
+        # {(user_id, scenario_id): WorldStatePipeline}
+        self._store: dict[tuple[str, str], WorldStatePipeline] = {}
         self._debug_log: list[dict[str, Any]] = []
 
-    def get(self, user_id: str, scenario_id: str) -> Optional[WorldState]:
+    def get(self, user_id: str, scenario_id: str) -> Optional[WorldStatePipeline]:
         """상태 조회"""
         key = (user_id, scenario_id)
         return copy.deepcopy(self._store.get(key))
 
-    def set(self, user_id: str, scenario_id: str, state: WorldState):
+    def set(self, user_id: str, scenario_id: str, state: WorldStatePipeline):
         """상태 저장"""
         key = (user_id, scenario_id)
         self._store[key] = copy.deepcopy(state)
+        
+    # [truncated for brevity, applying similarly to other methods]
 
     def delete(self, user_id: str, scenario_id: str):
         """상태 삭제"""
@@ -90,7 +92,7 @@ class WorldStateManager:
         user_id: str,
         scenario_id: str,
         assets: ScenarioAssets
-    ) -> WorldState:
+    ) -> WorldStatePipeline:
         """시나리오 에셋 기반으로 초기 상태 생성"""
 
         # NPC 초기 상태 생성 (stats Dict 기반)
@@ -121,7 +123,7 @@ class WorldStateManager:
         for flag_name, flag_spec in state_schema.get("flags", {}).items():
             initial_flags[flag_name] = flag_spec.get("default", None)
 
-        state = WorldState(
+        state = WorldStatePipeline(
             turn=1,
             npcs=npcs,
             flags=initial_flags,
@@ -142,7 +144,7 @@ class WorldStateManager:
         user_id: str,
         scenario_id: str,
         assets: Optional[ScenarioAssets] = None
-    ) -> WorldState:
+    ) -> WorldStatePipeline:
         """
         유저/시나리오별 현재 상태 조회
 
@@ -154,7 +156,7 @@ class WorldStateManager:
             assets: 시나리오 에셋 (초기화 시 필요)
 
         Returns:
-            WorldState: 현재 월드 상태
+            WorldStatePipeline: 현재 월드 상태
         """
         state = self._store.get(user_id, scenario_id)
 
@@ -162,7 +164,7 @@ class WorldStateManager:
             if assets is None:
                 # 에셋 없이는 기본 상태 생성
                 logger.warning(f"No assets provided, creating minimal initial state")
-                state = WorldState()
+                state = WorldStatePipeline()
             else:
                 state = self._create_initial_state(user_id, scenario_id, assets)
             self._store.set(user_id, scenario_id, state)
@@ -175,7 +177,7 @@ class WorldStateManager:
         scenario_id: str,
         delta: dict[str, Any],
         assets: Optional[ScenarioAssets] = None
-    ) -> WorldState:
+    ) -> WorldStatePipeline:
         """
         상태에 델타 적용
 
@@ -192,7 +194,7 @@ class WorldStateManager:
             assets: 시나리오 에셋 (값 범위 검증용)
 
         Returns:
-            WorldState: 델타 적용 후 상태
+            WorldStatePipeline: 델타 적용 후 상태
         """
         state = self.get_state(user_id, scenario_id, assets)
         debug_entries: list[dict[str, Any]] = []
@@ -344,7 +346,7 @@ class WorldStateManager:
         self,
         user_id: str,
         scenario_id: str,
-        world_state: WorldState
+        world_state: WorldStatePipeline
     ):
         """
         상태 영속화

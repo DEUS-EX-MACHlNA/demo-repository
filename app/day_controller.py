@@ -12,7 +12,7 @@ import logging
 from typing import Optional
 
 from app.loader import ScenarioAssets
-from app.schemas import ToolResult, WorldState, StepRequestSchema
+from app.schemas import ToolResult, WorldStatePipeline, StepRequestSchema
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +34,7 @@ class DayController:
     def process(
         self,
         user_input: str,
-        world_state: WorldState,
+        world_state: WorldStatePipeline,
         assets: ScenarioAssets,
     ) -> ToolResult:
         """
@@ -135,7 +135,7 @@ get_controller = get_day_controller
 if __name__ == "__main__":
     from pathlib import Path
     from app.loader import ScenarioLoader
-    from app.schemas import WorldState, NPCState
+    from app.schemas import WorldStatePipeline, NPCState
 
     print("=" * 60)
     print("DAY CONTROLLER 테스트")
@@ -154,7 +154,7 @@ if __name__ == "__main__":
     print(f"\n[1] 시나리오 로드됨: {assets.scenario.get('title')}")
 
     # 테스트용 월드 상태 (시나리오 YAML의 stats 구조에 맞춤)
-    world = WorldState(
+    world = WorldStatePipeline(
         turn=1,
         npcs={
             "stepmother": NPCState(

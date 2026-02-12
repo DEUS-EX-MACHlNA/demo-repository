@@ -37,21 +37,6 @@ def get_games(db: Session = Depends(get_db)):
         }
         for g in games
     ]
-
-# 일단 LLM과 상호작용 하는 것을 먼저 구현
-
-# 메모 조회
-#@router.get("/{game_id}/memos", summary="게임 메모 조회", response_model=list[dict])
-
-
-# 메모 생성
-#@router.post("/{game_id}/memos", summary="게임 메모 생성", response_model=dict)
-
-# 메모 수정
-#@router.post("/{game_id}/memos/{memo_id}", summary="게임 메모 수정", response_model=dict)
-# 메모 삭제
-#@router.delete("/{game_id}/memos/{memo_id}", summary="게임 메모 삭제")
-
 # 대화 요청(낮)
 @router.post("/{game_id}/step", summary="게임 대화 요청", response_model=StepResponseSchema)
 def step_game(game_id: int, request: StepRequestSchema, db: Session = Depends(get_db)) -> StepResponseSchema:
@@ -65,7 +50,7 @@ def step_game(game_id: int, request: StepRequestSchema, db: Session = Depends(ge
     return result
 
 # 게임 id를 받아서 진행된 게임을 불러오기
-@router.get("start/{game_id}", summary="진행중인 게임 시작", response_model=dict)
+@router.get("/start/{game_id}", summary="진행중인 게임 시작", response_model=GameClientSyncSchema)
 def get_game(game_id: int, db: Session = Depends(get_db)) -> GameClientSyncSchema:
     try:
         game = GameService.start_game(db, game_id)

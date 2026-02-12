@@ -9,10 +9,14 @@ from pydantic import BaseModel, Field
 
 class StepResponseSchema(BaseModel):
     """낮 파이프라인 실행 결과"""
-    narrative: List[str]
+    narrative: str
     ending_info: Optional[Dict[str, Any]] = None
-    state_delta: Dict[str, Any] = Field(default_factory=dict)
+
+    # 이 부분은 나중에 아이템 상태를 부르거나 npc의 상태를 추가로 넣으면 되겠지
+    state_result: Dict[str, Any] = Field(default_factory=dict) # Renamed to result
     debug: Dict[str, Any] = Field(default_factory=dict)
+
+
 
 
 # ============================================================

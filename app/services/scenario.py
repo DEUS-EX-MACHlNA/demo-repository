@@ -29,12 +29,14 @@ from app.schemas.world_meta_data import (
     EndingSchema,
     )
 from app.schemas.item_info import ItemSchema
+from app.schemas.status import ItemStatus
 import json
 import copy
 from typing import Dict, Any
 from app.crud import scenario as crud_scenario
 from app.crud import game as crud_game
 from app.schemas.client_sync import GameClientSyncSchema
+from app.services.game import _scenario_to_assets
 
 
 class ScenarioService:
@@ -182,6 +184,11 @@ class ScenarioService:
         
         items_list = []
         for item in source_items:
+            # 초기 상태 결정: 'start'로 획득하는 아이템은 ACQUIRED 상태
+            initial_state = ItemStatus.NOT_ACQUIRED
+            if item.get("acquire", {}).get("method") == "start":
+                initial_state = ItemStatus.ACQUIRED
+
             items_list.append(ItemSchema(
                 item_id=item["item_id"],
                 name=item["name"],
@@ -189,8 +196,7 @@ class ScenarioService:
                 description=item["description"],
                 acquire=item["acquire"],
                 use=item["use"],
-                used=item.get("used", False),
-                state=item.get("state", ""),
+                state=item.get("state", initial_state),
                 location=item.get("location", "")
             ))
             
@@ -301,9 +307,6 @@ class ScenarioService:
             scenario_id: 생성할 게임과 연결할 시나리오의 PK
             user_id: 게임을 생성한 사용자 ID (기본값 1)
 
-        Returns:
-            int: 생성된 `Games.id`
-
         Raises:
             ValueError: 지정한 시나리오가 존재하지 않을 때
         """
@@ -332,13 +335,10 @@ class ScenarioService:
             )
         
             crud_game.create_game(db, game)
-            # 여기서는 반환 타입을 맞추기 위해 래퍼를 씌워주지만, 
-            # 보통은 그냥 객체를 반환하거나 ID만 반환하기도 함.
-            # 반환 스키마에 맞춰서 데이터 주입
+            
             return GameClientSyncSchema(
-                world=world_state_data,
-                player=player_data,
-                npcs=npc_data
+                game_id=game.id,
+                user_id=user_id,
             )
         finally:
             db.close()
