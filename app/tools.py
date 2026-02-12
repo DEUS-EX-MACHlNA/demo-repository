@@ -461,3 +461,94 @@ def _final_values_to_delta(
             result[key] = raw_delta[key]
 
     return result
+
+
+# ============================================================
+# 독립 실행 테스트
+# ============================================================
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
+    print("=" * 60)
+    print("Tool 시스템 디버그 시작")
+    print("=" * 60)
+
+    try:
+        # ----------------------------------------------------
+        # 더미 객체 생성 (프로젝트 구조에 맞게 수정 가능)
+        # ----------------------------------------------------
+        from pathlib import Path
+        from app.loader import ScenarioAssets, ScenarioLoader
+        from app.schemas import WorldStatePipeline
+
+        # load asset
+        base_path = Path(__file__).parent.parent / "scenarios"
+        # 로더 생성
+        loader = ScenarioLoader(base_path)
+        scenario_id = 'coraline'
+        assets = loader.load(scenario_id)
+        
+        # load world state
+        world_state = WorldStatePipeline()  # 필요 시 수정
+
+        # ----------------------------------------------------
+        # 1. call_tool 테스트
+        # ----------------------------------------------------
+        test_input = "새엄마에게 왜 나를 싫어하냐고 묻는다"
+
+        print(f"\n[TEST] call_tool → 입력: {test_input}")
+        result = call_tool(
+            user_input=test_input,
+            world_state=world_state,
+            assets=assets,
+        )
+
+        print("[call_tool 결과]")
+        print(result)
+
+        # ----------------------------------------------------
+        # 2. 실제 Tool 실행 테스트
+        # ----------------------------------------------------
+        tool_name = result["tool_name"]
+        args = result["args"]
+
+        print(f"\n[TEST] 실행할 tool: {tool_name}")
+        if tool_name in TOOLS:
+            tool_result = TOOLS[tool_name](**args)
+            print("[Tool 실행 결과]")
+            print(tool_result)
+        else:
+            print("알 수 없는 tool")
+
+        # ----------------------------------------------------
+        # 3. 단독 interact 테스트
+        # ----------------------------------------------------
+        print("\n[TEST] interact 단독 테스트")
+        interact_result = interact(
+            target="stepmother",
+            interact="왜 나를 미워하세요?"
+        )
+        print(interact_result)
+
+        # ----------------------------------------------------
+        # 4. 단독 action 테스트
+        # ----------------------------------------------------
+        print("\n[TEST] action 단독 테스트")
+        action_result = action("거실을 조심스럽게 조사한다")
+        print(action_result)
+
+        # ----------------------------------------------------
+        # 5. 단독 use 테스트 (아이템이 존재할 경우)
+        # ----------------------------------------------------
+        if world_state.inventory:
+            test_item = world_state.inventory[0]
+            print(f"\n[TEST] use 단독 테스트 → item={test_item}")
+            use_result = use(test_item, "위험을 대비해 사용한다")
+            print(use_result)
+        else:
+            print("\n[TEST] 인벤토리가 비어 있어 use 테스트 생략")
+
+    except Exception as e:
+        logger.exception("디버그 실행 중 오류 발생")
+        print(f"오류 발생: {e}")
+
+    print("\n=== Tool 시스템 디버그 종료 ===")
