@@ -4,6 +4,8 @@ app/llm/engine.py
 """
 from __future__ import annotations
 
+import os
+import httpx
 import logging
 from typing import Any, Optional
 
@@ -32,7 +34,7 @@ class UnifiedLLMEngine:
     ):
         """
         Args:
-            backend: "langchain" 또는 "transformers"
+            backend: "vLLM" 또는 "transformers"
             model_name: 사용할 모델 (None이면 config에서 로드)
             **kwargs: 백엔드별 추가 설정
         """
@@ -40,23 +42,31 @@ class UnifiedLLMEngine:
         self._model = None
         self._tokenizer = None
         self._loaded = False
+        self._model_name = model_name
 
         # 설정 로드
         self.config = get_model_config(backend)
-        if model_name:
-            if backend == "langchain":
-                self.config["model"] = model_name
+        if not self._model_name:
+            if backend == "vLLM":
+                self._model_name = self.config["model"]
             else:
-                self.config["model_name"] = model_name
+                self._model_name = self.config["model_name"]
 
         # 추가 설정 병합
         self.config.update(kwargs)
+
+        # vLLM용 설정
+        if self.backend == "vLLM":
+            self.base_url = self.config["base_url"]
+            self.api_key = self.config["api_key"]
+            self._client = httpx.Client(timeout=httpx.Timeout(60.0))
+
 
         logger.info(f"UnifiedLLMEngine 초기화: backend={backend}, model={self._get_model_name()}")
 
     def _get_model_name(self) -> str:
         """현재 모델 이름 반환"""
-        if self.backend == "langchain":
+        if self.backend == "vLLM":
             return self.config.get("model", "unknown")
         else:
             return self.config.get("model_name", "unknown")
@@ -68,28 +78,11 @@ class UnifiedLLMEngine:
         self._loaded = True
 
         try:
-            if self.backend == "langchain":
-                self._load_langchain()
-            elif self.backend == "transformers":
-                self._load_transformers()
-            else:
-                raise ValueError(f"Unknown backend: {self.backend}")
-
+            self._load_transformers()
             logger.info(f"LLM 모델 로드 완료: {self._get_model_name()}")
         except Exception as e:
             logger.warning(f"LLM 로드 실패 ({e}). Fallback mode.")
             self._model = None
-
-    def _load_langchain(self) -> None:
-        """LangChain 백엔드 로드"""
-        from langchain_openai import ChatOpenAI
-
-        self._model = ChatOpenAI(
-            model=self.config["model"],
-            base_url=self.config["base_url"],
-            api_key=self.config["api_key"],
-            temperature=self.config.get("temperature", DEFAULT_TEMPERATURE),
-        )
 
     def _load_transformers(self) -> None:
         """Transformers 백엔드 로드"""
@@ -129,7 +122,63 @@ class UnifiedLLMEngine:
 
         self._model.eval()
 
-    def generate(
+    def generate(self, **kargs):
+        try:
+            if self.backend == "vLLM":
+                logger.info(f"vLLM에 의한 generate 시도")
+                return self.generate_vLLM(**kargs)
+            else:
+                logger.info(f"local transformers에 의한 generate 시도")
+                return self.generate_transformers(**kargs)
+        except Exception as e:
+            logger.info(f"local transformers에 의한 generate 시도 : {e}")
+            return self.generate_transformers(**kargs)
+
+    def generate_vLLM(self,
+        prompt: str,
+        system_prompt: str | None = None,
+        max_tokens: int = DEFAULT_MAX_TOKENS,
+        temperature: float = DEFAULT_TEMPERATURE,
+        top_p: float = DEFAULT_TOP_P,
+        repetition_penalty: float = DEFAULT_REPETITION_PENALTY,
+    ) -> str:
+        """
+        vLLM을 이용한 텍스트 생성 (통일된 인터페이스)
+
+        Args:
+            prompt: 사용자 프롬프트
+            system_prompt: 시스템 프롬프트 (선택)
+            max_tokens: 최대 토큰 수 (transformers: max_new_tokens)
+            temperature: 샘플링 온도
+            top_p: nucleus sampling
+            repetition_penalty: 반복 패널티 (transformers만 사용)
+
+        Returns:
+            생성된 텍스트
+        """
+        messages = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": prompt})
+
+        resp = self._client.post(
+            f"{self.base_url}/chat/completions",
+            headers={"Authorization": f"Bearer {self.api_key}"},
+            json={
+                "model": self._model_name,
+                "messages": messages,
+                "temperature": temperature,
+                "top_p": top_p,
+                "max_tokens": max_tokens,
+            },
+        )
+        resp.raise_for_status()
+        print(f"resp : {resp}")
+        data = resp.json()
+        print(f"data : {data}")
+        return data["choices"][0]["message"]["content"]
+
+    def generate_transformers(
         self,
         prompt: str,
         system_prompt: str | None = None,
@@ -159,16 +208,9 @@ class UnifiedLLMEngine:
             return ""
 
         try:
-            if self.backend == "langchain":
-                return self._generate_langchain(
-                    prompt, system_prompt, max_tokens, temperature
-                )
-            elif self.backend == "transformers":
-                return self._generate_transformers(
-                    prompt, max_tokens, temperature, top_p, repetition_penalty
-                )
-            else:
-                return ""
+            return self._generate_transformers(
+                prompt, max_tokens, temperature, top_p, repetition_penalty
+            )
         except Exception as e:
             logger.error(f"LLM 생성 실패: {e}", exc_info=True)
             return ""
@@ -345,3 +387,11 @@ def get_langchain_engine(
         kwargs["base_url"] = base_url
 
     return get_llm(backend="langchain", model_name=model)
+
+# 독립 실행 테스트
+if __name__ == "__main__":
+    llm_engine = UnifiedLLMEngine()
+    resp = llm_engine.generate(
+        prompt="안녕하세요. 당신은 누구인가요?",
+    )
+    print(f"resp : {resp}")
