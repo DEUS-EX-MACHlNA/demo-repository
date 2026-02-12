@@ -3,20 +3,12 @@ from sqlalchemy import Column, String, DateTime, Integer, func, ForeignKey, Enum
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from app.database import Base
+from app.schemas.status import GameStatus
 
 from dataclasses import dataclass, field
 from typing import Any, Optional
 from enum import Enum
 from datetime import datetime
-
-
-# ============================================================
-# Game Status Enum
-# ============================================================
-class GameStatus(str, Enum):
-    """게임 상태"""
-    LIVE = "live"        # 진행 중
-    ENDING = "ending"    # 종료됨
 
 
 # ============================================================
@@ -35,7 +27,7 @@ class Games(Base):
     user_id = Column(Integer, nullable=False, default=1)
     
     # ERD: 게임 진행 중 현재 세계관 스냅샷
-    world_data_snapshot = Column(JSONB, nullable=False, default={})
+    world_meta_data = Column(JSONB, nullable=False, default={})
     
     # ERD: 플레이어 데이터 (인벤토리, 상태 등)
     player_data = Column(JSONB, nullable=False, default={})

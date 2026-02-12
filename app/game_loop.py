@@ -30,7 +30,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from app.loader import ScenarioLoader, ScenarioAssets
-from app.models import WorldState, NPCState, NightResult
+from app.schemas import WorldState, NPCState, NightResult
 from app.narrative import get_narrative_layer, NarrativeLayer
 from app.night_controller import get_night_controller, NightController
 from app.day_controller import get_day_controller, DayController
@@ -96,7 +96,7 @@ class GameLoop:
         for flag_name, flag_def in flags_schema.items():
             initial_vars[flag_name] = flag_def.get("default", None)
 
-        # NPC 초기화
+        # NPC 초기화 (시나리오 YAML의 stats Dict를 그대로 사용)
         npcs = {}
         for npc_data in self._assets.get_all_npc_ids():
             npc_def = self._assets.get_npc_by_id(npc_data)
@@ -104,10 +104,7 @@ class GameLoop:
                 stats = npc_def.get("stats", {})
                 npcs[npc_data] = NPCState(
                     npc_id=npc_data,
-                    trust=stats.get("trust", 0),
-                    fear=stats.get("fear", 0),
-                    suspicion=stats.get("suspicion", 0),
-                    humanity=stats.get("humanity", 10),
+                    stats=dict(stats),
                 )
 
         return WorldState(
@@ -153,9 +150,9 @@ class GameLoop:
         if self._is_night:
             logger.warning("[GameLoop] day_turn called during night phase")
 
-        # DayController로 턴 실행
+        # DayController로 입력 처리
         day_controller = get_day_controller()
-        result = day_controller.execute_turn(user_input, self._world, self._assets)
+        result = day_controller.process(user_input, self._world, self._assets)
 
         # 상태 적용
         self._apply_state_delta(result.state_delta)
@@ -184,7 +181,7 @@ class GameLoop:
         """
         밤 페이즈 실행
 
-        1. NightController.run() → night_conversation, night_delta 생성
+        1. NightController.process() → night_conversation, night_delta 생성
         2. 상태 적용
 
         Returns:
@@ -193,8 +190,8 @@ class GameLoop:
         self._is_night = True
         logger.info(f"[GameLoop] night_phase start: turn={self._world.turn}")
 
-        # Step 1: NightController 실행 (대화 + 스탯 변화)
-        night_result = self._night_controller.run(self._world, self._assets)
+        # Step 1: NightController 처리 (대화 + 스탯 변화)
+        night_result = self._night_controller.process(self._world, self._assets)
 
         # Step 2: 상태 적용
         self._apply_night_delta(night_result.night_delta)

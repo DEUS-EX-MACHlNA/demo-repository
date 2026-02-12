@@ -7,31 +7,15 @@ Ending Checker - scenario.yaml의 endings 조건 평가
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
-from app.models import WorldState
+from app.schemas import WorldState
+from app.schemas.ending import EndingInfo, EndingCheckResult
+from app.schemas.condition import EvalContext
 from app.loader import ScenarioAssets
-from app.condition_eval import EvalContext, get_condition_evaluator
+from app.condition_eval import get_condition_evaluator
 
 logger = logging.getLogger(__name__)
-
-
-@dataclass
-class EndingInfo:
-    """도달한 엔딩 정보"""
-    ending_id: str
-    name: str
-    epilogue_prompt: str
-    on_enter_events: List[Dict[str, Any]] = field(default_factory=list)
-
-
-@dataclass
-class EndingCheckResult:
-    """엔딩 체크 결과"""
-    reached: bool  # 엔딩 도달 여부
-    ending: Optional[EndingInfo] = None  # 도달한 엔딩 정보
-    triggered_delta: Dict[str, Any] = field(default_factory=dict)  # on_enter_events로 인한 상태 변화
 
 
 class EndingChecker:
@@ -183,3 +167,115 @@ def check_ending(
     """
     checker = get_ending_checker()
     return checker.check(world_state, assets)
+
+
+# ============================================================
+# 독립 실행 테스트
+# ============================================================
+if __name__ == "__main__":
+    import logging
+    from pathlib import Path
+    from app.loader import ScenarioLoader
+    from app.schemas import NPCState, WorldState
+
+    logging.basicConfig(level=logging.INFO)
+
+    print("=" * 60)
+    print("ENDING CHECKER 테스트")
+    print("=" * 60)
+
+    # 시나리오 로드
+    base_path = Path(__file__).parent.parent / "scenarios"
+    loader = ScenarioLoader(base_path)
+    scenarios = loader.list_scenarios()
+
+    if not scenarios:
+        print("시나리오가 없습니다!")
+        exit(1)
+
+    assets = loader.load(scenarios[0])
+    print(f"\n[1] 시나리오: {assets.scenario.get('title')}")
+
+    # 엔딩 목록 출력
+    checker = get_ending_checker()
+    endings = checker.get_all_endings(assets)
+    print(f"\n[2] 정의된 엔딩 ({len(endings)}개):")
+    for i, ending in enumerate(endings, 1):
+        print(f"  {i}. {ending.get('ending_id')}: {ending.get('name')}")
+        print(f"     조건: {ending.get('condition', 'N/A')}")
+
+    # 테스트 케이스 1: 엔딩 미도달 (초기 상태)
+    print(f"\n[3] 테스트 1: 초기 상태 (엔딩 미도달)")
+    print("-" * 60)
+
+    world1 = WorldState(
+        turn=1,
+        npcs={
+            "stepmother": NPCState(
+                npc_id="stepmother",
+                stats={"trust": 5, "fear": 0, "suspicion": 3}
+            ),
+        },
+        vars={"humanity": 80, "suspicion_level": 3, "day": 1},
+        inventory=[],
+    )
+
+    result1 = checker.check(world1, assets)
+    print(f"  엔딩 도달: {result1.reached}")
+    if result1.reached:
+        print(f"  엔딩 ID: {result1.ending.ending_id}")
+        print(f"  엔딩명: {result1.ending.name}")
+        print(f"  triggered_delta: {result1.triggered_delta}")
+
+    # 테스트 케이스 2: unfinished_doll 엔딩 (humanity <= 0)
+    print(f"\n[4] 테스트 2: 불완전한 박제 엔딩 (humanity=0)")
+    print("-" * 60)
+
+    world2 = WorldState(
+        turn=10,
+        npcs={
+            "stepmother": NPCState(
+                npc_id="stepmother",
+                stats={"trust": 2, "fear": 8, "suspicion": 9}
+            ),
+        },
+        vars={"humanity": 0, "suspicion_level": 100, "day": 2},
+        inventory=[],
+    )
+
+    result2 = checker.check(world2, assets)
+    print(f"  엔딩 도달: {result2.reached}")
+    if result2.reached:
+        print(f"  엔딩 ID: {result2.ending.ending_id}")
+        print(f"  엔딩명: {result2.ending.name}")
+        print(f"  에필로그 프롬프트: {result2.ending.epilogue_prompt[:80]}...")
+        print(f"  triggered_delta: {result2.triggered_delta}")
+
+    # 테스트 케이스 3: eternal_dinner 엔딩 (turn == turn_limit and flags.ending == null)
+    print(f"\n[5] 테스트 3: 영원한 식사 시간 엔딩 (turn_limit 도달)")
+    print("-" * 60)
+
+    turn_limit = assets.get_turn_limit()
+    world3 = WorldState(
+        turn=turn_limit,
+        npcs={
+            "stepmother": NPCState(
+                npc_id="stepmother",
+                stats={"trust": 5, "fear": 5, "suspicion": 5}
+            ),
+        },
+        vars={"humanity": 50, "suspicion_level": 50, "day": 5},
+        flags={"ending": None},  # ending이 아직 설정되지 않음
+    )
+
+    result3 = checker.check(world3, assets)
+    print(f"  엔딩 도달: {result3.reached}")
+    if result3.reached:
+        print(f"  엔딩 ID: {result3.ending.ending_id}")
+        print(f"  엔딩명: {result3.ending.name}")
+        print(f"  에필로그 프롬프트: {result3.ending.epilogue_prompt[:80]}...")
+        print(f"  triggered_delta: {result3.triggered_delta}")
+
+    print("\n" + "=" * 60)
+    print("ENDING CHECKER 테스트 완료")
+    print("=" * 60)

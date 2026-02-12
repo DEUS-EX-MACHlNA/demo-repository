@@ -10,7 +10,7 @@ from app.database import init_db, drop_db
 load_dotenv()
 
 # 모든 모델을 먼저 import해서 Base.metadata에 등록
-from app.db_models import Scenario, Games, GameStatus  # noqa: F401
+from app.db_models import Scenario, Games, GameStatus, ChatLogs  # noqa: F401
 from app.database import init_db, drop_db
 
 if __name__ == "__main__":

@@ -11,7 +11,7 @@ ALTERNATIVE_MODEL = "LGAI-EXAONE/EXAONE-3.5-7.8B-Instruct"
 
 # LLM 백엔드 타입
 LLMBackend = Literal["langchain", "transformers"]
-DEFAULT_BACKEND: LLMBackend = "langchain"
+DEFAULT_BACKEND: LLMBackend = "transformers"
 
 # LangChain 설정
 LANGCHAIN_BASE_URL = "https://router.huggingface.co/v1"

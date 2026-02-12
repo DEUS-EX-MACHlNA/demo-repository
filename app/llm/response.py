@@ -1,16 +1,12 @@
 import json
 import re
-from dataclasses import dataclass
 
+from typing import Dict, Any
+from app.schemas.llm_parsed_response import LLMParsedResponse
 
-@dataclass
-class LLM_Response:
-    raw_text: str
-    cleaned_text: str
-    state_delta: dict
-    event_description: list[str]
-    confidence: float | None = None
+import logging
 
+logger = logging.getLogger(__name__)
 
 def clean_text(text: str) -> str:
     return text.strip()
@@ -43,7 +39,7 @@ def _extract_json(text: str) -> dict | None:
     return None
 
 
-def parse_response(raw_text: str) -> LLM_Response:
+def parse_response(raw_text: str) -> LLMParsedResponse:
     cleaned = clean_text(raw_text)
     state_delta: dict = {}
     event_description: list[str] = []
@@ -63,10 +59,82 @@ def parse_response(raw_text: str) -> LLM_Response:
     if not event_description and cleaned:
         event_description = [cleaned]
 
-    return LLM_Response(
+    return LLMParsedResponse(
         raw_text=raw_text,
         cleaned_text=cleaned,
         state_delta=state_delta,
         event_description=event_description,
         confidence=None,
     )
+
+def parse_tool_call_response(raw_output: str, fallback_input: str) -> Dict[str, Any]:
+    """
+    LLM의 tool call 응답을 파싱합니다.
+
+    Args:
+        raw_output: LLM 출력
+        fallback_input: 파싱 실패 시 action으로 사용할 입력
+
+    Returns:
+        {"tool_name": str, "args": dict, "intent": str}
+    """
+    VALID_INTENTS = ("investigate", "obey", "rebel", "reveal", "summarize", "neutral")
+
+    # JSON 블록 추출
+    json_match = re.search(r'```json\s*(.*?)\s*```', raw_output, re.DOTALL)
+    if json_match:
+        json_str = json_match.group(1)
+    else:
+        # ```json 없이 JSON만 있는 경우
+        json_match = re.search(r'\{.*\}', raw_output, re.DOTALL)
+        if json_match:
+            json_str = json_match.group(0)
+        else:
+            logger.warning(f"[call_tool] JSON 파싱 실패, fallback to action: {raw_output[:100]}")
+            return {
+                "tool_name": "action",
+                "args": {"action": fallback_input},
+                "intent": "neutral",
+            }
+
+    try:
+        data = json.loads(json_str)
+        tool_name = data.get("tool_name", "action")
+        args = data.get("args", {})
+        intent = data.get("intent", "neutral")
+
+        # tool 유효성 검사
+        if tool_name not in ("interact", "action", "use"):
+            logger.warning(f"[call_tool] 알 수 없는 tool: {tool_name}, fallback to action")
+            return {
+                "tool_name": "action",
+                "args": {"action": fallback_input},
+                "intent": "neutral",
+            }
+
+        # intent 유효성 검사
+        if intent not in VALID_INTENTS:
+            logger.warning(f"[call_tool] 알 수 없는 intent: {intent}, fallback to neutral")
+            intent = "neutral"
+
+        return {"tool_name": tool_name, "args": args, "intent": intent}
+
+    except json.JSONDecodeError as e:
+        logger.warning(f"[call_tool] JSON 디코드 실패: {e}, fallback to action")
+        return {
+            "tool_name": "action",
+            "args": {"action": fallback_input},
+            "intent": "neutral",
+        }
+
+
+def parse_narrative_response(raw_text: str) -> str:
+    """내러티브 LLM 응답에서 서술 텍스트 추출 — [출력] 마커 이후 텍스트 반환"""
+    text = clean_text(raw_text)
+    marker = "[출력]"
+    idx = text.rfind(marker)
+    if idx >= 0:
+        text = text[idx + len(marker):].strip()
+    if not text:
+        return "(서술 생성 실패)"
+    return text

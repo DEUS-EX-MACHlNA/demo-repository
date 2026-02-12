@@ -38,6 +38,7 @@ class UnifiedLLMEngine:
         """
         self.backend = backend
         self._model = None
+        self._tokenizer = None
         self._loaded = False
 
         # 설정 로드
