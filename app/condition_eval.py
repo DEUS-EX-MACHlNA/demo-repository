@@ -10,7 +10,7 @@ import logging
 import re
 from typing import Any, Dict, List, Optional, Union
 
-from app.schemas import WorldStatePipelinePipeline
+from app.schemas import WorldStatePipeline
 from app.schemas.condition import EvalContext
 
 logger = logging.getLogger(__name__)
