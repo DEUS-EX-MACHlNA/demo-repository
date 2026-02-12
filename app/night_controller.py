@@ -18,7 +18,7 @@ import random
 from typing import Any, Optional
 
 from app.loader import ScenarioAssets
-from app.schemas import NightResult, WorldState
+from app.schemas import NightResult, WorldStatePipeline
 
 from app.agents.dialogue import (
     generate_utterance,
@@ -55,7 +55,7 @@ class NightController:
     # ── 메인 실행 ─────────────────────────────────────────────
     def process(
         self,
-        world_snapshot: WorldState,
+        world_snapshot: WorldStatePipeline,
         assets: ScenarioAssets,
     ) -> NightResult:
         """
@@ -115,7 +115,7 @@ class NightController:
     # ── Phase 1: 성찰 ────────────────────────────────────────
     def _run_reflections(
         self,
-        world_snapshot: WorldState,
+        world_snapshot: WorldStatePipeline,
         assets: ScenarioAssets,
         npc_ids: list[str],
         turn: int,
@@ -140,7 +140,7 @@ class NightController:
     # ── Phase 2: 계획 수립 ────────────────────────────────────
     def _run_planning(
         self,
-        world_snapshot: WorldState,
+        world_snapshot: WorldStatePipeline,
         assets: ScenarioAssets,
         npc_ids: list[str],
         turn: int,
@@ -165,7 +165,7 @@ class NightController:
     # ── Phase 3: 그룹 대화 생성 (3명이 함께, 랜덤 발화자 선택) ──
     def _run_dialogues(
         self,
-        world_snapshot: WorldState,
+        world_snapshot: WorldStatePipeline,
         assets: ScenarioAssets,
         npc_ids: list[str],
         turn: int,
@@ -325,7 +325,7 @@ if __name__ == "__main__":
     print(f"\n시나리오: {assets.scenario.get('title')}")
 
     # NPCState를 시나리오 YAML의 stats 구조에 맞춤
-    world = WorldState(
+    world = WorldStatePipeline(
         turn=3,
         npcs={
             "stepmother": NPCState(

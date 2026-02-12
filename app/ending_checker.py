@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, List, Optional
 
-from app.schemas import WorldState
+from app.schemas import WorldStatePipelinePipeline
 from app.schemas.ending import EndingInfo, EndingCheckResult
 from app.schemas.condition import EvalContext
 from app.loader import ScenarioAssets
@@ -31,7 +31,7 @@ class EndingChecker:
 
     def check(
         self,
-        world_state: WorldState,
+        world_state: WorldStatePipeline,
         assets: ScenarioAssets,
     ) -> EndingCheckResult:
         """
@@ -152,7 +152,7 @@ def get_ending_checker() -> EndingChecker:
 # 편의 함수
 # ============================================================
 def check_ending(
-    world_state: WorldState,
+    world_state: WorldStatePipeline,
     assets: ScenarioAssets,
 ) -> EndingCheckResult:
     """
@@ -176,7 +176,7 @@ if __name__ == "__main__":
     import logging
     from pathlib import Path
     from app.loader import ScenarioLoader
-    from app.schemas import NPCState, WorldState
+    from app.schemas import NPCState, WorldStatePipeline
 
     logging.basicConfig(level=logging.INFO)
 
@@ -208,7 +208,7 @@ if __name__ == "__main__":
     print(f"\n[3] 테스트 1: 초기 상태 (엔딩 미도달)")
     print("-" * 60)
 
-    world1 = WorldState(
+    world1 = WorldStatePipeline(
         turn=1,
         npcs={
             "stepmother": NPCState(
@@ -231,7 +231,7 @@ if __name__ == "__main__":
     print(f"\n[4] 테스트 2: 불완전한 박제 엔딩 (humanity=0)")
     print("-" * 60)
 
-    world2 = WorldState(
+    world2 = WorldStatePipeline(
         turn=10,
         npcs={
             "stepmother": NPCState(
@@ -256,7 +256,7 @@ if __name__ == "__main__":
     print("-" * 60)
 
     turn_limit = assets.get_turn_limit()
-    world3 = WorldState(
+    world3 = WorldStatePipeline(
         turn=turn_limit,
         npcs={
             "stepmother": NPCState(

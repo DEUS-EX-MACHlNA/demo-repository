@@ -58,13 +58,14 @@ class NPCState(BaseModel):
         self.stats[key] = new_value
         return new_value
 
-
-class WorldState(BaseModel):
+class WorldStatePipeline(BaseModel):
     """월드 런타임 전체 상태"""
     turn: int = 1
     npcs: Dict[str, NPCState] = Field(default_factory=dict)
     flags: Dict[str, Any] = Field(default_factory=dict)
     inventory: List[str] = Field(default_factory=list)
+    # item_state_changes
+
     locks: Dict[str, bool] = Field(default_factory=dict)
     vars: Dict[str, Any] = Field(default_factory=dict)
 
@@ -88,6 +89,11 @@ class WorldState(BaseModel):
             vars=data.get("vars", {}),
         )
 
+class WorldState(WorldStatePipeline):
+    world_state_pipeline: Dict[str, Any]
+    npc_location: Optional[str] = None
+    item_state_changes: Optional[str] = None
+    npc_disables_states: Optional[str] = None
 
 class StateDelta(BaseModel):
     """상태 변경을 위한 델타 명세
@@ -104,7 +110,7 @@ class StateDelta(BaseModel):
     inventory_remove: List[str] = Field(default_factory=list)
     locks: Dict[str, bool] = Field(default_factory=dict)
     vars: Dict[str, Any] = Field(default_factory=dict)
-    turn_increment: int = 0
+    turn_increment: int = 1
     memory_updates: Dict[str, Any] = Field(default_factory=dict)
     next_node: Optional[str] = None
 

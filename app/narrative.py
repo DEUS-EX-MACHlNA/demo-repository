@@ -24,7 +24,7 @@ from app.llm import UnifiedLLMEngine
 from app.llm.response import parse_narrative_response
 
 if TYPE_CHECKING:
-    from app.schemas import WorldState
+    from app.schemas import WorldStatePipeline
 
 # 환경변수 로드
 load_dotenv()
@@ -63,7 +63,7 @@ class NarrativeLayer:
     # ============================================================
     def render(
         self,
-        world_state: "WorldState",
+        world_state: "WorldStatePipeline",
         assets: ScenarioAssets,
         event_description: list[str] | None = None,
         state_delta: dict[str, Any] | None = None,
@@ -127,7 +127,7 @@ class NarrativeLayer:
         self,
         event_description: list[str],
         state_delta: dict[str, Any],
-        world_state: "WorldState",
+        world_state: "WorldStatePipeline",
         assets: ScenarioAssets,
         npc_response: Optional[str] = None,
     ) -> str:
@@ -150,7 +150,7 @@ class NarrativeLayer:
         self,
         event_description: list[str],
         state_delta: dict[str, Any],
-        world_state: "WorldState",
+        world_state: "WorldStatePipeline",
         assets: ScenarioAssets,
     ) -> str:
         parts = []
@@ -175,7 +175,7 @@ class NarrativeLayer:
     # ============================================================
     def _render_lm_night(
         self,
-        world_state: "WorldState",
+        world_state: "WorldStatePipeline",
         assets: ScenarioAssets,
         night_conversation: list[dict[str, str]],
     ) -> str:
@@ -194,7 +194,7 @@ class NarrativeLayer:
     # ============================================================
     def _render_simple_night(
         self,
-        world_state: "WorldState",
+        world_state: "WorldStatePipeline",
         assets: ScenarioAssets,
         night_conversation: list[dict[str, str]],
     ) -> str:
@@ -251,7 +251,7 @@ class NarrativeLayer:
         self,
         event_description: list[str],
         state_delta: dict[str, Any],
-        world_state: "WorldState",
+        world_state: "WorldStatePipeline",
         assets: ScenarioAssets,
         npc_response: Optional[str] = None,
     ) -> str:
@@ -292,7 +292,7 @@ class NarrativeLayer:
 
     def _build_night_narrative_prompt(
         self,
-        world_state: "WorldState",
+        world_state: "WorldStatePipeline",
         assets: ScenarioAssets,
         night_conversation: list[dict[str, str]],
     ) -> str:
@@ -395,7 +395,7 @@ class NarrativeLayer:
 
     def _get_turn_info(
         self,
-        world_state: "WorldState",
+        world_state: "WorldStatePipeline",
         assets: ScenarioAssets,
     ) -> str:
         turn = world_state.turn
@@ -415,7 +415,7 @@ class NarrativeLayer:
     def render_ending(
         self,
         ending_info: dict,
-        world_state: "WorldState",
+        world_state: "WorldStatePipeline",
         assets: ScenarioAssets,
     ) -> str:
         logger.info(f"Rendering ending: {ending_info.get('ending_id', 'unknown')}")
@@ -442,7 +442,7 @@ class NarrativeLayer:
     def _render_lm_ending(
         self,
         ending_info: dict,
-        world_state: "WorldState",
+        world_state: "WorldStatePipeline",
         assets: ScenarioAssets,
     ) -> str:
         prompt = self._build_ending_narrative_prompt(ending_info, world_state, assets)
@@ -470,7 +470,7 @@ class NarrativeLayer:
     def _render_simple_ending(
         self,
         ending_info: dict,
-        world_state: "WorldState",
+        world_state: "WorldStatePipeline",
         assets: ScenarioAssets,
     ) -> str:
         ending_id = ending_info.get("ending_id", "")
@@ -520,7 +520,7 @@ class NarrativeLayer:
     def _build_ending_narrative_prompt(
         self,
         ending_info: dict,
-        world_state: "WorldState",
+        world_state: "WorldStatePipeline",
         assets: ScenarioAssets,
     ) -> str:
         ending_id = ending_info.get("ending_id", "")
@@ -611,7 +611,7 @@ def get_narrative_layer() -> NarrativeLayer:
 if __name__ == "__main__":
     from pathlib import Path
     from app.loader import ScenarioLoader
-    from app.schemas import WorldState, NPCState
+    from app.schemas import WorldStatePipeline, NPCState
 
     print("=" * 60)
     print("NARRATIVE 컴포넌트 테스트")
@@ -633,7 +633,7 @@ if __name__ == "__main__":
     narrative = NarrativeLayer()
 
     # 테스트용 월드 상태
-    world_state = WorldState(
+    world_state = WorldStatePipeline(
         turn=3,
         npcs={"button_mother": NPCState(npc_id="button_mother", stats={"trust": 3, "fear": 0, "suspicion": 2})},
         vars={"humanity": 8, "total_suspicion": 2},

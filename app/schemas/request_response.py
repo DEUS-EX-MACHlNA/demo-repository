@@ -50,6 +50,13 @@ class StepRequestSchema(BaseModel):
     npc_name: Optional[str] = None
     item_name: Optional[str] = None
 
+class StepResponseSchema(BaseModel):
+    """낮 파이프라인 실행 결과"""
+    narrative: str
+    ending_info: Optional[Dict[str, Any]] = None
+    world_state: Dict[str, Any] = Field(default_factory=dict)
+    debug: Dict[str, Any] = Field(default_factory=dict)
+
 
 # ============================================================
 # Night 요청/응답
@@ -59,11 +66,11 @@ class NightRequestBody(BaseModel):
     user_id: str
 
 
-class NightTurnResult(BaseModel):
+class NightResponseResult(BaseModel):
     """밤 파이프라인 실행 결과"""
-    dialogue: str
-    night_conversation: List[Dict[str, str]]
-    ending: Optional[Dict[str, Any]] = None
+    narrative: str
+    ending_info: Optional[Dict[str, Any]] = None
+    world_state: Dict[str, Any] = Field(default_factory=dict)
     debug: Dict[str, Any] = Field(default_factory=dict)
 
 

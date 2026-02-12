@@ -22,6 +22,7 @@ from app.schemas.npc_info import (
 # Game State (Runtime)
 from app.schemas.game_state import (
     NPCState,
+    WorldStatePipeline,
     WorldState,
     StateDelta,
     merge_deltas,
@@ -53,7 +54,7 @@ from app.schemas.request_response import (
     TurnResult,
     StepRequestSchema,
     NightRequestBody,
-    NightTurnResult,
+    NightResponseResult,
     ScenarioInfoResponse,
     StateResponse,
     GameResponse,
@@ -123,7 +124,7 @@ __all__ = [
     # NPC
     "NpcSchema", "NpcCollectionSchema",
     # Game State
-    "NPCState", "WorldState", "StateDelta", "merge_deltas",
+    "NPCState", "WorldStatePipeline", "WorldState", "StateDelta", "merge_deltas",
     # Player
     "PlayerMemoSchema", "PlayerSchema",
     # Item
@@ -132,7 +133,7 @@ __all__ = [
     "ToolCall", "ToolResult",
     # Request/Response
     "UserInputSchema", "StepRequest", "StepResponse", "TurnResult",
-    "StepRequestSchema", "NightRequestBody", "NightTurnResult",
+    "StepRequestSchema", "NightRequestBody", "NightResponseResult",
     "ScenarioInfoResponse", "StateResponse", "GameResponse",
     # Memory
     "MemoryEntrySchema", "MemoryStreamSchema",
