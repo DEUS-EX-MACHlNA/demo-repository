@@ -82,11 +82,16 @@ class DayController:
             logger.warning(f"[DayController] 알 수 없는 tool: {tool_name}")
             result = TOOLS["action"](action=user_input_str)
 
-        # 5. Tool 결과를 delta로 변환 > delta를 반환하는 것으로 수정됨
-        # tool_delta = _final_values_to_delta(
-        #     result.get("state_delta", {}),
-        #     world_state
-        # )
+        # 5. use() 결과에서 StatusEffect 등록
+        if tool_name == "use" and "item_use_result" in result:
+            from app.status_effect_manager import get_status_effect_manager
+            from app.schemas.item_use import StatusEffect
+            sem = get_status_effect_manager()
+            for se_data in result["item_use_result"].get("status_effects", []):
+                if isinstance(se_data, dict):
+                    sem.add_effect(StatusEffect(**se_data))
+                elif isinstance(se_data, StatusEffect):
+                    sem.add_effect(se_data)
 
         # 6. Rule Engine 적용: intent 기반 자동 상태 변화
         active_npc_id = result.get("npc_id")  # interact에서 반환되는 npc_id

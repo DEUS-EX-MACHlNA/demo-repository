@@ -85,18 +85,16 @@ class EndingChecker:
     def _events_to_delta(
         self,
         events: List[Dict[str, Any]],
-    ) -> Dict[str, Any]:
+    ) -> StateDelta:
         """
-        on_enter_events를 state delta로 변환합니다.
+        on_enter_events를 StateDelta로 변환합니다.
 
         지원하는 이벤트 타입:
         - flag_set: {type: flag_set, key: ending, value: stealth_exit}
         - var_set: {type: var_set, key: some_var, value: 10}
         """
-        delta: Dict[str, Any] = {
-            "flags": {},
-            "vars": {},
-        }
+        flags: Dict[str, Any] = {}
+        vars_: Dict[str, Any] = {}
 
         for event in events:
             event_type = event.get("type", "")
@@ -104,13 +102,13 @@ class EndingChecker:
             value = event.get("value")
 
             if event_type == "flag_set":
-                delta["flags"][key] = value
+                flags[key] = value
             elif event_type == "var_set":
-                delta["vars"][key] = value
+                vars_[key] = value
             else:
                 logger.warning(f"[EndingChecker] 알 수 없는 이벤트 타입: {event_type}")
 
-        return delta
+        return StateDelta(flags=flags, vars=vars_, turn_increment=0)
 
     def get_all_endings(
         self,
@@ -225,7 +223,7 @@ if __name__ == "__main__":
     if result1.reached:
         print(f"  엔딩 ID: {result1.ending.ending_id}")
         print(f"  엔딩명: {result1.ending.name}")
-        print(f"  triggered_delta: {result1.triggered_delta}")
+        print(f"  triggered_delta: {result1.triggered_delta.to_dict()}")
 
     # 테스트 케이스 2: unfinished_doll 엔딩 (humanity <= 0)
     print(f"\n[4] 테스트 2: 불완전한 박제 엔딩 (humanity=0)")
@@ -249,7 +247,7 @@ if __name__ == "__main__":
         print(f"  엔딩 ID: {result2.ending.ending_id}")
         print(f"  엔딩명: {result2.ending.name}")
         print(f"  에필로그 프롬프트: {result2.ending.epilogue_prompt[:80]}...")
-        print(f"  triggered_delta: {result2.triggered_delta}")
+        print(f"  triggered_delta: {result2.triggered_delta.to_dict()}")
 
     # 테스트 케이스 3: eternal_dinner 엔딩 (turn == turn_limit and flags.ending == null)
     print(f"\n[5] 테스트 3: 영원한 식사 시간 엔딩 (turn_limit 도달)")
@@ -274,7 +272,7 @@ if __name__ == "__main__":
         print(f"  엔딩 ID: {result3.ending.ending_id}")
         print(f"  엔딩명: {result3.ending.name}")
         print(f"  에필로그 프롬프트: {result3.ending.epilogue_prompt[:80]}...")
-        print(f"  triggered_delta: {result3.triggered_delta}")
+        print(f"  triggered_delta: {result3.triggered_delta.to_dict()}")
 
     print("\n" + "=" * 60)
     print("ENDING CHECKER 테스트 완료")

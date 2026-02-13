@@ -16,6 +16,7 @@ from app.schemas import WorldStatePipeline
 from app.llm import UnifiedLLMEngine, get_llm
 from app.llm.prompt import build_tool_call_prompt
 from app.llm.response import parse_tool_call_response
+from app.postprocess import postprocess_npc_dialogue
 
 logger = logging.getLogger(__name__)
 
@@ -116,7 +117,7 @@ def call_tool(
     )
 
     # 4. LLM 호출
-    raw_output = llm_engine.generate(prompt)
+    raw_output = llm_engine.generate(prompt=prompt)
     logger.debug(f"[call_tool] LLM 응답: {raw_output}")
 
     # 5. JSON 파싱
@@ -198,6 +199,14 @@ def interact(target: str, interact: str) -> Dict[str, Any]:
         llm=llm_engine,
         current_turn=world_state.turn,
         world_snapshot=world_snapshot,
+    )
+
+    # 3-1. NPC 대사 후처리 (글리치/광기 효과 적용)
+    npc_humanity = npc_state.stats.get("humanity", 100) if npc_state else 100
+    npc_response = postprocess_npc_dialogue(
+        text=npc_response,
+        npc_id=target,
+        humanity=npc_humanity,
     )
     logger.info(f"NPC 응답: {npc_response[:80]}...")
 
@@ -322,7 +331,7 @@ def action(action: str) -> Dict[str, Any]:
     )
 
     # LLM 호출
-    raw_output = llm_engine.generate(prompt)
+    raw_output = llm_engine.generate(prompt=prompt)
     llm_response = parse_response(raw_output)
 
     return {
@@ -331,64 +340,49 @@ def action(action: str) -> Dict[str, Any]:
     }
 
 
-def use(item: str, action: str) -> Dict[str, Any]:
+def use(item: str, action: str, target: str = None) -> Dict[str, Any]:
     """
-    아이템이나 환경을 사용합니다. 인벤토리에 있는 아이템이나 환경 요소를 활용할 때 호출합니다.
+    아이템을 사용합니다. 룰 엔진 기반으로 판정하고, LLM은 호출하지 않습니다.
 
     Args:
-        item: 사용할 아이템의 ID (예: "kitchen_knife", "matches")
-        action: 아이템이나 환경을 어떻게, 왜 사용했는지에 대한 서술
+        item: 사용할 아이템의 ID (예: "industrial_sedative", "mothers_key")
+        action: 아이템을 어떻게, 왜 사용했는지에 대한 서술
+        target: 대상 NPC ID (선택, 아이템을 NPC에게 사용할 때)
 
     Returns:
-        아이템 사용 결과와 상태 변화 (event_description, state_delta)
+        아이템 사용 결과와 상태 변화 (event_description, state_delta, item_use_result)
     """
-    from app.llm.prompt import build_item_prompt
-    from app.llm.response import parse_response
+    from app.item_use_resolver import get_item_use_resolver
 
     ctx = _tool_context
     world_state = ctx["world_state"]
     assets = ctx["assets"]
-    llm_engine = ctx["llm_engine"]
 
-    logger.info(f"use 호출: item={item}, action={action[:50]}...")
+    logger.info(f"use (rule-engine): item={item}, action={action[:50]}..., target={target}")
 
-    # 아이템 정보 조회
-    item_info = assets.get_item_by_id(item)
-
-    if not item_info:
-        logger.warning(f"아이템을 찾을 수 없음: {item}")
-        return {
-            "event_description": [f"{item}라는 아이템을 찾을 수 없습니다."],
-            "state_delta": {},
-            "item_id": item,
-        }
-
-    # 인벤토리 확인
-    if item not in world_state.inventory:
-        return {
-            "event_description": [f"{item}이(가) 인벤토리에 없습니다."],
-            "state_delta": {},
-            "item_id": item,
-        }
-
-    # 프롬프트 생성
-    item_name = item_info.get("name", item)
-    prompt = build_item_prompt(
-        item_name=item_name,
-        item_def=item_info,
-        world_state=world_state.to_dict(),
-        npc_context=assets.export_for_prompt(),
+    resolver = get_item_use_resolver()
+    result = resolver.resolve(
+        item_id=item,
+        action_description=action,
+        target_npc_id=target,
+        world_state=world_state,
         assets=assets,
     )
 
-    # LLM 호출
-    raw_output = llm_engine.generate(prompt)
-    llm_response = parse_response(raw_output)
+    if result.success:
+        item_info = assets.get_item_by_id(item)
+        item_name = item_info.get("name", item) if item_info else item
+        event_description = [f"{item_name}을(를) 사용했다."]
+        if result.notes:
+            event_description.append(result.notes)
+    else:
+        event_description = [f"아이템 사용 실패: {result.failure_reason}"]
 
     return {
-        "event_description": llm_response.event_description,
-        "state_delta": llm_response.state_delta,
+        "event_description": event_description,
+        "state_delta": result.state_delta,
         "item_id": item,
+        "item_use_result": result.model_dump(),
     }
 
 
@@ -452,3 +446,94 @@ def _final_values_to_delta(
             result[key] = raw_delta[key]
 
     return result
+
+
+# ============================================================
+# 독립 실행 테스트
+# ============================================================
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
+    print("=" * 60)
+    print("Tool 시스템 디버그 시작")
+    print("=" * 60)
+
+    try:
+        # ----------------------------------------------------
+        # 더미 객체 생성 (프로젝트 구조에 맞게 수정 가능)
+        # ----------------------------------------------------
+        from pathlib import Path
+        from app.loader import ScenarioAssets, ScenarioLoader
+        from app.schemas import WorldStatePipeline
+
+        # load asset
+        base_path = Path(__file__).parent.parent / "scenarios"
+        # 로더 생성
+        loader = ScenarioLoader(base_path)
+        scenario_id = 'coraline'
+        assets = loader.load(scenario_id)
+        
+        # load world state
+        world_state = WorldStatePipeline()  # 필요 시 수정
+
+        # ----------------------------------------------------
+        # 1. call_tool 테스트
+        # ----------------------------------------------------
+        test_input = "새엄마에게 왜 나를 싫어하냐고 묻는다"
+
+        print(f"\n[TEST] call_tool → 입력: {test_input}")
+        result = call_tool(
+            user_input=test_input,
+            world_state=world_state,
+            assets=assets,
+        )
+
+        print("[call_tool 결과]")
+        print(result)
+
+        # ----------------------------------------------------
+        # 2. 실제 Tool 실행 테스트
+        # ----------------------------------------------------
+        tool_name = result["tool_name"]
+        args = result["args"]
+
+        print(f"\n[TEST] 실행할 tool: {tool_name}")
+        if tool_name in TOOLS:
+            tool_result = TOOLS[tool_name](**args)
+            print("[Tool 실행 결과]")
+            print(tool_result)
+        else:
+            print("알 수 없는 tool")
+
+        # ----------------------------------------------------
+        # 3. 단독 interact 테스트
+        # ----------------------------------------------------
+        print("\n[TEST] interact 단독 테스트")
+        interact_result = interact(
+            target="stepmother",
+            interact="왜 나를 미워하세요?"
+        )
+        print(interact_result)
+
+        # ----------------------------------------------------
+        # 4. 단독 action 테스트
+        # ----------------------------------------------------
+        print("\n[TEST] action 단독 테스트")
+        action_result = action("거실을 조심스럽게 조사한다")
+        print(action_result)
+
+        # ----------------------------------------------------
+        # 5. 단독 use 테스트 (아이템이 존재할 경우)
+        # ----------------------------------------------------
+        if world_state.inventory:
+            test_item = world_state.inventory[0]
+            print(f"\n[TEST] use 단독 테스트 → item={test_item}")
+            use_result = use(test_item, "위험을 대비해 사용한다")
+            print(use_result)
+        else:
+            print("\n[TEST] 인벤토리가 비어 있어 use 테스트 생략")
+
+    except Exception as e:
+        logger.exception("디버그 실행 중 오류 발생")
+        print(f"오류 발생: {e}")
+
+    print("\n=== Tool 시스템 디버그 종료 ===")

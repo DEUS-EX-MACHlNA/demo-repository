@@ -508,15 +508,9 @@ class GameService:
 
         # ── Step 6: EndingChecker - 엔딩 체크 ──
         ending_result = check_ending(world_after, assets)
-        ending_info = None
+        ending_info = ending_result.to_ending_info_dict()
         if ending_result.reached:
-            ending_info = {
-                "ending_id": ending_result.ending.ending_id,
-                "name": ending_result.ending.name,
-                "epilogue_prompt": ending_result.ending.epilogue_prompt,
-            }
-            if ending_result.triggered_delta:
-                _apply_delta(world_after, ending_result.triggered_delta, assets)
+            _apply_delta(world_after, ending_result.triggered_delta.to_dict(), assets)
 
         # ── Step 7: NarrativeLayer - 나레이션 생성 ──
         narrative_layer = get_narrative_layer()
@@ -611,15 +605,9 @@ class GameService:
 
         # ── Step 6: EndingChecker - 엔딩 체크 ──
         ending_result = check_ending(world_after, assets)
-        ending_info = None
+        ending_info = ending_result.to_ending_info_dict()
         if ending_result.reached:
-            ending_info = {
-                "ending_id": ending_result.ending.ending_id,
-                "name": ending_result.ending.name,
-                "epilogue_prompt": ending_result.ending.epilogue_prompt,
-            }
-            if ending_result.triggered_delta:
-                _apply_delta(world_after, ending_result.triggered_delta, assets)
+            _apply_delta(world_after, ending_result.triggered_delta.to_dict(), assets)
 
         # ── Step 7: NarrativeLayer - 나레이션 생성 ──
         narrative_layer = get_narrative_layer()

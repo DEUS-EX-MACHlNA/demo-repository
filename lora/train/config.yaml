@@ -1,0 +1,59 @@
+# LoRA Training Configuration for EXAONE 7.8B Monster Style
+# 목적: 몬스터 말투(문장 구조, 반복, 붕괴된 문법, 의성어/의태어, 광기 표현)만 학습
+# 주의: 게임 로직, humanity 변수, 상태 전이, semantic role 등은 포함하지 않음
+
+# Model Configuration
+model:
+  name: "LGAI-EXAONE/EXAONE-3.5-7.8B-Instruct"
+  torch_dtype: "bfloat16"
+  device_map: "auto"
+  trust_remote_code: true
+
+# LoRA Configuration
+lora:
+  r: 16                          # LoRA rank
+  lora_alpha: 32                 # LoRA alpha (보통 r의 2배)
+  lora_dropout: 0.05             # Dropout rate
+  target_modules:
+    - "q_proj"
+    - "k_proj"
+    - "v_proj"
+    - "o_proj"
+    - "gate_proj"
+    - "up_proj"
+    - "down_proj"
+  bias: "none"
+  task_type: "CAUSAL_LM"
+
+# Training Configuration
+training:
+  output_dir: "../adapters/exaone-7.8b-monster-lora"
+  num_train_epochs: 3
+  per_device_train_batch_size: 2
+  gradient_accumulation_steps: 8
+  learning_rate: 2.0e-4
+  weight_decay: 0.01
+  warmup_ratio: 0.03
+  lr_scheduler_type: "cosine"
+  logging_steps: 10
+  save_steps: 100
+  save_total_limit: 3
+  fp16: false
+  bf16: true
+  max_grad_norm: 0.3
+  optim: "paged_adamw_32bit"
+  gradient_checkpointing: true
+  group_by_length: true
+  report_to: "none"
+
+# Data Configuration
+data:
+  train_file: "../data/monster_style.jsonl"
+  max_seq_length: 512
+
+# Quantization (for memory efficiency on Colab)
+quantization:
+  load_in_4bit: true
+  bnb_4bit_compute_dtype: "bfloat16"
+  bnb_4bit_quant_type: "nf4"
+  bnb_4bit_use_double_quant: true

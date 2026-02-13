@@ -116,7 +116,7 @@ def generate_utterance(
             "발화:"
         )
 
-    resp = llm.generate(prompt, max_tokens=80)
+    resp = llm.generate(prompt=prompt, max_tokens=80, npc_id=speaker_id)
     if not resp:
         resp = f"...{speaker_name}은(는) 잠시 말을 아꼈다."
     return resp.strip()

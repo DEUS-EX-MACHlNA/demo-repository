@@ -3,6 +3,18 @@ __pycache__/
 
 # env
 .env
+
+# LoRA training data and adapters
+lora/data/*.jsonl
+lora/adapters/*
+!lora/adapters/.gitkeep
+!lora/adapters/*/.gitkeep
+
+# Jupyter
+.ipynb_checkpoints/
 app/llm/__init__.py.orig
 app/pipeline_overview.md
 nul
+
+# adapter
+lora/adapters
