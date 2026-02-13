@@ -6,7 +6,7 @@ import os
 from typing import Literal
 
 # 기본 모델 설정 (여기서 모델을 변경하세요)
-DEFAULT_MODEL = "Qwen/Qwen2.5-7B-Instruct"
+DEFAULT_MODEL = "kakaocorp/kanana-1.5-8b-instruct-2505"
 ALTERNATIVE_MODEL = "LGAI-EXAONE/EXAONE-3.5-7.8B-Instruct"
 
 # LLM 백엔드 타입
@@ -52,6 +52,7 @@ def get_model_config(backend: LLMBackend | None = None) -> dict:
 
     if backend == "vLLM":
         return {
+            "model": VLLM_SERVED_MODEL_NAME,
             "model": VLLM_SERVED_MODEL_NAME,
             "base_url": VLLM_BASE_URL,
             "temperature": DEFAULT_TEMPERATURE,

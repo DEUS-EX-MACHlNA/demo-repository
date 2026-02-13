@@ -15,3 +15,6 @@ lora/adapters/*
 app/llm/__init__.py.orig
 app/pipeline_overview.md
 nul
+
+# adapter
+lora/adapters

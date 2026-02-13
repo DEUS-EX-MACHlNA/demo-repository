@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, List, Optional
 
-from app.schemas import WorldStatePipeline, StateDelta
+from app.schemas import WorldStatePipeline
 from app.schemas.ending import EndingInfo, EndingCheckResult
 from app.schemas.condition import EvalContext
 from app.loader import ScenarioAssets
