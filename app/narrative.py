@@ -20,7 +20,7 @@ from typing import Any, Optional, TYPE_CHECKING
 from dotenv import load_dotenv
 
 from app.loader import ScenarioAssets
-from app.llm import UnifiedLLMEngine
+from app.llm import UnifiedLLMEngine, get_llm
 from app.llm.response import parse_narrative_response
 
 if TYPE_CHECKING:
@@ -38,7 +38,7 @@ def _get_llm() -> UnifiedLLMEngine:
     """LLM 엔진 싱글턴 반환"""
     global _llm_instance
     if _llm_instance is None:
-        _llm_instance = UnifiedLLMEngine()
+        _llm_instance = get_llm()
     return _llm_instance
 
 logger = logging.getLogger(__name__)
