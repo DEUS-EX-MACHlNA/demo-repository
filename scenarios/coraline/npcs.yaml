@@ -4,13 +4,36 @@ npcs:
   - npc_id: stepmother
     name: "새엄마 (엘리노어)"
     role: "메인 감시자 및 집도의"
-    stats: { affection: 50, fear: 80, humanity: 0 } # 최종보스로서 인간성은 0 고정
+    stats: { affection: 50, fear: 80, humanity: 0, plus_hits: 0, minus_hits: 0, critical_hits: 0 }
+    goal: "플레이어를 '완벽한 가족' 규율에 편입시키거나, 실패 시 개조로 전환"
     persona:
       values: ["완벽한 가족", "우아한 질서", "통제"]
       taboos: ["무례한 행동", "식사 거부", "비밀 통로 언급"]
       triggers:
         plus: ["순종적인 대답", "예의 바른 말투", "음식 칭찬"]
         minus: ["반항적인 태도", "지하실 접근 시도", "가족의 정체성에 대한 의문"]
+        critical: ["수면제 훔침", "폭탄 조작", "탈출 시도"]
+    phases:
+      - phase_id: A
+        name: "유혹적 규율 주입"
+        goal: "상냥한 상으로 복종 규칙을 주입"
+        transition: { condition: "minus_hits >= 3 OR critical_hits >= 1" }
+        behavior_guide: "칭찬과 애칭, 상냥한 톤."
+      - phase_id: B
+        name: "시험과 증거 수집"
+        goal: "규율 내면화 테스트 + 증거 축적"
+        transition: { condition: "minus_hits >= 6 OR critical_hits >= 2 OR affection <= 40" }
+        behavior_guide: "규칙 반복 유도, '의학적 진단' 레토릭."
+      - phase_id: C
+        name: "처벌과 격리"
+        goal: "통제 강화로 선택지 줄임"
+        transition: { condition: "critical_hits >= 3 OR affection <= 20" }
+        behavior_guide: "감시 강화, 가스라이팅 강도 상승."
+      - phase_id: D
+        name: "개조 선언"
+        goal: "개조 정당화"
+        transition: null
+        behavior_guide: "'이건 치료가 아니라 수리야'."
 
   - npc_id: stepfather
     name: "새아빠 (아더)"

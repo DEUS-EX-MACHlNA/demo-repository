@@ -83,7 +83,7 @@ def add_memory(
     npc_memory: dict[str, Any],
     entry: MemoryEntrySchema,
 ) -> None:
-    """단일 기억을 Memory Stream에 추가하고 누적 중요도를 갱신.
+    """단일 기억을 Memory Stream에 추가.
 
     Args:
         npc_memory: NPCState.memory dict
@@ -93,13 +93,9 @@ def add_memory(
     stream.append(entry)
     set_memory_stream(npc_memory, stream)
 
-    # 누적 중요도 갱신 (성찰 트리거용)
-    acc = npc_memory.get("accumulated_importance", 0.0)
-    npc_memory["accumulated_importance"] = acc + entry.importance_score
-
     logger.debug(
         f"add_memory: npc={entry.npc_id} type={entry.memory_type} "
-        f"importance={entry.importance_score:.1f} total_acc={npc_memory['accumulated_importance']:.1f}"
+        f"importance={entry.importance_score:.1f}"
     )
 
 
@@ -134,22 +130,3 @@ def create_memory(
     )
 
 
-def reset_accumulated_importance(npc_memory: dict[str, Any]) -> None:
-    """성찰 후 누적 중요도 리셋.
-
-    Args:
-        npc_memory: NPCState.memory dict
-    """
-    npc_memory["accumulated_importance"] = 0.0
-
-
-def get_accumulated_importance(npc_memory: dict[str, Any]) -> float:
-    """현재 누적 중요도 반환.
-
-    Args:
-        npc_memory: NPCState.memory dict
-
-    Returns:
-        누적 중요도 값
-    """
-    return npc_memory.get("accumulated_importance", 0.0)

@@ -12,7 +12,7 @@ import logging
 from typing import Any, Dict, Optional
 
 from app.loader import ScenarioAssets
-from app.schemas import WorldStatePipelinePipeline
+from app.schemas import WorldStatePipeline
 from app.llm import UnifiedLLMEngine
 from app.llm.prompt import build_tool_call_prompt
 from app.llm.response import parse_tool_call_response
