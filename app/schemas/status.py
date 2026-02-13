@@ -11,6 +11,7 @@ class NPCStatus(str, Enum):
     DECEASED = "deceased"
     MISSING = "missing"
     UNKNOWN = "unknown"
+    SLEEPING = "sleeping"
 
 
 class ChatAt(str, Enum):

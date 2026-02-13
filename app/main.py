@@ -21,7 +21,6 @@ from app.loader import ScenarioAssets, get_loader, load_scenario_assets
 from app.schemas import (
     NightResult,
     ToolResult,
-    WorldState,
     StepRequest,
     StepResponse,
     NightRequestBody,
@@ -29,6 +28,7 @@ from app.schemas import (
     ScenarioInfoResponse,
     StateResponse,
     EndingCheckResult,
+    WorldStatePipeline,
 )
 from app.narrative import get_narrative_layer
 from app.state import get_world_state_manager
@@ -166,7 +166,7 @@ async def execute_day_pipeline(
         # Step 5: Delta 적용 & 저장
         step_start = time.time()
 
-        def apply_and_persist() -> WorldState:
+        def apply_and_persist() -> WorldStatePipeline:
             world_after = wsm.apply_delta(user_id, scenario_id, tool_result.state_delta, assets)
             wsm.persist(user_id, scenario_id, world_after)
             return world_after
@@ -292,7 +292,7 @@ async def execute_night_pipeline(
         # Step 4: Delta 적용 & 저장
         step_start = time.time()
 
-        def apply_and_persist() -> WorldState:
+        def apply_and_persist() -> WorldStatePipeline:
             world_after = wsm.apply_delta(user_id, scenario_id, night_result.night_delta, assets)
             wsm.persist(user_id, scenario_id, world_after)
             return world_after

@@ -26,8 +26,12 @@ from app.agents.dialogue import (
     store_dialogue_memories,
 )
 from app.llm import GenerativeAgentsLLM, get_llm
-from app.agents.planning import update_plan
-from app.agents.reflection import perform_reflection, should_reflect
+from app.agents.planning import generate_short_term_plan
+from app.agents.reflection import (
+    determine_current_phase,
+    perform_reflection,
+    should_reflect,
+)
 from app.agents.utils import format_persona
 
 logger = logging.getLogger(__name__)
@@ -112,7 +116,7 @@ class NightController:
             night_description=night_description,
         )
 
-    # ── Phase 1: 성찰 ────────────────────────────────────────
+    # ── Phase 1: 성찰 (Phase 전환 기반) ─────────────────────
     def _run_reflections(
         self,
         world_snapshot: WorldStatePipeline,
@@ -124,20 +128,33 @@ class NightController:
     ) -> None:
         for npc_id in npc_ids:
             npc_state = world_snapshot.npcs[npc_id]
-            # memory Dict 사용 (이전의 extras)
-            if should_reflect(npc_state.memory):
-                npc_data = assets.get_npc_by_id(npc_id)
-                npc_name = npc_data["name"] if npc_data else npc_id
-                persona = npc_data.get("persona", {}) if npc_data else {}
+            npc_data = assets.get_npc_by_id(npc_id) or {}
+            npc_phases = npc_data.get("phases", [])
+            if not npc_phases:
+                continue
+
+            current_phase = determine_current_phase(npc_phases, npc_state.stats)
+            current_phase_id = current_phase.get("phase_id", "")
+
+            if should_reflect(npc_state.memory, current_phase_id):
+                npc_name = npc_data.get("name", npc_id)
+                persona = npc_data.get("persona", {})
 
                 insights = perform_reflection(
-                    npc_id, npc_state.memory, npc_name, persona, llm, current_turn=turn,
+                    npc_id=npc_id,
+                    npc_memory=npc_state.memory,
+                    npc_name=npc_name,
+                    persona=persona,
+                    llm=llm,
+                    current_turn=turn,
+                    current_phase=current_phase,
+                    prev_phase_id=npc_state.memory.get("last_reflected_phase_id"),
                 )
                 if insights:
                     night_events.append(f"{npc_name}이(가) 깊은 생각에 잠긴다.")
-                logger.info(f"[NightController] reflection: npc={npc_id}, insights={len(insights)}")
+                logger.info(f"[NightController] reflection: npc={npc_id}, phase={current_phase_id}, insights={len(insights)}")
 
-    # ── Phase 2: 계획 수립 ────────────────────────────────────
+    # ── Phase 2: 계획 수립 (Short-term Plan) ──────────────────
     def _run_planning(
         self,
         world_snapshot: WorldStatePipeline,
@@ -146,21 +163,32 @@ class NightController:
         turn: int,
         llm: GenerativeAgentsLLM,
     ) -> None:
-        scenario_title = assets.scenario.get("title", "")
-        turn_limit = assets.get_turn_limit()
+        day_action_log = world_snapshot.vars.get("day_action_log", [])
 
         for npc_id in npc_ids:
             npc_state = world_snapshot.npcs[npc_id]
-            npc_data = assets.get_npc_by_id(npc_id)
-            npc_name = npc_data["name"] if npc_data else npc_id
-            persona = npc_data.get("persona", {}) if npc_data else {}
+            npc_data = assets.get_npc_by_id(npc_id) or {}
+            npc_name = npc_data.get("name", npc_id)
+            persona = npc_data.get("persona", {})
+            npc_phases = npc_data.get("phases", [])
 
-            plan = update_plan(
-                npc_id, npc_name, persona, npc_state.memory,
-                npc_state.stats,
-                turn, turn_limit, scenario_title, llm,
+            current_phase = determine_current_phase(npc_phases, npc_state.stats) if npc_phases else {}
+
+            st_plan = generate_short_term_plan(
+                npc_id=npc_id,
+                npc_name=npc_name,
+                persona=persona,
+                npc_memory=npc_state.memory,
+                stats=npc_state.stats,
+                long_term_plan=npc_state.memory.get("long_term_plan", ""),
+                current_phase=current_phase,
+                day_action_log=day_action_log,
+                llm=llm,
+                current_turn=turn,
             )
-            logger.debug(f"[NightController] plan: npc={npc_id}, plan='{plan[:50]}...'")
+            # 메모리에 현재 계획 저장
+            npc_state.memory["current_plan"] = {"plan_text": st_plan, "created_at_turn": turn}
+            logger.debug(f"[NightController] plan: npc={npc_id}, plan='{st_plan[:50]}...'")
 
     # ── Phase 3: 그룹 대화 생성 (3명이 함께, 랜덤 발화자 선택) ──
     def _run_dialogues(

@@ -54,7 +54,7 @@ class StepResponseSchema(BaseModel):
     """낮 파이프라인 실행 결과"""
     narrative: str
     ending_info: Optional[Dict[str, Any]] = None
-    world_state: Dict[str, Any] = Field(default_factory=dict)
+    state_result: Dict[str, Any] = Field(default_factory=dict)
     debug: Dict[str, Any] = Field(default_factory=dict)
 
 

@@ -12,7 +12,7 @@ import re
 from typing import Any
 
 from app.llm import GenerativeAgentsLLM
-from app.agents.memory import MemoryEntry, get_memory_stream
+from app.agents.memory import MEMORY_REFLECTION, MemoryEntry, get_memory_stream
 from app.agents.utils import extract_number
 
 logger = logging.getLogger(__name__)
@@ -92,23 +92,60 @@ def retrieve_memories(
 ) -> list[MemoryEntry]:
     """NPC의 Memory Stream에서 query에 가장 관련 높은 k개 기억 반환.
 
+    고정 포함 항목:
+    1. long_term_plan (장기 전략) — 항상 포함
+    2. 최신 phase 성찰 (MEMORY_REFLECTION 중 가장 최근) — 항상 포함
+
+    나머지는 가중치 기반 검색으로 채움.
+
     Args:
-        npc_memory: NPCState.memory dict (이전의 npc_extras)
+        npc_memory: NPCState.memory dict
     """
     stream = get_memory_stream(npc_memory)
-    if not stream:
-        return []
 
-    scored = [(m, _retrieval_score(m, query, current_turn, llm)) for m in stream]
+    # 1. 고정 포함: long-term plan
+    fixed: list[MemoryEntry] = []
+    fixed_ids: set[str] = set()
+
+    lt_plan = npc_memory.get("long_term_plan")
+    if lt_plan:
+        lt_entry = MemoryEntry(
+            npc_id="",
+            description=f"[장기전략] {lt_plan}",
+            importance_score=10.0,
+            creation_turn=0,
+            last_access_turn=current_turn,
+            memory_type="plan",
+        )
+        fixed.append(lt_entry)
+
+    # 2. 고정 포함: 최신 phase 성찰
+    if stream:
+        for m in reversed(stream):
+            if m.memory_type == MEMORY_REFLECTION:
+                fixed.append(m)
+                fixed_ids.add(id(m))
+                break
+
+    if not stream and not fixed:
+        return fixed
+
+    # 3. 나머지: 기존 가중치 기반 검색
+    remaining_k = max(1, k - len(fixed))
+    # fixed에 이미 포함된 항목 제외
+    candidates = [m for m in stream if id(m) not in fixed_ids]
+    scored = [(m, _retrieval_score(m, query, current_turn, llm)) for m in candidates]
     scored.sort(key=lambda x: x[1], reverse=True)
-    top = [m for m, _ in scored[:k]]
+    variable = [m for m, _ in scored[:remaining_k]]
+
+    result = fixed + variable
 
     # last_access_turn 갱신
-    for m in top:
+    for m in result:
         m.last_access_turn = current_turn
 
-    logger.debug(f"retrieve_memories: query='{query[:30]}...' returned {len(top)} memories")
-    return top
+    logger.debug(f"retrieve_memories: query='{query[:30]}...' returned {len(result)} memories (fixed={len(fixed)})")
+    return result
 
 
 # ── Importance 채점 ──────────────────────────────────────────

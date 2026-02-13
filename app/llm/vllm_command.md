@@ -69,3 +69,10 @@ python -m vllm.entrypoints.openai.api_server \
   --max-model-len 8192 \
   > vllm.log 2>&1 &
 ```
+
+## 7. 확인
+
+```
+lsof -i :8000
+kill <PID>
+```

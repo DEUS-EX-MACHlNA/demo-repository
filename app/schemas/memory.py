@@ -62,7 +62,6 @@ class MemoryStreamSchema(BaseModel):
     """NPC의 전체 Memory Stream"""
 
     memories: List[MemoryEntrySchema] = Field(default_factory=list, description="메모리 엔트리 리스트")
-    accumulated_importance: float = Field(default=0.0, description="누적 중요도 (성찰 트리거용)")
 
     class Config:
         extra = "allow"
