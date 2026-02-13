@@ -116,7 +116,7 @@ def generate_utterance(
             "발화:"
         )
 
-    resp = llm.generate(prompt, max_tokens=80)
+    resp = llm.generate(prompt=prompt, max_tokens=80)
     if not resp:
         resp = f"...{speaker_name}은(는) 잠시 말을 아꼈다."
     return resp.strip()
@@ -354,7 +354,7 @@ def analyze_conversation_impact(
         "}\n"
         "```"
     )
-    resp = llm.generate(prompt, max_tokens=200, temperature=0.3)
+    resp = llm.generate(prompt=prompt, max_tokens=200, temperature=0.3)
 
     result = _parse_impact_response(resp, npc1_id, npc1_name, npc2_id, npc2_name, stat_names)
     logger.debug(f"conversation_impact: {result}")

@@ -129,7 +129,7 @@ def score_importance(
         f"NPC: {npc_name} ({persona_summary})\n\n"
         "중요도 점수:"
     )
-    resp = llm.generate(prompt, max_tokens=5, temperature=0.1)
+    resp = llm.generate(prompt=prompt, max_tokens=5, temperature=0.1)
     score = extract_number(resp, default=5.0)
     return min(max(score, 1.0), 10.0)
 

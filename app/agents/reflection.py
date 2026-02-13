@@ -74,7 +74,7 @@ def _generate_questions(
         f"통찰적인 질문 {MAX_QUESTIONS}가지를 생성하세요.\n\n"
         "질문 1:"
     )
-    resp = llm.generate(prompt, max_tokens=200)
+    resp = llm.generate(prompt=prompt, max_tokens=200)
     if not resp:
         return [f"{npc_name}은(는) 최근 일어난 일들을 되짚어본다."]
 
@@ -105,7 +105,7 @@ def _generate_insights(
             f"질문: {q}\n\n"
             "이 질문에 대한 통찰을 1~2문장으로 답변하세요:"
         )
-        resp = llm.generate(prompt, max_tokens=100)
+        resp = llm.generate(prompt=prompt, max_tokens=100)
         insights.append(resp.strip() if resp else f"{npc_name}은(는) 아직 답을 찾지 못했다.")
 
     return insights

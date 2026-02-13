@@ -55,74 +55,6 @@ import logging
 
 logger=logging.getLogger(__name__)
 
-def make_mock_tool_result(user_input: str) -> ToolResult:
-    # 1. 황동 열쇠 획득 (Acquire Key)
-    if "황동 열쇠" in user_input:
-        return ToolResult(
-            event_description=[
-                "당신은 조심스럽게 식탁으로 다가가 황동 열쇠를 집어들었습니다.",
-                "차가운 금속의 감촉이 손끝에 전해집니다. 이제 이 열쇠로 무언가를 열 수 있을 것 같습니다."
-            ],
-            state_delta={
-                "inventory_add": ["brass_key"],
-                "vars": {},
-                "npc_stats": {}
-            }
-        )
-    
-    # 2. 주인공 방으로 이동 (Move to Room)
-    elif "내 방" in user_input:
-        return ToolResult(
-            event_description=[
-                "당신은 주방을 빠져나와 복도를 지나, 익숙한 자신의 방으로 돌아왔습니다.",
-                "문을 닫자 잠시나마 안도감이 듭니다. 구석에 있는 작은 개구멍이 눈에 띕니다."
-            ],
-            state_delta={
-                "vars": {"location": "player_room"}
-            }
-        )
-
-    # 3. 개구멍 탈출 (Escape)
-    elif "개구멍" in user_input:
-        return ToolResult(
-            event_description=[
-                 "이것은 테스트임다"
-            ],
-            state_delta={
-                "flags": {"escaped_via_doghole": True},
-                "locks": {"real_world": False}
-            }
-        )
-
-    # Default Mock (Fallback)
-    return ToolResult(
-        event_description=[
-            "플레이어가 새엄마에게 말을 걸었습니다.",
-            "새엄마는 경계하는 눈빛을 보였습니다."
-        ],
-        state_delta={
-            "npc_stats": {
-                "mother": {
-                    "trust": -10
-                }
-            },
-            "flags": {
-                "met_mother": True
-            },
-            "inventory_add": [],
-            "inventory_remove": [],
-            "locks": {},
-            "vars": {},
-            "turn_increment": 1,
-            "memory_updates": {
-                "mother": {
-                    "last_interaction": "플레이어가 새엄마에게 말을 걸었습니다."
-                }
-            }
-        }
-    )
-
-
 def _scenario_to_assets(game: Games) -> ScenarioAssets:
     assets = None
     if game.scenario and game.scenario.world_asset_data:
@@ -231,8 +163,9 @@ class GameService:
         # 1. World Meta Data (Turn, Flags, Vars, Locks)
         meta = game.world_meta_data or {}
         state_data = meta.get("state", {})
-        
+    
         turn = state_data.get("turn", 1)
+        date = state_data.get("date", 1)
         flags = state_data.get("flags", {})
         vars_ = state_data.get("vars", {})
         
@@ -258,6 +191,7 @@ class GameService:
 
         return WorldStatePipeline(
             turn=turn,
+            date=date,
             npcs=npcs,
             flags=flags,
             inventory=player.get("inventory", []),
@@ -273,9 +207,10 @@ class GameService:
         # 1. World Meta Data
         meta = game.world_meta_data or {}
         
-        # 1-1. State (Turn, Flags, Vars)
+        # 1-1. State (Turn, Date, Flags, Vars)
         state_data = meta.get("state", {})
         state_data["turn"] = world_state.turn
+        state_data["date"] = world_state.date
         state_data["flags"] = world_state.flags
         state_data["vars"] = world_state.vars
         meta["state"] = state_data
@@ -495,7 +430,10 @@ class GameService:
         # [TESTING] Mock Data Preservation (User Request)
         # 이 변수는 테스팅 목적이나 Fallback으로 사용될 수 있습니다.
         # ToolResult 객체로 변환하여 보존
-        tool_result = make_mock_tool_result(user_input)
+        
+        
+        #tool_result = make_mock_tool_result(user_input)
+
         
         logger.debug(f"DayController result: {tool_result}")
 
@@ -524,11 +462,11 @@ class GameService:
                     assets,
                 )
             else:
-                narrative = narrative_layer.render_day(
-                    tool_result.event_description,
-                    tool_result.state_delta,
-                    world_after,
-                    assets,
+                narrative = narrative_layer.render(
+                    world_state=world_after,
+                    assets=assets,
+                    event_description=tool_result.event_description,
+                    state_delta=tool_result.state_delta,
                 )
         except ImportError as e:
             print(f"[GameService] NarrativeLayer skipped due to missing dependency: {e}")
@@ -602,8 +540,14 @@ class GameService:
             world_state, 
             assets
             )
+        
 
-        # ── Step 5: Delta 적용 ──
+        # ── Step 5: Date Increment & Delta 적용 ──
+        # 밤이 지나면 날짜(date)가 바뀜
+        current_date = world_state.date
+        world_state.date = current_date + 1
+        logger.info(f"Date incremented: {current_date} -> {world_state.date}")
+
         world_after = _apply_delta(world_state, night_result.night_delta, assets)
 
         # ── Step 6: EndingChecker - 엔딩 체크 ──

@@ -3,10 +3,7 @@ app/schemas/request_response.py
 API 요청/응답 스키마 통합
 """
 from typing import Any, Dict, List, Optional
-
 from pydantic import BaseModel, Field
-
-
 
 # ============================================================
 # Step 요청/응답 (game 라우터용)

@@ -60,7 +60,7 @@ def get_game(game_id: int, db: Session = Depends(get_db)) -> GameClientSyncSchem
     return game
 
 # 밤 파이프라인 실행
-@router.post("/{game_id}/night", summary="밤 파이프라인 실행", response_model=NightResponseResult)
+@router.post("/{game_id}/night_dialogue", summary="밤 파이프라인 실행", response_model=NightResponseResult)
 def night_game(game_id: int, db: Session = Depends(get_db)) -> NightResponseResult:
     game = db.query(Games).filter(Games.id == game_id).first()
     if not game:
@@ -71,10 +71,8 @@ def night_game(game_id: int, db: Session = Depends(get_db)) -> NightResponseResu
 
 
 # 밤의 대화 결과 조회(재접속/히스토리)
-@router.get("/{game_id}/nights", summary="밤의 대화 요청", response_model=NightLogResponse)
+@router.get("/{game_id}/show_night_dialogue", summary="밤의 대화 요청", response_model=NightLogResponse)
 def get_night_log(game_id: int, db: Session = Depends(get_db)):
-    # 일단 요청받은 예시 데이터를 그대로 Mock으로 반환합니다.
-    # 추후 DB 조회 로직이 필요하면 구현합니다.
 
     mock_response = NightLogResponse(
         gameId=game_id,

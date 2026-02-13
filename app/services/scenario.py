@@ -244,7 +244,7 @@ class ScenarioService:
         # (3) Current State 생성
         current_state_obj = CurrentStateSchema(
             turn=state_schema.get("system", {}).get("turn", {}).get("default", 1),
-            date=state_schema.get("system", {}).get("date", {}).get("default", "Unknown Date"),
+            date=state_schema.get("system", {}).get("date", {}).get("default", 1),
             vars=initial_vars,
             flags=initial_flags,
             # active_events=[] # 삭제됨

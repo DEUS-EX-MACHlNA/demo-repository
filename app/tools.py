@@ -116,7 +116,7 @@ def call_tool(
     )
 
     # 4. LLM 호출
-    raw_output = llm_engine.generate(prompt)
+    raw_output = llm_engine.generate(prompt=prompt)
     logger.debug(f"[call_tool] LLM 응답: {raw_output}")
 
     # 5. JSON 파싱
@@ -322,7 +322,7 @@ def action(action: str) -> Dict[str, Any]:
     )
 
     # LLM 호출
-    raw_output = llm_engine.generate(prompt)
+    raw_output = llm_engine.generate(prompt=prompt)
     llm_response = parse_response(raw_output)
 
     return {
@@ -382,7 +382,7 @@ def use(item: str, action: str) -> Dict[str, Any]:
     )
 
     # LLM 호출
-    raw_output = llm_engine.generate(prompt)
+    raw_output = llm_engine.generate(prompt=prompt)
     llm_response = parse_response(raw_output)
 
     return {
