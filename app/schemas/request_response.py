@@ -39,15 +39,23 @@ class StepResponseSchema(BaseModel):
 class NightRequestBody(BaseModel):
     """POST /v1/scenario/{scenario_id}/night 요청 바디"""
     user_id: str
+# class NightResponse(BaseModel):
+#     """밤 파이프라인 실행 결과"""
+#     narrative: str
+#     ending_info: Optional[Dict[str, Any]] = None
+#     world_state: Dict[str, Any] = Field(default_factory=dict)
+#     debug: Dict[str, Any] = Field(default_factory=dict)
 
+class NightDialogue(BaseModel):
+    speaker_name: str = Field(..., description="화자 이름 (예: 엘리노어 (새엄마))")
+    dialogue: str = Field(..., description="대사 내용")
 
 class NightResponseResult(BaseModel):
-    """밤 파이프라인 실행 결과"""
-    narrative: str
+    narrative: str = Field(..., description="별도의 요청 없이 표시될 밤 이야기 개요")
+    dialogues: List[NightDialogue] = Field(..., description="밤 대화 리스트")
+    npc_state_results: Dict[str, Dict[str, int]] = Field(..., description="NPC 상태 결과 (Key: NPC ID, Value: {stat_name: value})")
     ending_info: Optional[Dict[str, Any]] = None
-    world_state: Dict[str, Any] = Field(default_factory=dict)
-    debug: Dict[str, Any] = Field(default_factory=dict)
-
+    vars: Optional[Dict[str, Any]]
 
 # ============================================================
 # 시나리오 정보 응답

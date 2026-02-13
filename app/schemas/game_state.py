@@ -65,7 +65,6 @@ class NPCState(BaseModel):
 class WorldStatePipeline(BaseModel):
     """월드 런타임 전체 상태"""
     turn: int = 1
-    date: int = 1
     npcs: Dict[str, NPCState] = Field(default_factory=dict)
     flags: Dict[str, Any] = Field(default_factory=dict)
     inventory: List[str] = Field(default_factory=list)
@@ -87,7 +86,6 @@ class WorldStatePipeline(BaseModel):
 
         return cls(
             turn=data.get("turn", 1),
-            date=data.get("date", 1),
             npcs=npcs,
             flags=data.get("flags", {}),
             inventory=data.get("inventory", []),

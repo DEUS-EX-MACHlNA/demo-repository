@@ -19,6 +19,7 @@ class PlayerSchema(BaseModel):
     current_node: str = Field(..., description="현재 위치하고 있는 스토리 노드 ID (예: act1_open)")
 
     # TODO 현재 맵기준과 connected_nodes조건과 비교를 하여 avaliable_nodes를 계산해야함
+    # 얜 굳이 있을 필요가 있나..?
     avaliable_nodes: List[str] = Field(default_factory=list, description="현재 접근 가능한 노드 ID 리스트")
 
     inventory: List[str] = Field(

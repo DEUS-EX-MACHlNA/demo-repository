@@ -24,7 +24,7 @@ from app.schemas.world_meta_data import WorldDataSchema, LocksSchemaList
 from app.schemas.npc_info import NpcCollectionSchema
 from app.schemas.player_info import PlayerSchema
 from app.schemas.item_info import ItemSchema
-from app.schemas.request_response import StepRequestSchema, StepResponseSchema, NightResponseResult
+from app.schemas.request_response import StepRequestSchema, StepResponseSchema, NightResponseResult, NightDialogue
 from app.schemas.status import ItemStatus, LogType
 from app.schemas.game_state import NPCState, WorldStatePipeline, StateDelta
 from app.schemas.tool import ToolResult
@@ -165,7 +165,7 @@ class GameService:
         state_data = meta.get("state", {})
     
         turn = state_data.get("turn", 1)
-        date = state_data.get("date", 1)
+        # date removed (use vars['day'])
         flags = state_data.get("flags", {})
         vars_ = state_data.get("vars", {})
         
@@ -191,7 +191,7 @@ class GameService:
 
         return WorldStatePipeline(
             turn=turn,
-            date=date,
+            # date removed
             npcs=npcs,
             flags=flags,
             inventory=player.get("inventory", []),
@@ -210,7 +210,7 @@ class GameService:
         # 1-1. State (Turn, Date, Flags, Vars)
         state_data = meta.get("state", {})
         state_data["turn"] = world_state.turn
-        state_data["date"] = world_state.date
+        # date removed (use vars['day'])
         state_data["flags"] = world_state.flags
         state_data["vars"] = world_state.vars
         meta["state"] = state_data
@@ -235,6 +235,13 @@ class GameService:
         # 2. Player Data (Inventory)
         player = game.player_data or {}
         player["inventory"] = world_state.inventory
+
+        # 2-0. Update Player Stats (Humanity)
+        # vars에 humanity가 있다면 player.stats에도 동기화
+        if "humanity" in world_state.vars:
+            if "stats" not in player:
+                player["stats"] = {}
+            player["stats"]["humanity"] = world_state.vars["humanity"]
 
         # 2-1. Update Item Status in World Meta Data
         items_collection = meta.get("items", {})
@@ -281,111 +288,6 @@ class GameService:
         npc_data["npcs"] = npc_list
         game.npc_data = npc_data
         flag_modified(game, "npc_data")
-
-    # ============================================================
-    # 코랩 테스팅용 목업 데이터 생성 함수 (YAML 파일 기반)
-    # ============================================================
-
-    @staticmethod
-    def mock_load_scenario_assets_from_yaml(scenario_id: str = "coraline") -> ScenarioAssets:
-        """
-        [TESTING] 실제 YAML 파일을 읽어서 ScenarioAssets 생성
-        코랩에서 DB 없이 테스트할 때 사용
-
-        Args:
-            scenario_id: 로드할 시나리오 ID (기본값: "coraline")
-
-        Returns:
-            ScenarioAssets: 로드된 시나리오 에셋
-        """
-        project_root = Path(__file__).parent.parent.parent
-        scenarios_dir = project_root / "scenarios"
-
-        loader = ScenarioLoader(base_path=scenarios_dir)
-        assets = loader.load(scenario_id)
-
-        print(f"[MOCK] Loaded ScenarioAssets from YAML: {scenario_id}")
-        print(f"  - NPCs: {len(assets.get_all_npc_ids())}")
-        print(f"  - Items: {len(assets.get_all_item_ids())}")
-        print(f"  - State Schema Vars: {list(assets.get_state_schema().get('vars', {}).keys())}")
-
-        return assets
-
-    @staticmethod
-    def mock_create_world_state_from_yaml(scenario_id: str = "coraline") -> WorldStatePipeline:
-        """
-        [TESTING] 실제 YAML 파일을 읽어서 초기 WorldState 생성
-        코랩에서 DB 없이 테스트할 때 사용
-
-        Args:
-            scenario_id: 로드할 시나리오 ID (기본값: "coraline")
-
-        Returns:
-            WorldState: 초기화된 월드 상태
-        """
-        # 1. ScenarioAssets 로드
-        project_root = Path(__file__).parent.parent.parent
-        scenarios_dir = project_root / "scenarios"
-        loader = ScenarioLoader(base_path=scenarios_dir)
-        assets = loader.load(scenario_id)
-
-        # 2. NPCState 생성 (YAML의 npcs 데이터 기반)
-        npcs = {}
-        for npc_dict in assets.npcs.get("npcs", []):
-            npc_id = npc_dict.get("npc_id")
-            if not npc_id:
-                continue
-
-            # stats 필드에서 초기 스탯 가져오기
-            stats = npc_dict.get("stats", {})
-
-            npcs[npc_id] = NPCState(
-                npc_id=npc_id,
-                stats=dict(stats),  # affection, fear, humanity 등
-                memory={}  # 초기 메모리는 비어있음
-            )
-
-        # 3. 초기 인벤토리 (YAML items에서 acquire.method == "start"인 것들)
-        initial_inventory = assets.get_initial_inventory()
-
-        # 4. 초기 locks (모두 잠금 상태로 시작)
-        locks = {}
-        if "locks" in assets.extras:
-            locks_data = assets.extras["locks"]
-            if isinstance(locks_data, dict) and "locks" in locks_data:
-                for lock in locks_data["locks"]:
-                    info_id = lock.get("info_id")
-                    if info_id:
-                        locks[info_id] = lock.get("is_unlocked", False)
-
-        # 5. 초기 vars (state_schema에서 default 값 가져오기)
-        vars_data = {}
-        state_schema = assets.get_state_schema()
-        for var_name, var_config in state_schema.get("vars", {}).items():
-            vars_data[var_name] = var_config.get("default", 0)
-
-        # 6. 초기 flags (state_schema에서 default 값 가져오기)
-        flags_data = {}
-        for flag_name, flag_config in state_schema.get("flags", {}).items():
-            flags_data[flag_name] = flag_config.get("default", None)
-
-        world_state = WorldStatePipeline(
-            turn=1,
-            npcs=npcs,
-            flags=flags_data,
-            inventory=initial_inventory,
-            locks=locks,
-            vars=vars_data
-        )
-
-        print(f"[MOCK] Created WorldState from YAML: {scenario_id}")
-        print(f"  - Turn: {world_state.turn}")
-        print(f"  - NPCs: {list(world_state.npcs.keys())}")
-        print(f"  - Initial Inventory: {world_state.inventory}")
-        print(f"  - Vars: {world_state.vars}")
-        print(f"  - Flags: {world_state.flags}")
-
-        return world_state
 
     @classmethod
     def process_turn(
@@ -501,6 +403,42 @@ class GameService:
             debug=debug,
         )
 
+    @staticmethod
+    def _create_night_response_data(narrative: str, night_result: NightResult) -> Dict[str, Any]:
+        """NightResponseResult 생성을 위한 데이터 가공"""
+        
+        # 1. Narrative: 전체 텍스트에서 '---' 다음의 첫 실제 문장 추출
+        # 공백/개행 제외하고 의미 있는 라인만 필터링
+        lines = [line.strip() for line in narrative.split("\n") if line.strip()]
+        
+        # lines[0]은 보통 '---' 구분선이므로 lines[1]을 가져옴
+        if len(lines) >= 2:
+            summary_narrative = lines[1]
+        elif len(lines) == 1:
+            summary_narrative = lines[0]
+        else:
+            summary_narrative = "밤이 지났습니다."
+
+        # 2. Dialogues: NightResult의 conversation 데이터 사용
+        # Regex 파싱 대신 원본 데이터를 사용하여 안정성 확보
+        # 클라이언트에서 text 부분은 마스킹(...) 처리 후 클릭 시 해제
+        dialogues = []
+        if night_result.night_conversation:
+            for utter in night_result.night_conversation:
+                speaker = utter.get("speaker", "Unknown")
+                text = utter.get("text", "...")
+                dialogues.append(NightDialogue(speaker_name=speaker, dialogue=text))
+
+        # 3. NPC State Results
+        npc_state_results = night_result.night_delta.get("npc_stats", {})
+
+        return {
+            "narrative": summary_narrative,
+            "dialogues": dialogues,
+            "npc_state_results": npc_state_results,
+        }
+
+
     @classmethod
     def process_night(
         cls,
@@ -544,11 +482,14 @@ class GameService:
 
         # ── Step 5: Date Increment & Delta 적용 ──
         # 밤이 지나면 날짜(date)가 바뀜
-        current_date = world_state.date
-        world_state.date = current_date + 1
-        logger.info(f"Date incremented: {current_date} -> {world_state.date}")
-
         world_after = _apply_delta(world_state, night_result.night_delta, assets)
+        current_day = world_after.vars.get("day", 1)
+        if isinstance(current_day, int):
+            world_after.vars["day"] = current_day + 1
+        else:
+            world_after.vars["day"] = 1
+            
+        logger.info(f"Day incremented: {world_after.vars['day']}")
 
         # ── Step 6: EndingChecker - 엔딩 체크 ──
         ending_result = check_ending(world_after, assets)
@@ -581,10 +522,15 @@ class GameService:
 
         # ── Step 8: WorldStatePipeline → DB 반영 + 저장 ──
         cls._world_state_to_games(game, world_after, assets)
+
+        # Response 구성
+        response_data = cls._create_night_response_data(narrative, night_result)
         
         # System Narrative Logging
+        # NightDialogue 객체는 JSON 직렬화가 안되므로 dict로 변환
+        dialogues_dict = [d.model_dump() for d in response_data["dialogues"]]
         create_chat_log(
-            db, game_id, LogType.NARRATIVE, "System", narrative, world_after.turn, {"conversation": night_result.night_conversation}
+            db, game_id, LogType.NIGHT_EVENT, "System", response_data["narrative"], world_after.turn, {"dialogues": dialogues_dict}
         )
 
         crud_game.update_game(db, game)
@@ -595,9 +541,11 @@ class GameService:
         )
 
         return NightResponseResult(
-            narrative=narrative,
-            world_state=world_after.to_dict(),
+            narrative=response_data["narrative"],
+            dialogues=response_data["dialogues"],
+            npc_state_results=response_data["npc_state_results"],
             ending_info=ending_info,
+            vars=world_after.vars,
         )
 
     @staticmethod

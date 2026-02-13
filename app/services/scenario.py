@@ -126,6 +126,7 @@ class ScenarioService:
             current_node=start_node,
             inventory=start_inventory, # -> ["item_id_1", "item_id_2"] 형태
             memo=initial_memos,
+            stats={"humanity": 100},  # 기본 스탯 설정
             memory=[]
         )
         

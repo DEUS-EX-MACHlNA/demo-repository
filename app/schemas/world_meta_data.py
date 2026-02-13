@@ -12,8 +12,6 @@ from app.schemas.item_info import ItemsCollectionSchema
 class CurrentStateSchema(BaseModel):
     """현재 게임의 동적 상태 (시나리오 초기값 정의)"""
     turn: int = Field(..., description="현재 턴")
-    date: int = Field(..., description="현재 날짜")
-
     # 2. 변수와 플래그 (가장 중요!)
     # 여기는 값이 계속 변하므로 Dict[str, Any]로 유연하게 받습니다.
 
