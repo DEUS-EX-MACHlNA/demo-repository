@@ -340,64 +340,49 @@ def action(action: str) -> Dict[str, Any]:
     }
 
 
-def use(item: str, action: str) -> Dict[str, Any]:
+def use(item: str, action: str, target: str = None) -> Dict[str, Any]:
     """
-    아이템이나 환경을 사용합니다. 인벤토리에 있는 아이템이나 환경 요소를 활용할 때 호출합니다.
+    아이템을 사용합니다. 룰 엔진 기반으로 판정하고, LLM은 호출하지 않습니다.
 
     Args:
-        item: 사용할 아이템의 ID (예: "kitchen_knife", "matches")
-        action: 아이템이나 환경을 어떻게, 왜 사용했는지에 대한 서술
+        item: 사용할 아이템의 ID (예: "industrial_sedative", "mothers_key")
+        action: 아이템을 어떻게, 왜 사용했는지에 대한 서술
+        target: 대상 NPC ID (선택, 아이템을 NPC에게 사용할 때)
 
     Returns:
-        아이템 사용 결과와 상태 변화 (event_description, state_delta)
+        아이템 사용 결과와 상태 변화 (event_description, state_delta, item_use_result)
     """
-    from app.llm.prompt import build_item_prompt
-    from app.llm.response import parse_response
+    from app.item_use_resolver import get_item_use_resolver
 
     ctx = _tool_context
     world_state = ctx["world_state"]
     assets = ctx["assets"]
-    llm_engine = ctx["llm_engine"]
 
-    logger.info(f"use 호출: item={item}, action={action[:50]}...")
+    logger.info(f"use (rule-engine): item={item}, action={action[:50]}..., target={target}")
 
-    # 아이템 정보 조회
-    item_info = assets.get_item_by_id(item)
-
-    if not item_info:
-        logger.warning(f"아이템을 찾을 수 없음: {item}")
-        return {
-            "event_description": [f"{item}라는 아이템을 찾을 수 없습니다."],
-            "state_delta": {},
-            "item_id": item,
-        }
-
-    # 인벤토리 확인
-    if item not in world_state.inventory:
-        return {
-            "event_description": [f"{item}이(가) 인벤토리에 없습니다."],
-            "state_delta": {},
-            "item_id": item,
-        }
-
-    # 프롬프트 생성
-    item_name = item_info.get("name", item)
-    prompt = build_item_prompt(
-        item_name=item_name,
-        item_def=item_info,
-        world_state=world_state.to_dict(),
-        npc_context=assets.export_for_prompt(),
+    resolver = get_item_use_resolver()
+    result = resolver.resolve(
+        item_id=item,
+        action_description=action,
+        target_npc_id=target,
+        world_state=world_state,
         assets=assets,
     )
 
-    # LLM 호출
-    raw_output = llm_engine.generate(prompt)
-    llm_response = parse_response(raw_output)
+    if result.success:
+        item_info = assets.get_item_by_id(item)
+        item_name = item_info.get("name", item) if item_info else item
+        event_description = [f"{item_name}을(를) 사용했다."]
+        if result.notes:
+            event_description.append(result.notes)
+    else:
+        event_description = [f"아이템 사용 실패: {result.failure_reason}"]
 
     return {
-        "event_description": llm_response.event_description,
-        "state_delta": llm_response.state_delta,
+        "event_description": event_description,
+        "state_delta": result.state_delta,
         "item_id": item,
+        "item_use_result": result.model_dump(),
     }
 
 

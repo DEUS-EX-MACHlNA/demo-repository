@@ -158,7 +158,6 @@ class UnifiedLLMEngine:
             top_p: nucleus sampling
             repetition_penalty: 반복 패널티 (transformers만 사용)
             npc_id: NPC ID — 매핑된 LoRA 어댑터가 있으면 해당 어댑터를 사용
-            npc_id: NPC ID — 매핑된 LoRA 어댑터가 있으면 해당 어댑터를 사용
 
         Returns:
             생성된 텍스트
@@ -167,16 +166,6 @@ class UnifiedLLMEngine:
         if system_prompt:
             messages.append({"role": "system", "content": system_prompt})
         messages.append({"role": "user", "content": prompt})
-
-        # NPC ID에 매핑된 LoRA 어댑터가 있으면 사용, 없으면 base 모델
-        model_name = get_adapter_model(npc_id) or self._model_name
-        if model_name != self._model_name:
-            logger.info(f"LoRA 어댑터 사용: npc_id={npc_id}, adapter={model_name}")
-
-        # NPC ID에 매핑된 LoRA 어댑터가 있으면 사용, 없으면 base 모델
-        model_name = get_adapter_model(npc_id) or self._model_name
-        if model_name != self._model_name:
-            logger.info(f"LoRA 어댑터 사용: npc_id={npc_id}, adapter={model_name}")
 
         resp = self._client.post(
             f"{self.base_url}/chat/completions",

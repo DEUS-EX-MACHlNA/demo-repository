@@ -30,6 +30,15 @@ class ConditionEvaluator:
     - system.turn {op} {value}             (예: system.turn >= 40)
     - system.turn == turn_limit            (예: system.turn == turn_limit)
     - AND 조합                             (예: vars.humanity <= 60 and has_item(photo))
+    - OR 조합                              (예: condition_a or condition_b)
+    - area.{area}.{prop} == true/false     (예: area.hallway.frame_inspected == true)
+    - area.current == '{area}'             (예: area.current == 'garden')
+    - system.phase == '{phase}'            (예: system.phase == 'evening_prep')
+    - npc.target.id {op} '{id}'            (예: npc.target.id != 'stepmother')
+    - npc.target.{stat} {op} {value}       (예: npc.target.humanity >= 50)
+    - npc.target.{stat} == '{string}'      (예: npc.target.status == 'sleeping')
+    - target == '{value}'                  (예: target == 'dog_hole')
+    - true / false                         (리터럴 불리언)
     """
 
     def evaluate(
@@ -50,7 +59,20 @@ class ConditionEvaluator:
         if not condition:
             return False
 
-        # AND로 분리된 조건들 처리
+        condition = condition.strip()
+
+        # 리터럴 불리언
+        if condition == "true":
+            return True
+        if condition == "false":
+            return False
+
+        # OR 조합 (AND보다 낮은 우선순위, 먼저 분리)
+        if " or " in condition:
+            parts = condition.split(" or ")
+            return any(self.evaluate(p.strip(), context) for p in parts)
+
+        # AND 조합
         if " and " in condition:
             parts = condition.split(" and ")
             return all(self._evaluate_single(p.strip(), context) for p in parts)
@@ -64,6 +86,85 @@ class ConditionEvaluator:
     ) -> bool:
         """단일 조건 평가"""
         world_state = context.world_state
+        extra = context.extra_vars
+
+        # 0a. target == '{value}' 패턴 (아이템 사용 대상 비교)
+        target_val_match = re.match(r"target\s*(==|!=)\s*'(\w+)'", condition)
+        if target_val_match:
+            op = target_val_match.group(1)
+            expected = target_val_match.group(2)
+            actual = extra.get("target_npc_id", "")
+            return (actual == expected) if op == "==" else (actual != expected)
+
+        # 0b. npc.target.id {op} '{id}' 패턴 (동적 타겟 ID 비교)
+        target_id_match = re.match(r"npc\.target\.id\s*(==|!=)\s*'(\w+)'", condition)
+        if target_id_match:
+            op = target_id_match.group(1)
+            expected_id = target_id_match.group(2)
+            actual_id = extra.get("target_npc_id", "")
+            return (actual_id == expected_id) if op == "==" else (actual_id != expected_id)
+
+        # 0c. npc.target.{stat} == '{string}' 패턴 (동적 타겟 문자열 비교)
+        target_str_match = re.match(
+            r"npc\.target\.(\w+)\s*==\s*'([^']*)'", condition
+        )
+        if target_str_match:
+            stat = target_str_match.group(1)
+            expected = target_str_match.group(2)
+            target_id = extra.get("target_npc_id", "")
+            npc_state = world_state.npcs.get(target_id)
+            if not npc_state:
+                return False
+            current = npc_state.stats.get(stat)
+            if current is None:
+                current = npc_state.memory.get(stat, "")
+            return str(current) == expected
+
+        # 0d. npc.target.{stat} {op} {value} 패턴 (동적 타겟 숫자 비교)
+        target_num_match = re.match(
+            r'npc\.target\.(\w+)\s*(>=|<=|==|>|<|!=)\s*(\d+)', condition
+        )
+        if target_num_match:
+            stat = target_num_match.group(1)
+            op = target_num_match.group(2)
+            value = int(target_num_match.group(3))
+            target_id = extra.get("target_npc_id", "")
+            npc_state = world_state.npcs.get(target_id)
+            if not npc_state:
+                return False
+            current = npc_state.stats.get(stat, 0)
+            return self._compare(current, op, value)
+
+        # 0e. area.current == '{area}' 패턴
+        area_current_match = re.match(
+            r"area\.current\s*(==|!=)\s*'(\w+)'", condition
+        )
+        if area_current_match:
+            op = area_current_match.group(1)
+            expected = area_current_match.group(2)
+            current_area = world_state.vars.get("current_area", "")
+            return (current_area == expected) if op == "==" else (current_area != expected)
+
+        # 0f. area.{path...} == true/false 패턴 (깊은 네스팅 지원)
+        # 예: area.hallway.frame_inspected == true
+        # 예: area.kitchen.locked_cabinet.unlocked == true
+        area_flag_match = re.match(
+            r'area\.([\w.]+)\s*(==|!=)\s*(true|false)', condition
+        )
+        if area_flag_match:
+            area_path = area_flag_match.group(1)  # e.g. "kitchen.locked_cabinet.unlocked"
+            op = area_flag_match.group(2)
+            expected = area_flag_match.group(3) == "true"
+            var_key = "area_" + area_path.replace(".", "_")
+            current = world_state.vars.get(var_key, False)
+            return (current == expected) if op == "==" else (current != expected)
+
+        # 0g. system.phase == '{phase}' 패턴
+        phase_match = re.match(r"system\.phase\s*==\s*'(\w+)'", condition)
+        if phase_match:
+            expected_phase = phase_match.group(1)
+            current_phase = world_state.vars.get("current_phase", "")
+            return current_phase == expected_phase
 
         # 1. has_item(item_id) 패턴
         has_item_match = re.match(r'has_item\((\w+)\)', condition)

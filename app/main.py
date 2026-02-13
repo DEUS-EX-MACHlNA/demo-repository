@@ -149,6 +149,23 @@ async def execute_day_pipeline(
             "newly_unlocked": [info.info_id for info in lock_result.newly_unlocked],
         })
 
+        # Step 3.5: StatusEffectManager - 만료 효과 해제
+        step_start = time.time()
+        from app.status_effect_manager import get_status_effect_manager
+        sem = get_status_effect_manager()
+        expiry_delta = sem.tick(world_before.turn)
+        expired_effects = bool(expiry_delta.get("npc_stats"))
+        if expired_effects:
+            world_before = wsm.apply_delta(
+                user_id, scenario_id, expiry_delta, assets
+            )
+            wsm.persist(user_id, scenario_id, world_before)
+        debug["steps"].append({
+            "step": "effect_tick",
+            "duration_ms": (time.time() - step_start) * 1000,
+            "expired": expired_effects,
+        })
+
         # Step 4: DayController - 낮 턴 실행
         step_start = time.time()
         day_controller = get_day_controller()
@@ -176,6 +193,26 @@ async def execute_day_pipeline(
             "step": "apply_delta",
             "duration_ms": (time.time() - step_start) * 1000,
             "turn_after": world_after.turn,
+        })
+
+        # Step 5.5: ItemAcquirer - 자동 아이템 획득 스캔
+        step_start = time.time()
+        from app.item_acquirer import get_item_acquirer
+        acquirer = get_item_acquirer()
+        acq_result = acquirer.scan(world_after, assets)
+        if acq_result.newly_acquired:
+            world_after = wsm.apply_delta(
+                user_id, scenario_id, acq_result.acquisition_delta, assets
+            )
+            wsm.persist(user_id, scenario_id, world_after)
+            for acq_item_id in acq_result.newly_acquired:
+                acq_item_def = assets.get_item_by_id(acq_item_id)
+                acq_item_name = acq_item_def.get("name", acq_item_id) if acq_item_def else acq_item_id
+                tool_result.event_description.append(f"'{acq_item_name}'을(를) 발견했다!")
+        debug["steps"].append({
+            "step": "item_acquire",
+            "duration_ms": (time.time() - step_start) * 1000,
+            "newly_acquired": acq_result.newly_acquired,
         })
 
         # Step 6: EndingChecker - 엔딩 체크

@@ -20,7 +20,7 @@ class NPCState(BaseModel):
     NpcSchema(시나리오 정의)와 별개로, 게임 진행 중 변하는 상태만 관리.
     """
     npc_id: str
-    stats: Dict[str, int] = Field(default_factory=dict)
+    stats: Dict[str, Any] = Field(default_factory=dict)
     memory: Dict[str, Any] = Field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:

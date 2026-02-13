@@ -100,6 +100,13 @@ class ScenarioAssets:
             if item.get("acquire", {}).get("method") == "start"
         ]
 
+    def get_items_by_acquire_method(self, method: str) -> list[dict[str, Any]]:
+        """특정 acquire method를 가진 아이템 목록 반환"""
+        return [
+            item for item in self.items.get("items", [])
+            if item.get("acquire", {}).get("method") == method
+        ]
+
     def get_turn_limit(self) -> int:
         """턴 제한 반환"""
         return self.scenario.get("turn_limit", 12)
