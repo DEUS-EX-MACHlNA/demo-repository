@@ -16,6 +16,7 @@ from .config import (
     DEFAULT_TOP_P,
     DEFAULT_REPETITION_PENALTY,
     get_model_config,
+    get_adapter_model,
 )
 
 logger = logging.getLogger(__name__)
@@ -129,9 +130,11 @@ class UnifiedLLMEngine:
                 return self.generate_vLLM(**kargs)
             else:
                 logger.info(f"local transformers에 의한 generate 시도")
+                kargs.pop("npc_id", None)
                 return self.generate_transformers(**kargs)
         except Exception as e:
             logger.info(f"local transformers에 의한 generate 시도 : {e}")
+            kargs.pop("npc_id", None)
             return self.generate_transformers(**kargs)
 
     def generate_vLLM(self,
@@ -141,6 +144,7 @@ class UnifiedLLMEngine:
         temperature: float = DEFAULT_TEMPERATURE,
         top_p: float = DEFAULT_TOP_P,
         repetition_penalty: float = DEFAULT_REPETITION_PENALTY,
+        npc_id: str | None = None,
     ) -> str:
         """
         vLLM을 이용한 텍스트 생성 (통일된 인터페이스)
@@ -152,6 +156,7 @@ class UnifiedLLMEngine:
             temperature: 샘플링 온도
             top_p: nucleus sampling
             repetition_penalty: 반복 패널티 (transformers만 사용)
+            npc_id: NPC ID — 매핑된 LoRA 어댑터가 있으면 해당 어댑터를 사용
 
         Returns:
             생성된 텍스트
@@ -161,11 +166,16 @@ class UnifiedLLMEngine:
             messages.append({"role": "system", "content": system_prompt})
         messages.append({"role": "user", "content": prompt})
 
+        # NPC ID에 매핑된 LoRA 어댑터가 있으면 사용, 없으면 base 모델
+        model_name = get_adapter_model(npc_id) or self._model_name
+        if model_name != self._model_name:
+            logger.info(f"LoRA 어댑터 사용: npc_id={npc_id}, adapter={model_name}")
+
         resp = self._client.post(
             f"{self.base_url}/chat/completions",
             headers={"Authorization": f"Bearer {self.api_key}"},
             json={
-                "model": self._model_name,
+                "model": "kakaocorp/kanana-1.5-8b-instruct-2505",
                 "messages": messages,
                 "temperature": temperature,
                 "top_p": top_p,
@@ -214,33 +224,6 @@ class UnifiedLLMEngine:
         except Exception as e:
             logger.error(f"LLM 생성 실패: {e}", exc_info=True)
             return ""
-
-    def _generate_langchain(
-        self,
-        prompt: str,
-        system_prompt: str | None,
-        max_tokens: int,
-        temperature: float,
-    ) -> str:
-        """LangChain 백엔드로 생성"""
-        from langchain_core.messages import HumanMessage, SystemMessage
-
-        print(f"[LLM] 모델: {self._get_model_name()}")
-        logger.info(f"generate 호출 - 모델: {self._get_model_name()}")
-
-        messages: list[Any] = []
-        if system_prompt:
-            messages.append(SystemMessage(content=system_prompt))
-        messages.append(HumanMessage(content=prompt))
-
-        response = self._model.invoke(
-            messages,
-            max_tokens=max_tokens,
-            temperature=temperature,
-        )
-
-        print(f"[LLM] 응답 수신 완료 (길이: {len(response.content)}자)")
-        return response.content
 
     def _generate_transformers(
         self,
@@ -390,8 +373,75 @@ def get_langchain_engine(
 
 # 독립 실행 테스트
 if __name__ == "__main__":
+    from .config import NPC_ADAPTER_MAP
+
+    logging.basicConfig(level=logging.INFO)
+
     llm_engine = UnifiedLLMEngine()
-    resp = llm_engine.generate(
-        prompt="안녕하세요. 당신은 누구인가요?",
-    )
-    print(f"resp : {resp}")
+    # npc 프롬프트 리스트 (순서 기반)
+    NPC_PROMPT_LIST = [
+        {
+            "id": "stepmother",
+            "system_prompt": "당신은 집착이 강하고 통제적인 새엄마입니다. 공포 장르 톤을 유지하세요.",
+        },
+        {
+            "id": "brother",
+            "system_prompt": "당신은 외로움을 느끼는 동생입니다. 애정을 갈구하세요",
+        },
+        {
+            "id": "dog_baron",
+            "system_prompt": "월! 너가 할 수 있는 말의 전부입니다. 반복만 가능해요",
+        },
+    ]
+
+
+    prompt = "플레이어가 당신에게 '여기서 나가고 싶어'라고 말했습니다. 대사 한마디를 하세요."
+
+    print("=" * 60)
+    print("LoRA 어댑터 전환 테스트")
+    print(f"프롬프트: {prompt}")
+    print("=" * 60)
+
+    for i, npc in enumerate(NPC_PROMPT_LIST, 1):
+        npc_id = npc["id"]
+        system_prompt = npc["system_prompt"]
+        adapter = NPC_ADAPTER_MAP.get(npc_id, "(base 모델)")
+        print(f"\n[{i}] npc_id={npc_id} → {adapter}")
+        print("-" * 40)
+        resp = llm_engine.generate(
+            prompt=prompt,
+            system_prompt=system_prompt,
+            npc_id=npc_id,
+        )
+        print(f"응답: {resp}")
+
+    # 새엄마(stepmother) 반복 대화 테스트 (10회)
+    stepmother = NPC_PROMPT_LIST[0]
+    print("\n" + "=" * 60)
+    print(f"새엄마 반복 대화 테스트 (10회)")
+    print(f"어댑터: {NPC_ADAPTER_MAP.get(stepmother['id'], '(base 모델)')}")
+    print("=" * 60)
+
+    conversation = []
+    for turn in range(1, 11):
+        user_input = input(f"\n[Turn {turn}/10] 플레이어 > ").strip()
+        if not user_input:
+            continue
+        conversation.append(f"플레이어: {user_input}")
+
+        prompt_with_history = (
+            "대화 기록:\n" + "\n".join(conversation[-6:]) + "\n\n"
+            f"플레이어가 '{user_input}'라고 말했습니다. 대사 한마디를 하세요."
+        )
+
+        resp = llm_engine.generate(
+            prompt=prompt_with_history,
+            system_prompt=stepmother["system_prompt"],
+            npc_id=stepmother["id"],
+        )
+        print(f"새엄마 > {resp}")
+        conversation.append(f"새엄마: {resp}")
+
+    print("\n" + "=" * 60)
+    print("테스트 완료")
+    print("=" * 60)
