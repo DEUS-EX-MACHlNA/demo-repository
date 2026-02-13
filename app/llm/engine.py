@@ -77,6 +77,10 @@ class UnifiedLLMEngine:
             return
         self._loaded = True
 
+        if self.backend == "vLLM":
+            logger.info("vLLM 백엔드 - 로컬 모델 로드 불필요")
+            return
+
         try:
             self._load_transformers()
             logger.info(f"LLM 모델 로드 완료: {self._get_model_name()}")
@@ -122,17 +126,17 @@ class UnifiedLLMEngine:
 
         self._model.eval()
 
-    def generate(self, **kargs):
+    def generate(self, prompt, **kargs):
         try:
             if self.backend == "vLLM":
                 logger.info(f"vLLM에 의한 generate 시도")
-                return self.generate_vLLM(**kargs)
+                return self.generate_vLLM(prompt, **kargs)
             else:
                 logger.info(f"local transformers에 의한 generate 시도")
-                return self.generate_transformers(**kargs)
+                return self.generate_transformers(prompt, **kargs)
         except Exception as e:
             logger.info(f"local transformers에 의한 generate 시도 : {e}")
-            return self.generate_transformers(**kargs)
+            return self.generate_transformers(prompt, **kargs)
 
     def generate_vLLM(self,
         prompt: str,
@@ -329,6 +333,8 @@ class UnifiedLLMEngine:
     @property
     def available(self) -> bool:
         """LLM 사용 가능 여부"""
+        if self.backend == "vLLM":
+            return True
         self._load_model()
         return self._model is not None
 
