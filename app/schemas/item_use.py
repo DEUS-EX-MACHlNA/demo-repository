@@ -13,18 +13,21 @@ from uuid import uuid4
 
 from pydantic import BaseModel, Field
 
+from app.schemas.status import NPCStatus
+
 
 class StatusEffect(BaseModel):
-    """지속시간 기반 상태 효과
+    """지속시간 기반 NPC status 효과
 
     set_state 효과에서 duration이 지정된 경우 생성.
-    expires_at_turn에 도달하면 original_value로 복구.
+    NPC의 status(sleeping, stunned 등)를 변경하고,
+    expires_at_turn에 도달하면 original_status로 복구.
+    stats(숫자 스탯)는 건드리지 않음.
     """
     effect_id: str = Field(default_factory=lambda: uuid4().hex[:8])
     target_npc_id: str
-    stat_key: str
-    value: Any
-    original_value: Optional[Any] = None
+    applied_status: NPCStatus  # 적용할 상태 (e.g. SLEEPING)
+    original_status: NPCStatus = NPCStatus.ALIVE  # 만료 시 복구할 상태
     expires_at_turn: int
     source_item_id: Optional[str] = None
     priority: int = 0

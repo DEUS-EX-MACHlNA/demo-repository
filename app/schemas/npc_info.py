@@ -15,9 +15,6 @@ class NpcSchema(BaseModel):
     name: str = Field(..., description="NPC 이름 (예: 피해자 가족)")
     role: str = Field(..., description="NPC 역할 (예: 증언자)")
     user_id: Optional[str] = Field(None, description="연관된 유저 ID")
-    status: NPCStatus = Field(
-        default=NPCStatus.ALIVE,
-        description="NPC 상태 (예: alive, deceased 등)")
 
     stats: Dict[str, int] = Field(..., description="스탯 정보 (Key: 스탯명, Value: 수치)")
     persona: Dict[str, Any] = Field(..., description="성격 및 행동 패턴 (구조 자유)")

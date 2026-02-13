@@ -175,6 +175,111 @@ def _world_state_to_games(game: Games, world_state: WorldStatePipeline) -> None:
     game.npc_data = npc_data
     flag_modified(game, "npc_data")
 
+# ============================================================
+# 코랩 테스팅용 목업 데이터 생성 함수 (YAML 파일 기반)
+# ============================================================
+
+@staticmethod
+def mock_load_scenario_assets_from_yaml(scenario_id: str = "coraline") -> ScenarioAssets:
+    """
+    [TESTING] 실제 YAML 파일을 읽어서 ScenarioAssets 생성
+    코랩에서 DB 없이 테스트할 때 사용
+
+    Args:
+        scenario_id: 로드할 시나리오 ID (기본값: "coraline")
+
+    Returns:
+        ScenarioAssets: 로드된 시나리오 에셋
+    """
+    project_root = Path(__file__).parent.parent.parent
+    scenarios_dir = project_root / "scenarios"
+
+    loader = ScenarioLoader(base_path=scenarios_dir)
+    assets = loader.load(scenario_id)
+
+    print(f"[MOCK] Loaded ScenarioAssets from YAML: {scenario_id}")
+    print(f"  - NPCs: {len(assets.get_all_npc_ids())}")
+    print(f"  - Items: {len(assets.get_all_item_ids())}")
+    print(f"  - State Schema Vars: {list(assets.get_state_schema().get('vars', {}).keys())}")
+
+    return assets
+
+@staticmethod
+def mock_create_world_state_from_yaml(scenario_id: str = "coraline") -> WorldStatePipeline:
+    """
+    [TESTING] 실제 YAML 파일을 읽어서 초기 WorldState 생성
+    코랩에서 DB 없이 테스트할 때 사용
+
+    Args:
+        scenario_id: 로드할 시나리오 ID (기본값: "coraline")
+
+    Returns:
+        WorldState: 초기화된 월드 상태
+    """
+    # 1. ScenarioAssets 로드
+    project_root = Path(__file__).parent.parent.parent
+    scenarios_dir = project_root / "scenarios"
+    loader = ScenarioLoader(base_path=scenarios_dir)
+    assets = loader.load(scenario_id)
+
+    # 2. NPCState 생성 (YAML의 npcs 데이터 기반)
+    npcs = {}
+    for npc_dict in assets.npcs.get("npcs", []):
+        npc_id = npc_dict.get("npc_id")
+        if not npc_id:
+            continue
+
+        # stats 필드에서 초기 스탯 가져오기
+        stats = npc_dict.get("stats", {})
+
+        npcs[npc_id] = NPCState(
+            npc_id=npc_id,
+            stats=dict(stats),  # affection, fear, humanity 등
+            memory={}  # 초기 메모리는 비어있음
+        )
+
+    # 3. 초기 인벤토리 (YAML items에서 acquire.method == "start"인 것들)
+    initial_inventory = assets.get_initial_inventory()
+
+    # 4. 초기 locks (모두 잠금 상태로 시작)
+    locks = {}
+    if "locks" in assets.extras:
+        locks_data = assets.extras["locks"]
+        if isinstance(locks_data, dict) and "locks" in locks_data:
+            for lock in locks_data["locks"]:
+                info_id = lock.get("info_id")
+                if info_id:
+                    locks[info_id] = lock.get("is_unlocked", False)
+
+    # 5. 초기 vars (state_schema에서 default 값 가져오기)
+    vars_data = {}
+    state_schema = assets.get_state_schema()
+    for var_name, var_config in state_schema.get("vars", {}).items():
+        vars_data[var_name] = var_config.get("default", 0)
+
+    # 6. 초기 flags (state_schema에서 default 값 가져오기)
+    flags_data = {}
+    for flag_name, flag_config in state_schema.get("flags", {}).items():
+        flags_data[flag_name] = flag_config.get("default", None)
+
+    world_state = WorldStatePipeline(
+        turn=1,
+        npcs=npcs,
+        flags=flags_data,
+        inventory=initial_inventory,
+        locks=locks,
+        vars=vars_data
+    )
+
+    print(f"[MOCK] Created WorldState from YAML: {scenario_id}")
+    print(f"  - Turn: {world_state.turn}")
+    print(f"  - NPCs: {list(world_state.npcs.keys())}")
+    print(f"  - Initial Inventory: {world_state.inventory}")
+    print(f"  - Vars: {world_state.vars}")
+    print(f"  - Flags: {world_state.flags}")
+
+    return world_state
+
 
 class GameService:
 
@@ -336,111 +441,6 @@ class GameService:
         game.npc_data = n_data
         flag_modified(game, "npc_data") # Explicitly flag as modified
 
-    # ============================================================
-    # 코랩 테스팅용 목업 데이터 생성 함수 (YAML 파일 기반)
-    # ============================================================
-
-    @staticmethod
-    def mock_load_scenario_assets_from_yaml(scenario_id: str = "coraline") -> ScenarioAssets:
-        """
-        [TESTING] 실제 YAML 파일을 읽어서 ScenarioAssets 생성
-        코랩에서 DB 없이 테스트할 때 사용
-
-        Args:
-            scenario_id: 로드할 시나리오 ID (기본값: "coraline")
-
-        Returns:
-            ScenarioAssets: 로드된 시나리오 에셋
-        """
-        project_root = Path(__file__).parent.parent.parent
-        scenarios_dir = project_root / "scenarios"
-
-        loader = ScenarioLoader(base_path=scenarios_dir)
-        assets = loader.load(scenario_id)
-
-        print(f"[MOCK] Loaded ScenarioAssets from YAML: {scenario_id}")
-        print(f"  - NPCs: {len(assets.get_all_npc_ids())}")
-        print(f"  - Items: {len(assets.get_all_item_ids())}")
-        print(f"  - State Schema Vars: {list(assets.get_state_schema().get('vars', {}).keys())}")
-
-        return assets
-
-    @staticmethod
-    def mock_create_world_state_from_yaml(scenario_id: str = "coraline") -> WorldStatePipeline:
-        """
-        [TESTING] 실제 YAML 파일을 읽어서 초기 WorldState 생성
-        코랩에서 DB 없이 테스트할 때 사용
-
-        Args:
-            scenario_id: 로드할 시나리오 ID (기본값: "coraline")
-
-        Returns:
-            WorldState: 초기화된 월드 상태
-        """
-        # 1. ScenarioAssets 로드
-        project_root = Path(__file__).parent.parent.parent
-        scenarios_dir = project_root / "scenarios"
-        loader = ScenarioLoader(base_path=scenarios_dir)
-        assets = loader.load(scenario_id)
-
-        # 2. NPCState 생성 (YAML의 npcs 데이터 기반)
-        npcs = {}
-        for npc_dict in assets.npcs.get("npcs", []):
-            npc_id = npc_dict.get("npc_id")
-            if not npc_id:
-                continue
-
-            # stats 필드에서 초기 스탯 가져오기
-            stats = npc_dict.get("stats", {})
-
-            npcs[npc_id] = NPCState(
-                npc_id=npc_id,
-                stats=dict(stats),  # affection, fear, humanity 등
-                memory={}  # 초기 메모리는 비어있음
-            )
-
-        # 3. 초기 인벤토리 (YAML items에서 acquire.method == "start"인 것들)
-        initial_inventory = assets.get_initial_inventory()
-
-        # 4. 초기 locks (모두 잠금 상태로 시작)
-        locks = {}
-        if "locks" in assets.extras:
-            locks_data = assets.extras["locks"]
-            if isinstance(locks_data, dict) and "locks" in locks_data:
-                for lock in locks_data["locks"]:
-                    info_id = lock.get("info_id")
-                    if info_id:
-                        locks[info_id] = lock.get("is_unlocked", False)
-
-        # 5. 초기 vars (state_schema에서 default 값 가져오기)
-        vars_data = {}
-        state_schema = assets.get_state_schema()
-        for var_name, var_config in state_schema.get("vars", {}).items():
-            vars_data[var_name] = var_config.get("default", 0)
-
-        # 6. 초기 flags (state_schema에서 default 값 가져오기)
-        flags_data = {}
-        for flag_name, flag_config in state_schema.get("flags", {}).items():
-            flags_data[flag_name] = flag_config.get("default", None)
-
-        world_state = WorldStatePipeline(
-            turn=1,
-            npcs=npcs,
-            flags=flags_data,
-            inventory=initial_inventory,
-            locks=locks,
-            vars=vars_data
-        )
-
-        print(f"[MOCK] Created WorldState from YAML: {scenario_id}")
-        print(f"  - Turn: {world_state.turn}")
-        print(f"  - NPCs: {list(world_state.npcs.keys())}")
-        print(f"  - Initial Inventory: {world_state.inventory}")
-        print(f"  - Vars: {world_state.vars}")
-        print(f"  - Flags: {world_state.flags}")
-
-        return world_state
-
     @classmethod
     def process_turn(
         cls,
@@ -486,9 +486,7 @@ class GameService:
         # ── Step 3.5: StatusEffectManager - 만료 효과 해제 ──
         from app.status_effect_manager import get_status_effect_manager
         sem = get_status_effect_manager()
-        expiry_delta = sem.tick(world_state.turn)
-        if expiry_delta.get("npc_stats"):
-            world_state = _apply_delta(world_state, expiry_delta, assets)
+        sem.tick(world_state.turn, world_state)
 
         # ── Step 4: DayController - 낮 턴 실행 ──
         user_text = input_data.get("chat_input", "")

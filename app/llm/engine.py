@@ -175,7 +175,7 @@ class UnifiedLLMEngine:
             f"{self.base_url}/chat/completions",
             headers={"Authorization": f"Bearer {self.api_key}"},
             json={
-                "model": model_name,
+                "model": self._model_name,
                 "messages": messages,
                 "temperature": temperature,
                 "top_p": top_p,
