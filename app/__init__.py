@@ -14,7 +14,6 @@ from app.schemas import (
     ToolCall,
     ToolName,
     ToolResult,
-    WorldState,
 )
 from app.day_controller import DayController, get_day_controller
 from app.night_controller import NightController, get_night_controller
@@ -30,7 +29,6 @@ __all__ = [
     # Models
     "Intent",
     # "ParsedInput",
-    "WorldState",
     "NPCState",
     "ToolCall",
     "ToolName",

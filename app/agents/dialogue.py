@@ -281,6 +281,7 @@ def analyze_conversation_impact(
     llm: GenerativeAgentsLLM,
     stat_names: list[str] | None = None,
     world_context: dict[str, Any] | None = None,
+    include_triggers: bool = False,
 ) -> dict[str, Any]:
     """대화가 양측 감정에 미친 영향 분석.
 
@@ -288,12 +289,14 @@ def analyze_conversation_impact(
         stat_names: 분석할 스탯 이름 리스트 (예: ["affection", "fear", "humanity"])
                     None이면 자동 감지
         world_context: 분석에 참고할 월드 컨텍스트 (suspicion_level, player_humanity 등)
+        include_triggers: True이면 플레이어 트리거 판별 + hits 반환 (낮 페이즈용)
 
     Returns:
         {
-            "npc_stats": {npc_id: {stat: delta(-2~+2)}},
+            "npc_stats": {npc_id: {stat: delta(-2~+2), ...}},
             "event_description": ["핵심 사건 묘사"]
         }
+        include_triggers=True일 때 npc_stats에 plus_hits, minus_hits, critical_hits 포함.
     """
     conv_text = "\n".join(f"{c['speaker']}: {c['text']}" for c in conversation)
     p1 = format_persona(npc1_persona)
@@ -307,14 +310,45 @@ def analyze_conversation_impact(
         stat_list_str = "각 스탯"
         stat_example = '"stat1": 0, "stat2": 0'
 
-    # 트리거 추출
+    # 트리거 추출 (항상 포함 — 스탯 변화 판단에 필요)
     t1 = npc1_persona.get("triggers", {})
     triggers_plus_1 = ", ".join(t1.get("plus", [])) or "(없음)"
     triggers_minus_1 = ", ".join(t1.get("minus", [])) or "(없음)"
+    triggers_critical_1 = ", ".join(t1.get("critical", [])) or "(없음)"
 
     t2 = npc2_persona.get("triggers", {})
     triggers_plus_2 = ", ".join(t2.get("plus", [])) or "(없음)"
     triggers_minus_2 = ", ".join(t2.get("minus", [])) or "(없음)"
+    triggers_critical_2 = ", ".join(t2.get("critical", [])) or "(없음)"
+
+    npc1_section = (
+        f"[NPC1: {npc1_name}]\n"
+        f"페르소나: {p1}\n"
+        f"트리거(+): {triggers_plus_1}  (이 행동이 있으면 스탯 상승)\n"
+        f"트리거(-): {triggers_minus_1}  (이 행동이 있으면 스탯 하락)\n"
+        f"트리거(critical): {triggers_critical_1}  (이 행동이 있으면 치명적 위반)\n"
+    )
+    npc2_section = (
+        f"[NPC2: {npc2_name}]\n"
+        f"페르소나: {p2}\n"
+        f"트리거(+): {triggers_plus_2}  (이 행동이 있으면 스탯 상승)\n"
+        f"트리거(-): {triggers_minus_2}  (이 행동이 있으면 스탯 하락)\n"
+        f"트리거(critical): {triggers_critical_2}  (이 행동이 있으면 치명적 위반)\n"
+    )
+
+    # hits 카운팅은 낮(플레이어 행동)에서만 적용
+    if include_triggers:
+        hits_example = ', "plus_hits": 0, "minus_hits": 0, "critical_hits": 0'
+        triggers_rules = (
+            f"- 플레이어 발화/행동이 트리거에 해당하는지 판별:\n"
+            f"  - plus 트리거 해당 → plus_hits: 1\n"
+            f"  - minus 트리거 해당 → minus_hits: 1\n"
+            f"  - critical 트리거 해당 → critical_hits: 1\n"
+            f"  - 해당 없으면 각각 0\n"
+        )
+    else:
+        hits_example = ""
+        triggers_rules = ""
 
     # world_context 섹션
     context_section = ""
@@ -328,27 +362,19 @@ def analyze_conversation_impact(
     prompt = (
         f"[TASK] 아래 대화를 분석하여 NPC 감정 변화(stat delta)와 핵심 사건을 추출하세요.\n\n"
         f"[CONVERSATION]\n{conv_text}\n\n"
-        f"[NPC1: {npc1_name}]\n"
-        f"페르소나: {p1}\n"
-        f"트리거(+): {triggers_plus_1}  (이 행동이 있으면 스탯 상승)\n"
-        f"트리거(-): {triggers_minus_1}  (이 행동이 있으면 스탯 하락)\n\n"
-        f"[NPC2: {npc2_name}]\n"
-        f"페르소나: {p2}\n"
-        f"트리거(+): {triggers_plus_2}  (이 행동이 있으면 스탯 상승)\n"
-        f"트리거(-): {triggers_minus_2}  (이 행동이 있으면 스탯 하락)\n"
+        f"{npc1_section}\n"
+        f"{npc2_section}"
         f"{context_section}\n"
         f"[RULES]\n"
         f"- 각 인물의 {stat_list_str} 변화를 -2~+2 범위의 **델타값**으로 판정.\n"
-        f"- 트리거(+) 해당 행동 → 관련 스탯 +1~+2.\n"
-        f"- 트리거(-) 해당 행동 → 관련 스탯 -1~-2.\n"
-        f"- 해당 없으면 0.\n"
+        f"{triggers_rules}"
         f"- event_description: 핵심 사건 1~2문장.\n\n"
         f"[OUTPUT - JSON ONLY]\n"
         "```json\n"
         "{\n"
         f'  "npc_stats": {{\n'
-        f'    "{npc1_id}": {{{stat_example}}},\n'
-        f'    "{npc2_id}": {{{stat_example}}}\n'
+        f'    "{npc1_id}": {{{stat_example}{hits_example}}},\n'
+        f'    "{npc2_id}": {{{stat_example}{hits_example}}}\n'
         f"  }},\n"
         '  "event_description": ["핵심 사건 묘사"]\n'
         "}\n"
@@ -356,7 +382,7 @@ def analyze_conversation_impact(
     )
     resp = llm.generate(prompt, max_tokens=200, temperature=0.3)
 
-    result = _parse_impact_response(resp, npc1_id, npc1_name, npc2_id, npc2_name, stat_names)
+    result = _parse_impact_response(resp, npc1_id, npc1_name, npc2_id, npc2_name, stat_names, include_triggers)
     logger.debug(f"conversation_impact: {result}")
     return result
 
@@ -368,6 +394,7 @@ def _parse_impact_response(
     npc2_id: str,
     npc2_name: str,
     stat_names: list[str] | None,
+    include_triggers: bool = False,
 ) -> dict[str, Any]:
     """analyze_conversation_impact의 LLM 응답을 파싱."""
     fallback: dict[str, Any] = {
@@ -396,13 +423,23 @@ def _parse_impact_response(
         npc_stats = data.get("npc_stats", {})
         event_description = data.get("event_description", [])
 
-        # stat 값 클램핑 (-2 ~ +2)
+        hits_keys = {"plus_hits", "minus_hits", "critical_hits"}
         for npc_id in [npc1_id, npc2_id]:
             if npc_id in npc_stats:
-                npc_stats[npc_id] = {
-                    k: max(-2, min(2, int(v)))
-                    for k, v in npc_stats[npc_id].items()
-                }
+                clamped = {}
+                for k, v in npc_stats[npc_id].items():
+                    # 밤 페이즈에서는 hits 키 무시
+                    if k in hits_keys and not include_triggers:
+                        continue
+                    try:
+                        iv = int(v)
+                    except (ValueError, TypeError):
+                        iv = 0
+                    if k in hits_keys:
+                        clamped[k] = max(0, min(1, iv))
+                    else:
+                        clamped[k] = max(-2, min(2, iv))
+                npc_stats[npc_id] = clamped
             else:
                 npc_stats[npc_id] = {}
 

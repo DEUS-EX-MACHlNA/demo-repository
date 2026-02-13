@@ -23,7 +23,6 @@ from app.schemas.npc_info import (
 from app.schemas.game_state import (
     NPCState,
     WorldStatePipeline,
-    WorldState,
     StateDelta,
     merge_deltas,
 )
@@ -124,7 +123,7 @@ __all__ = [
     # NPC
     "NpcSchema", "NpcCollectionSchema",
     # Game State
-    "NPCState", "WorldStatePipeline", "WorldState", "StateDelta", "merge_deltas",
+    "NPCState", "WorldStatePipeline", "StateDelta", "merge_deltas",
     # Player
     "PlayerMemoSchema", "PlayerSchema",
     # Item

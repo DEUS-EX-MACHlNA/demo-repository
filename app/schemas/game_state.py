@@ -73,7 +73,7 @@ class WorldStatePipeline(BaseModel):
         return self.model_dump()
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> WorldState:
+    def from_dict(cls, data: dict[str, Any]) -> WorldStatePipeline:
         npcs = {}
         for npc_id, npc_data in data.get("npcs", {}).items():
             if isinstance(npc_data, dict):
