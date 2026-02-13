@@ -17,7 +17,6 @@ from .config import (
     DEFAULT_REPETITION_PENALTY,
     get_model_config,
     get_adapter_model,
-    get_adapter_model,
 )
 
 logger = logging.getLogger(__name__)
@@ -137,7 +136,6 @@ class UnifiedLLMEngine:
         except Exception as e:
             logger.info(f"local transformers에 의한 generate 시도 : {e}")
             kargs.pop("npc_id", None)
-            kargs.pop("npc_id", None)
             return self.generate_transformers(**kargs)
 
     def generate_vLLM(self,
@@ -147,7 +145,6 @@ class UnifiedLLMEngine:
         temperature: float = DEFAULT_TEMPERATURE,
         top_p: float = DEFAULT_TOP_P,
         repetition_penalty: float = DEFAULT_REPETITION_PENALTY,
-        npc_id: str | None = None,
         npc_id: str | None = None,
     ) -> str:
         """
@@ -435,8 +432,8 @@ if __name__ == "__main__":
     conversation = []
     for turn in range(1, 11):
         user_input = input(f"\n[Turn {turn}/10] 플레이어 > ").strip()
-        if not user_input:
-            continue
+        if not user_input or user_input == 'stop':
+            break
         conversation.append(f"플레이어: {user_input}")
 
         prompt_with_history = (

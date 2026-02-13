@@ -15,7 +15,7 @@ DEFAULT_BACKEND: LLMBackend = "vLLM"
 
 # vLLM 설정
 VLLM_BASE_URL = "https://nontheatrical-judiciarily-susanne.ngrok-free.dev/v1"
-VLLM_SERVED_MODEL_NAME = "base"  # --served-model-name 에 지정한 이름
+VLLM_SERVED_MODEL_NAME = "kakaocorp/kanana-1.5-8b-instruct-2505" # --served-model-name 에 지정한 이름
 
 # Transformers 설정
 TRANSFORMERS_DEVICE = None  # None이면 자동 감지 (cuda/cpu)
@@ -31,7 +31,7 @@ DEFAULT_REPETITION_PENALTY = 1.1
 HF_TOKEN = os.environ.get("HF_TOKEN")
 
 # NPC ID → vLLM LoRA 어댑터 이름 매핑
-# 매핑이 없는 NPC는 base 모델을 사용한다.
+# 매핑이 없는 NPC는 base 모델을 사용
 NPC_ADAPTER_MAP: dict[str, str] = {
     "stepmother": "stepmother_qwen_op00_00",
     "stepfather": "stepmother_qwen_op00_00",
@@ -53,7 +53,6 @@ def get_model_config(backend: LLMBackend | None = None) -> dict:
     if backend == "vLLM":
         return {
             "model": VLLM_SERVED_MODEL_NAME,
-            "model": VLLM_SERVED_MODEL_NAME,
             "base_url": VLLM_BASE_URL,
             "temperature": DEFAULT_TEMPERATURE,
             "api_key": "EMPTY",
@@ -67,3 +66,4 @@ def get_model_config(backend: LLMBackend | None = None) -> dict:
         }
     else:
         raise ValueError(f"Unknown backend: {backend}")
+
