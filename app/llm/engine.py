@@ -16,6 +16,7 @@ from .config import (
     DEFAULT_TOP_P,
     DEFAULT_REPETITION_PENALTY,
     get_model_config,
+    get_adapter_model,
 )
 
 logger = logging.getLogger(__name__)
@@ -129,9 +130,12 @@ class UnifiedLLMEngine:
                 return self.generate_vLLM(**kargs)
             else:
                 logger.info(f"local transformers에 의한 generate 시도")
+                # transformers 백엔드는 npc_id를 사용하지 않으므로 제거
+                kargs.pop("npc_id", None)
                 return self.generate_transformers(**kargs)
         except Exception as e:
             logger.info(f"local transformers에 의한 generate 시도 : {e}")
+            kargs.pop("npc_id", None)
             return self.generate_transformers(**kargs)
 
     def generate_vLLM(self,
@@ -141,6 +145,7 @@ class UnifiedLLMEngine:
         temperature: float = DEFAULT_TEMPERATURE,
         top_p: float = DEFAULT_TOP_P,
         repetition_penalty: float = DEFAULT_REPETITION_PENALTY,
+        npc_id: str | None = None,
     ) -> str:
         """
         vLLM을 이용한 텍스트 생성 (통일된 인터페이스)
@@ -152,6 +157,7 @@ class UnifiedLLMEngine:
             temperature: 샘플링 온도
             top_p: nucleus sampling
             repetition_penalty: 반복 패널티 (transformers만 사용)
+            npc_id: NPC ID — 매핑된 LoRA 어댑터가 있으면 해당 어댑터를 사용
 
         Returns:
             생성된 텍스트
@@ -161,11 +167,16 @@ class UnifiedLLMEngine:
             messages.append({"role": "system", "content": system_prompt})
         messages.append({"role": "user", "content": prompt})
 
+        # NPC ID에 매핑된 LoRA 어댑터가 있으면 사용, 없으면 base 모델
+        model_name = get_adapter_model(npc_id) or self._model_name
+        if model_name != self._model_name:
+            logger.info(f"LoRA 어댑터 사용: npc_id={npc_id}, adapter={model_name}")
+
         resp = self._client.post(
             f"{self.base_url}/chat/completions",
             headers={"Authorization": f"Bearer {self.api_key}"},
             json={
-                "model": self._model_name,
+                "model": model_name,
                 "messages": messages,
                 "temperature": temperature,
                 "top_p": top_p,
