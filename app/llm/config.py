@@ -14,7 +14,7 @@ LLMBackend = Literal["vLLM", "transformers"]
 DEFAULT_BACKEND: LLMBackend = "vLLM"
 
 # vLLM 설정
-VLLM_BASE_URL = "https://nontheatrical-judiciarily-susanne.ngrok-free.dev/v1"
+VLLM_BASE_URL = "https://e069-136-110-8-186.ngrok-free.app/"
 VLLM_SERVED_MODEL_NAME = "kakaocorp/kanana-1.5-8b-instruct-2505" # --served-model-name 에 지정한 이름
 
 # Transformers 설정
