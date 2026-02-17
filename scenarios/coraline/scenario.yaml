@@ -69,6 +69,7 @@ state_schema:
     ending: {default: null}
     basement_unlocked: {default: false}
     truth_revealed: {default: false}                # 할머니를 통해 진실을 알았는지 여부
+    status_effects: {default: []}                  # StatusEffectManager가 관리하는 활성 효과 목록
   system:
     turn: {default: 1}
     node_id: {default: "day1_morning"}

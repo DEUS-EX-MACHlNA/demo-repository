@@ -13,6 +13,8 @@ from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
+from app.schemas.status import NPCStatus
+
 
 class NPCState(BaseModel):
     """NPC 런타임 상태
@@ -20,6 +22,7 @@ class NPCState(BaseModel):
     NpcSchema(시나리오 정의)와 별개로, 게임 진행 중 변하는 상태만 관리.
     """
     npc_id: str
+    status: NPCStatus = NPCStatus.ALIVE
     stats: Dict[str, Any] = Field(default_factory=dict)
     memory: Dict[str, Any] = Field(default_factory=dict)
 

@@ -13,7 +13,7 @@ from typing import Any, Dict, Optional
 
 from app.loader import ScenarioAssets
 from app.schemas import WorldStatePipeline
-from app.llm import UnifiedLLMEngine
+from app.llm import UnifiedLLMEngine, get_llm
 from app.llm.prompt import build_tool_call_prompt
 from app.llm.response import parse_tool_call_response
 from app.postprocess import postprocess_npc_dialogue
@@ -31,7 +31,7 @@ def _get_llm() -> UnifiedLLMEngine:
     """LLM 엔진 싱글턴 반환"""
     global _llm_instance
     if _llm_instance is None:
-        _llm_instance = UnifiedLLMEngine()
+        _llm_instance = get_llm()
     return _llm_instance
 
 
