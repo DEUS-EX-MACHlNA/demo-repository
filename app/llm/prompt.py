@@ -1,4 +1,4 @@
-from typing import Dict, List, Any, TYPE_CHECKING
+from typing import Dict, List, Any, Tuple, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from app.loader import ScenarioAssets
@@ -168,41 +168,42 @@ SYSTEM_PROMPT = """당신은 인터랙티브 노벨 게임의 내러티브 엔�
 # ============================================================
 def build_action_prompt(
     action: str,
-    user_state: Dict[str, Any] | None = None,
-    world_state: Dict | None = None,
+    world_snapshot: Dict[str, Any] | None = None,
     npc_context: List[str] | None = None,
     assets: "ScenarioAssets | None" = None,
-) -> str:
-    """action 의도 전용 프롬프트 생성"""
-    prompt_parts = [SYSTEM_PROMPT_ACTION]
+) -> Tuple[str, str]:
+    """action 의도 전용 프롬프트 생성
 
-    if world_state:
-        prompt_parts.append(
+    Returns:
+        (system_prompt, user_prompt) 튜플
+    """
+    system_prompt = SYSTEM_PROMPT_ACTION
+
+    user_parts = []
+
+    if world_snapshot:
+        user_parts.append(
             "[세계 상태]\n" +
-            "\n".join(f"- {k}: {v}" for k, v in world_state.items())
-        )
-
-    if user_state:
-        prompt_parts.append(
-            "[사용자 상태]\n" +
-            "\n".join(f"- {k}: {v}" for k, v in user_state.items())
+            "\n".join(f"- {k}: {v}" for k, v in world_snapshot.items())
         )
 
     if npc_context:
-        prompt_parts.append(
+        user_parts.append(
             "[등장인물]\n" + "\n".join(npc_context)
         )
 
-    prompt_parts.append(
+    user_parts.append(
         "[행동]\n" + action
     )
 
     # 동적 OUTPUT_FORMAT 생성
     npc_stat_names = assets.get_npc_stat_names() if assets else None
-    prompt_parts.append(build_output_format(npc_stat_names))
-    prompt_parts.append("[출력]\n")
+    user_parts.append(build_output_format(npc_stat_names))
+    user_parts.append("[출력]\n")
 
-    return "\n\n".join(prompt_parts)
+    user_prompt = "\n\n".join(user_parts)
+
+    return system_prompt, user_prompt
 
 
 def build_item_prompt(
