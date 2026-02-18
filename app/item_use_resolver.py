@@ -22,6 +22,7 @@ from app.schemas.item_use import (
     ItemUseResult,
     StatusEffect,
 )
+from app.schemas.status import NPCStatus
 
 logger = logging.getLogger(__name__)
 
@@ -277,6 +278,14 @@ class ItemUseResolver:
         for item_id in delta.get("inventory_remove", []):
             if item_id in state.inventory:
                 state.inventory.remove(item_id)
+
+        for npc_id, new_status in delta.get("npc_status_changes", {}).items():
+            npc = state.npcs.get(npc_id)
+            if npc:
+                try:
+                    npc.status = NPCStatus(new_status)
+                except ValueError:
+                    pass
 
     # ------------------------------------------------------------------
     # Step 3: Commit

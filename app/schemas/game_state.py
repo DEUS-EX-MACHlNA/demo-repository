@@ -108,6 +108,7 @@ class StateDelta(BaseModel):
     - items_to_remove -> inventory_remove
     """
     npc_stats: Dict[str, Dict[str, int]] = Field(default_factory=dict)
+    npc_status_changes: Dict[str, str] = Field(default_factory=dict)
     flags: Dict[str, Any] = Field(default_factory=dict)
     inventory_add: List[str] = Field(default_factory=list)
     inventory_remove: List[str] = Field(default_factory=list)
@@ -124,6 +125,7 @@ class StateDelta(BaseModel):
     def from_dict(cls, data: dict[str, Any]) -> StateDelta:
         return cls(
             npc_stats=data.get("npc_stats", {}),
+            npc_status_changes=data.get("npc_status_changes", {}),
             flags=data.get("flags", data.get("update_flags", {})),
             inventory_add=data.get("inventory_add", data.get("items_to_add", [])),
             inventory_remove=data.get("inventory_remove", data.get("items_to_remove", [])),
@@ -160,6 +162,7 @@ def merge_deltas(*deltas: dict[str, Any]) -> dict[str, Any]:
             for stat, value in stats.items():
                 merged.npc_stats[npc_id][stat] = merged.npc_stats[npc_id].get(stat, 0) + value
 
+        merged.npc_status_changes.update(delta.npc_status_changes)
         merged.flags.update(delta.flags)
         merged.inventory_add.extend(delta.inventory_add)
         merged.inventory_remove.extend(delta.inventory_remove)

@@ -20,6 +20,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from app.schemas.game_state import StateDelta, WorldStatePipeline
 from app.schemas.item_use import StatusEffect
+from app.schemas.status import NPCStatus
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +51,7 @@ class EffectApplicator:
         """
         delta: Dict[str, Any] = {
             "npc_stats": {},
+            "npc_status_changes": {},
             "flags": {},
             "vars": {},
             "inventory_add": [],
@@ -113,24 +115,34 @@ class EffectApplicator:
             value = effect["value"]
             duration = effect.get("duration")
 
-            # 즉시 적용 (npc_stats에 문자열 값 세팅)
-            delta["npc_stats"].setdefault(npc_id, {})
-            delta["npc_stats"][npc_id][stat] = value
+            # _all_npcs 센티넬을 개별 NPC로 확장
+            target_ids = (
+                list(world_state.npcs.keys())
+                if npc_id == "_all_npcs"
+                else [npc_id]
+            )
 
-            # duration이 있으면 StatusEffect 생성
-            if duration:
-                npc_state = world_state.npcs.get(npc_id)
-                # None이면 빈 문자열로 대체 (tick에서 복구 시 사용)
-                original = npc_state.stats.get(stat, "") if npc_state else ""
+            for tid in target_ids:
+                if stat == "status":
+                    # NPC status enum 변경 (sleeping, deceased 등)
+                    delta["npc_status_changes"][tid] = value
+                else:
+                    # 일반 스탯 세팅
+                    delta["npc_stats"].setdefault(tid, {})
+                    delta["npc_stats"][tid][stat] = value
 
-                status_effects.append(StatusEffect(
-                    target_npc_id=npc_id,
-                    stat_key=stat,
-                    value=value,
-                    original_value=original,
-                    expires_at_turn=current_turn + duration,
-                    source_item_id=source_item_id,
-                ))
+                # duration이 있으면 StatusEffect 생성
+                if duration and stat == "status":
+                    npc_state = world_state.npcs.get(tid)
+                    original = npc_state.status.value if npc_state else "alive"
+
+                    status_effects.append(StatusEffect(
+                        target_npc_id=tid,
+                        applied_status=NPCStatus(value),
+                        original_status=NPCStatus(original),
+                        expires_at_turn=current_turn + duration,
+                        source_item_id=source_item_id,
+                    ))
 
         elif effect_type == "trigger_event":
             event_id = effect["event_id"]
@@ -168,6 +180,8 @@ class EffectApplicator:
             if prefix == "npc":
                 if npc_ref == "target":
                     return (target_npc_id or "_unknown", stat)
+                elif npc_ref == "all":
+                    return ("_all_npcs", stat)
                 return (npc_ref, stat)
             elif prefix == "player":
                 return ("_player", f"{npc_ref}.{stat}")
