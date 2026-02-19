@@ -86,8 +86,12 @@ class NarrativeLayer:
         """
         is_night = night_conversation is not None
 
-        import torch
-        use_lm = self._enable_lm and torch.cuda.is_available()
+        llm_engine = _get_llm()
+        if llm_engine.backend == "vLLM":
+            use_lm = self._enable_lm
+        else:
+            import torch
+            use_lm = self._enable_lm and torch.cuda.is_available()
 
         if is_night:
             logger.info("Rendering narrative (night phase)")
@@ -420,8 +424,12 @@ class NarrativeLayer:
     ) -> str:
         logger.info(f"Rendering ending: {ending_info.get('ending_id', 'unknown')}")
 
-        import torch
-        use_lm = self._enable_lm and torch.cuda.is_available()
+        llm_engine = _get_llm()
+        if llm_engine.backend == "vLLM":
+            use_lm = self._enable_lm
+        else:
+            import torch
+            use_lm = self._enable_lm and torch.cuda.is_available()
 
         if use_lm:
             dialogue = self._render_lm_ending(ending_info, world_state, assets)
