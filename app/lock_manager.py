@@ -57,7 +57,7 @@ class LockManager:
             # 이미 해금된 건 스킵
             # if info_id in self._unlocked_ids:
             #     continue
-            if world_state.locks[info_id]:
+            if world_state.locks.get(info_id, False):
                 continue
 
             # 조건 평가 (공용 ConditionEvaluator 사용)

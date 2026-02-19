@@ -58,11 +58,17 @@ logger = logging.getLogger(__name__)
 
 
 
+from app.workers.sync_worker import start_scheduler, shutdown_scheduler, sync_game_state_to_db
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """애플리케이션 라이프사이클 관리"""
     logger.info(f"Starting scenario server...")
     logger.info(f"Scenarios path: {SCENARIOS_BASE_PATH}")
+    
+    # Background Scheduler Start
+    start_scheduler()
+    logger.info("Background sync scheduler started.")
 
     loader = get_loader(SCENARIOS_BASE_PATH)
     available = loader.list_scenarios()
@@ -71,6 +77,13 @@ async def lifespan(app: FastAPI):
     yield
 
     logger.info("Shutting down scenario server...")
+    
+    # Final Sync & Shutdown
+    logger.info("Performing final DB sync...")
+    await sync_game_state_to_db()
+    
+    shutdown_scheduler()
+    logger.info("Background sync scheduler shutdown.")
 
 
 app = FastAPI(

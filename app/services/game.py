@@ -12,23 +12,20 @@ from typing import Any, Dict
 from pathlib import Path
 
 from sqlalchemy.orm import Session
+from app.database import SessionLocal
 from sqlalchemy.orm.attributes import flag_modified
 
 from app.db_models.game import Games
-from app.db_models.scenario import Scenario
 from app.crud import game as crud_game
 from app.redis_client import get_redis_client
 
 from app.schemas.client_sync import GameClientSyncSchema
-from app.schemas.world_meta_data import WorldDataSchema, LocksSchemaList
-from app.schemas.npc_info import NpcCollectionSchema
-from app.schemas.player_info import PlayerSchema
-from app.schemas.item_info import ItemSchema
 from app.schemas.request_response import StepRequestSchema, StepResponseSchema, NightResponseResult, NightDialogue
 from app.schemas.status import ItemStatus, LogType
 from app.schemas.game_state import NPCState, WorldStatePipeline, StateDelta
 from app.schemas.tool import ToolResult
 from app.schemas.night import NightResult
+from app.schemas.status import GameStatus
 from app.lock_manager import get_lock_manager
 from app.ending_checker import check_ending
 from app.narrative import get_narrative_layer
@@ -62,9 +59,10 @@ def _scenario_to_assets(game: Games) -> ScenarioAssets:
             # DB에 저장된 에셋 사용
             # world_asset_data는 dict 형태여야 함
             assets = ScenarioAssets(**game.scenario.world_asset_data)
-            print(f"[GameService] Loaded assets from DB for scenario: {game.scenario.title}")
+            assets = ScenarioAssets(**game.scenario.world_asset_data)
+            logger.debug(f"[GameService] Loaded assets from DB for scenario: {game.scenario.title}")
         except Exception as e:
-            print(f"[GameService] Failed to load assets from DB: {e}")
+            logger.error(f"[GameService] Failed to load assets from DB: {e}")
 
     if not assets:
         # Fallback: 파일 로드
@@ -73,7 +71,7 @@ def _scenario_to_assets(game: Games) -> ScenarioAssets:
         scenarios_dir = project_root / "scenarios"
         loader = ScenarioLoader(base_path=scenarios_dir)
         assets = loader.load(scenario_title)
-        print(f"[GameService] Loaded assets from FILE for scenario: {scenario_title}")
+        logger.debug(f"[GameService] Loaded assets from FILE for scenario: {scenario_title}")
 
     # 3. Apply Persisted Item States
     if game.player_data and "item_states" in game.player_data:
@@ -299,14 +297,38 @@ class GameService:
     ) -> StepResponseSchema:
         """
         낮 파이프라인 실행:
-        LockManager → DayController → EndingChecker → NarrativeLayer → DB 저장
+        LockManager → DayController → EndingChecker → NarrativeLayer → DB/Redis 저장
         """
-        
-        
         debug: Dict[str, Any] = {"game_id": game_id, "steps": []}
+        redis_client = get_redis_client()
 
-        # ── Step 1: world state 생성 ──
-        world_state = cls._create_world_state(game)
+        # ── Step 1: world state 생성 (Redis 우선) ──
+        cached_state = None
+        load_source = "DB"
+        try:
+            cached_state = redis_client.get_game_state(str(game_id))
+        except Exception as e:
+            logger.warning(f"Failed to get game state from Redis: {e}")
+
+        if cached_state:
+            load_source = "Redis"
+            logger.debug(f"Loaded game state from Redis for game_id={game_id}")
+            # Redis 데이터를 기반으로 WorldStatePipeline 생성
+            meta = cached_state.get("meta_data", {})
+            npc_stats = cached_state.get("npc_stats", {})
+            player_info = cached_state.get("player_info", {})
+            
+            # DB 모델에 Redis 데이터 반영
+            game.world_meta_data = meta
+            game.npc_data = {"npcs": list(npc_stats.values())}
+            game.player_data = player_info
+
+            # 공통 함수를 사용하여 WorldState 생성
+            world_state = cls._create_world_state(game)
+            
+        else:
+            logger.debug(f"Cache miss for game_id={game_id}, loading from DB")
+            world_state = cls._create_world_state(game)
 
         # ── Step 2: Scenario Assets 로드 ──
         assets = _scenario_to_assets(game)
@@ -328,14 +350,6 @@ class GameService:
             "step": "day_turn",
             "state_delta": tool_result.state_delta,
         })
-
-        # [TESTING] Mock Data Preservation (User Request)
-        # 이 변수는 테스팅 목적이나 Fallback으로 사용될 수 있습니다.
-        # ToolResult 객체로 변환하여 보존
-        
-        
-        #tool_result = make_mock_tool_result(user_input)
-
         
         logger.debug(f"DayController result: {tool_result}")
 
@@ -352,6 +366,7 @@ class GameService:
                 "epilogue_prompt": ending_result.ending.epilogue_prompt,
             }
             if ending_result.triggered_delta:
+                game.status = GameStatus.ENDING.value
                 _apply_delta(world_after, ending_result.triggered_delta, assets)
 
         # ── Step 7: NarrativeLayer - 나레이션 생성 ──
@@ -370,31 +385,57 @@ class GameService:
                     event_description=tool_result.event_description,
                     state_delta=tool_result.state_delta,
                 )
-        except ImportError as e:
-            print(f"[GameService] NarrativeLayer skipped due to missing dependency: {e}")
-            narrative = ""
         except Exception as e:
-             print(f"[GameService] NarrativeLayer failed: {e}")
+             logger.error(f"[GameService] NarrativeLayer failed: {e}")
              narrative = ""
         
-        # TODO 
+        # ── Step 8: Update Game State & Cache ──
+        # DB 모델 객체 업데이트 (JSON 구조체 갱신)
         cls._world_state_to_games(game, world_after, assets)
+        
+        # Redis 캐시 업데이트
+        try:
+            npc_stats = {}
+            if game.npc_data and "npcs" in game.npc_data:
+                for npc in game.npc_data["npcs"]:
+                    if "npc_id" in npc:
+                        npc_stats[npc["npc_id"]] = npc
+            
+            redis_client.set_game_state(
+                str(game_id),
+                game.world_meta_data,
+                npc_stats,
+                game.player_data
+            )
+            logger.debug(f"Updated Redis cache for game_id={game_id}")
+        except Exception as e:
+            logger.error(f"Failed to update Redis cache: {e}")
 
-        # 6. 저장
+        # 6. 저장 (DB) - 주기적 동기화 구현 전까지는 안전하게 매 턴 저장 유지
+        # TODO: 추후 Background Task로 이관 시 이 부분 조건부 실행 검토
         user_content = input_data.chat_input
 
         if game.world_meta_data and "state" in game.world_meta_data:
             current_turn = game.world_meta_data["state"].get("turn", 1)
-        create_chat_log(
-            db, game_id, LogType.DIALOGUE, "Player", user_content, current_turn
-        )
-        
-        # System Narrative Logging
-        create_chat_log(
-            db, game_id, LogType.NARRATIVE, "System", narrative, world_after.turn
-        )
+            
+        # [PERFORMANCE] Use separate session for logging to avoid committing game state
+        log_db = SessionLocal()
+        try:
+            create_chat_log(
+                log_db, game_id, LogType.DIALOGUE, "Player", user_content, current_turn
+            )
+            
+            # System Narrative Logging
+            create_chat_log(
+                log_db, game_id, LogType.NARRATIVE, "System", narrative, world_after.turn
+            )
+        finally:
+            log_db.close()
 
-        crud_game.update_game(db, game)
+        # [PERFORMANCE] Background Sync로 이관 (Redis Only Update)
+        # crud_game.update_game(db, game)
+        
+        logger.info(f"Turn {world_after.turn} processed (Source: {load_source}, Redis: Updated)")
 
         return StepResponseSchema(
             narrative=narrative,
@@ -449,7 +490,7 @@ class GameService:
         """
         밤 파이프라인 실행:
         LockManager → NightController → Delta 적용 → EndingChecker → NarrativeLayer
-
+        
         Args:
             db: SQLAlchemy 세션
             game_id: 게임 ID
@@ -459,13 +500,38 @@ class GameService:
             NightTurnResult: 밤 파이프라인 실행 결과
         """
         debug: Dict[str, Any] = {"game_id": game_id, "steps": []}
+        redis_client = get_redis_client()
 
-        # ── Step 1: Scenario → ScenarioAssets ──
-        assets = _scenario_to_assets(game)
+        # ── Step 1: world state 생성 (Redis 우선) ──
+        cached_state = None
+        load_source = "DB"
+        try:
+            cached_state = redis_client.get_game_state(str(game_id))
+        except Exception as e:
+            logger.warning(f"Failed to get game state from Redis: {e}")
 
-        # ── Step 2: Games → WorldStatePipeline ──
-        world_state = cls._create_world_state(game)
+        if cached_state:
+            load_source = "Redis"
+            logger.debug(f"Loaded game state from Redis for game_id={game_id}")
+            meta = cached_state.get("meta_data", {})
+            npc_stats = cached_state.get("npc_stats", {})
+            player_info = cached_state.get("player_info", {})
+            
+            # DB 모델에 Redis 데이터 반영 (참조용)
+            game.world_meta_data = meta
+            game.npc_data = {"npcs": list(npc_stats.values())}
+            game.player_data = player_info
+            
+            # 공통 함수를 사용하여 WorldState 생성
+            world_state = cls._create_world_state(game)
+        else:
+            logger.debug(f"Cache miss for game_id={game_id}, loading from DB")
+            world_state = cls._create_world_state(game)
+
         debug["turn_before"] = world_state.turn
+
+        # ── Step 2: Scenario Assets 로드 ──
+        assets = _scenario_to_assets(game)
 
         # ── Step 3: LockManager - 정보 해금 ──
         lock_manager = get_lock_manager()
@@ -477,9 +543,8 @@ class GameService:
         night_result: NightResult = night_controller.process(
             world_state, 
             assets
-            )
+        )
         
-
         # ── Step 5: Date Increment & Delta 적용 ──
         # 밤이 지나면 날짜(date)가 바뀜
         world_after = _apply_delta(world_state, night_result.night_delta, assets)
@@ -520,8 +585,26 @@ class GameService:
                 night_conversation=night_result.night_conversation,
             )
 
-        # ── Step 8: WorldStatePipeline → DB 반영 + 저장 ──
+        # ── Step 8: WorldStatePipeline → DB 반영 + Cache Update ──
         cls._world_state_to_games(game, world_after, assets)
+        
+        # Redis 캐시 업데이트
+        try:
+            npc_stats = {}
+            if game.npc_data and "npcs" in game.npc_data:
+                for npc in game.npc_data["npcs"]:
+                    if "npc_id" in npc:
+                        npc_stats[npc["npc_id"]] = npc
+            
+            redis_client.set_game_state(
+                str(game_id),
+                game.world_meta_data,
+                npc_stats,
+                game.player_data
+            )
+            logger.debug(f"Updated Redis cache for game_id={game_id}")
+        except Exception as e:
+            logger.error(f"Failed to update Redis cache: {e}")
 
         # Response 구성
         response_data = cls._create_night_response_data(narrative, night_result)
@@ -529,15 +612,21 @@ class GameService:
         # System Narrative Logging
         # NightDialogue 객체는 JSON 직렬화가 안되므로 dict로 변환
         dialogues_dict = [d.model_dump() for d in response_data["dialogues"]]
-        create_chat_log(
-            db, game_id, LogType.NIGHT_EVENT, "System", response_data["narrative"], world_after.turn, {"dialogues": dialogues_dict}
-        )
+        # [PERFORMANCE] Use separate session for logging
+        log_db = SessionLocal()
+        try:
+            create_chat_log(
+                log_db, game_id, LogType.NIGHT_EVENT, "System", response_data["narrative"], world_after.turn, {"dialogues": dialogues_dict}
+            )
+        finally:
+            log_db.close()
 
-        crud_game.update_game(db, game)
+        # [PERFORMANCE] Background Sync로 이관 (Redis Only Update)
+        # crud_game.update_game(db, game)
 
         logger.info(
             f"Night completed: game={game_id}, "
-            f"turn={world_after.turn}, ending={ending_result.reached}"
+            f"turn={world_after.turn}, ending={ending_result.reached}, Source={load_source}"
         )
 
         return NightResponseResult(
@@ -551,27 +640,48 @@ class GameService:
     @staticmethod
     def start_game(db: Session, game_id: int):
         """게임 id를 받아서 진행된 게임을 불러옴"""
-        from app.schemas import GameClientSyncSchema
+        from app.schemas.client_sync import GameClientSyncSchema
         from app.redis_client import get_redis_client
 
-        print(f"[DEBUG] start_game called with game_id={game_id}")
+        logger.info(f"[GameService] start_game called with game_id={game_id}")
         game = crud_game.get_game_by_id(db, game_id)
-        print(f"[DEBUG] crud_game.get_game_by_id result: {game}")
         
         if not game:
-            print(f"[DEBUG] Game not found for id {game_id}")
+            logger.error(f"[GameService] Game not found for id {game_id}")
             raise ValueError(f"Game not found: {game_id}")
 
+        # Redis에 게임 상태 캐싱
+        try:
+            redis_client = get_redis_client()
+            
+            # Serialize data for Redis
+            meta_data = game.world_meta_data or {}
+            
+            # NPC Data extraction
+            npc_stats = {}
+            if game.npc_data and "npcs" in game.npc_data:
+                for npc in game.npc_data["npcs"]:
+                    if "npc_id" in npc:
+                        npc_stats[npc["npc_id"]] = npc
+            
+            player_info = game.player_data or {}
+            
+            # Cache to Redis
+            redis_client.set_game_state(
+                str(game_id),
+                meta_data,
+                npc_stats,
+                player_info
+            )
+            logger.info(f"[GameService] Game state cached in Redis for game_id={game_id}")
+            
+        except Exception as e:
+            logger.warning(f"[GameService] Failed to cache game state in Redis: {e}")
+
+        # Client Sync Data (for frontend)
         client_sync_data = GameClientSyncSchema(
             game_id=game_id,
             user_id=game.user_id,
         )
-
-        try:
-            redis_client = get_redis_client()
-            redis_key = f"game:{game_id}"
-            redis_client.setex(redis_key, 3600, client_sync_data.json())
-        except Exception as e:
-            logger.warning(f"Failed to cache game state in Redis: {e}")
-
-        return client_sync_data
+        
+        return game_id

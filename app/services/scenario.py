@@ -331,12 +331,37 @@ class ScenarioService:
                 world_meta_data=world_state_data,
                 player_data=player_data,
                 npc_data=npc_data,
-                summary={},  # TODO: 이 부분은 추후 LLM에 넣어 둘 내용을 의미
+                # summary={},  # TODO: 이 부분은 추후 LLM에 넣어 둘 내용을 의미
                 status=GameStatus.LIVE,
             )
         
             crud_game.create_game(db, game)
             
+            # Redis Caching
+            try:
+                from app.redis_client import get_redis_client
+                redis_client = get_redis_client()
+                
+                # Check npc_data structure for caching
+                npc_stats = {}
+                if "npcs" in npc_data:
+                     for npc in npc_data["npcs"]:
+                        # NpcSchema 객체 혹은 dict일 수 있음 (create_game 시점엔 dict)
+                        if isinstance(npc, dict) and "npc_id" in npc:
+                            npc_stats[npc["npc_id"]] = npc
+                        elif hasattr(npc, "npc_id"):
+                             npc_stats[npc.npc_id] = npc.dict()
+
+                redis_client.set_game_state(
+                    str(game.id),
+                    world_state_data,
+                    npc_stats,
+                    player_data
+                )
+            except Exception as e:
+                # Redis 실패가 게임 생성을 막지 않도록 로깅만 함
+                print(f"[ScenarioService] Failed to cache initial game state: {e}")
+
             return GameClientSyncSchema(
                 game_id=game.id,
                 user_id=user_id,
