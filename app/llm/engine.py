@@ -23,6 +23,41 @@ logger = logging.getLogger(__name__)
 
 _instance: Optional[UnifiedLLMEngine] = None
 
+# 중국어 유니코드 범위
+_CHINESE_UNICODE_RANGES = [
+    (0x4E00, 0x9FFF),   # CJK Unified Ideographs
+    (0x3400, 0x4DBF),   # CJK Unified Ideographs Extension A
+    (0x20000, 0x2A6DF), # CJK Unified Ideographs Extension B
+    (0xF900, 0xFAFF),   # CJK Compatibility Ideographs
+]
+
+
+def _is_chinese_char(char: str) -> bool:
+    cp = ord(char)
+    return any(start <= cp <= end for start, end in _CHINESE_UNICODE_RANGES)
+
+
+class ChineseBlockingLogitsProcessor:
+    """중국어 토큰 생성을 차단하는 LogitsProcessor (transformers 전용)"""
+
+    def __init__(self, tokenizer):
+        self._chinese_token_ids = self._find_chinese_token_ids(tokenizer)
+        logger.info(f"중국어 차단 토큰 수: {len(self._chinese_token_ids)}")
+
+    def _find_chinese_token_ids(self, tokenizer) -> list:
+        vocab = tokenizer.get_vocab()
+        chinese_ids = []
+        for token, token_id in vocab.items():
+            decoded = tokenizer.convert_tokens_to_string([token])
+            if any(_is_chinese_char(c) for c in decoded):
+                chinese_ids.append(token_id)
+        return chinese_ids
+
+    def __call__(self, input_ids, scores):
+        if self._chinese_token_ids:
+            scores[:, self._chinese_token_ids] = -float("inf")
+        return scores
+
 
 class UnifiedLLMEngine:
     """통합 LLM 엔진 - 다양한 백엔드 지원"""
@@ -132,6 +167,9 @@ class UnifiedLLMEngine:
             self._model = self._model.to(device)
 
         self._model.eval()
+
+        # 중국어 차단 processor 캐싱 (vocab 분석은 1회만 수행)
+        self._chinese_processor = ChineseBlockingLogitsProcessor(self._tokenizer)
 
     def generate(self, prompt, **kargs):
         try:
@@ -286,6 +324,10 @@ class UnifiedLLMEngine:
             pad_token_id = self._tokenizer.eos_token_id
 
         # 생성
+        from transformers import LogitsProcessorList
+        chinese_processor = getattr(self, "_chinese_processor", None)
+        logits_processor = LogitsProcessorList([chinese_processor]) if chinese_processor else None
+
         with torch.no_grad():
             outputs = self._model.generate(
                 input_ids,
@@ -297,6 +339,7 @@ class UnifiedLLMEngine:
                 repetition_penalty=repetition_penalty,
                 eos_token_id=self._tokenizer.eos_token_id,
                 pad_token_id=pad_token_id,
+                logits_processor=logits_processor,
             )
 
         # 디코딩

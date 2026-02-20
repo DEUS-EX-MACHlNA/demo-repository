@@ -14,8 +14,8 @@ LLMBackend = Literal["vLLM", "transformers"]
 DEFAULT_BACKEND: LLMBackend = "vLLM"
 
 # vLLM 설정 — .env의 VLLM_BASE_URL로 재정의 가능
-VLLM_BASE_URL = os.environ.get("VLLM_BASE_URL", "https://ed0e-34-118-240-239.ngrok-free.app/")
-VLLM_SERVED_MODEL_NAME = os.environ.get("VLLM_MODEL", "kakaocorp/kanana-1.5-8b-instruct-2505")
+VLLM_BASE_URL = os.environ.get("VLLM_BASE_URL", "https://3d1a-34-143-172-183.ngrok-free.app/")
+VLLM_SERVED_MODEL_NAME = os.environ.get("VLLM_MODEL", "Qwen/Qwen2.5-7B-Instruct")
 
 # Transformers 설정
 TRANSFORMERS_DEVICE = None  # None이면 자동 감지 (cuda/cpu)
@@ -40,7 +40,6 @@ NPC_ADAPTER_MAP: dict[str, str] = {
 }
 
 # NPC ID → HuggingFace LoRA 레포 경로 매핑
-# TODO: 각 NPC에 맞는 실제 HF 레포 ID로 교체하세요
 NPC_HF_REPO_MAP: dict[str, str] = {
     "stepmother":  "lucete171/deus-mother-lora",
     "stepfather":  "lucete171/deus-stepfather-lora",
