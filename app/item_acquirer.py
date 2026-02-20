@@ -60,8 +60,8 @@ class ItemAcquirer:
             acquire = item_def.get("acquire", {})
             method = acquire.get("method", "")
 
-            # auto, unlock, reward 메서드만 자동 스캔
-            if method not in ("auto", "unlock", "reward"):
+            # auto 메서드만 자동 스캔 (manual은 LLM이 서사적으로 판단)
+            if method != "auto":
                 continue
 
             # 이미 인벤토리에 있음

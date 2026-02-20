@@ -75,8 +75,9 @@ class EndingChecker:
                     on_enter_events=ending_def.get("on_enter_events", []),
                 )
 
-                # on_enter_events를 delta로 변환
+                # on_enter_events를 delta로 변환 + flags.ending 자동 주입
                 triggered_delta = self._events_to_delta(ending_info.on_enter_events)
+                triggered_delta.flags.setdefault("ending", ending_info.ending_id)
 
                 logger.info(
                     f"[EndingChecker] 엔딩 도달: {ending_info.ending_id} - {ending_info.name}"

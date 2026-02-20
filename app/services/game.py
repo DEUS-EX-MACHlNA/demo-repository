@@ -180,7 +180,7 @@ def _world_state_to_games(game: Games, world_state: WorldStatePipeline) -> None:
 # ============================================================
 
 @staticmethod
-def mock_load_scenario_assets_from_yaml(scenario_id: str = "coraline") -> ScenarioAssets:
+def mock_load_scenario_assets_from_yaml(scenario_id: str = "coraline_v3") -> ScenarioAssets:
     """
     [TESTING] 실제 YAML 파일을 읽어서 ScenarioAssets 생성
     코랩에서 DB 없이 테스트할 때 사용
@@ -205,7 +205,7 @@ def mock_load_scenario_assets_from_yaml(scenario_id: str = "coraline") -> Scenar
     return assets
 
 @staticmethod
-def mock_create_world_state_from_yaml(scenario_id: str = "coraline") -> WorldStatePipeline:
+def mock_create_world_state_from_yaml(scenario_id: str = "coraline_v3") -> WorldStatePipeline:
     """
     [TESTING] 실제 YAML 파일을 읽어서 초기 WorldState 생성
     코랩에서 DB 없이 테스트할 때 사용
@@ -316,15 +316,11 @@ class GameService:
             nid = npc.get("npc_id")
             if not nid:
                 continue
-            
-            stats = npc.get("stats", {})
+
             npcs[nid] = NPCState(
                 npc_id=nid,
-                trust=stats.get("trust", 0),
-                fear=stats.get("fear", 0),
-                suspicion=stats.get("suspicion", 0),
-                humanity=stats.get("humanity", 10),
-                extras=npc # 전체 데이터를 extras로 저장하거나 필요한거만 넣을 수 있음
+                stats=npc.get("stats", {}),
+                memory=npc.get("memory", {}),
             )
 
         return WorldStatePipeline(

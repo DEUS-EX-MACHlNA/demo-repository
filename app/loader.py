@@ -30,8 +30,8 @@ if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
 import logging
-from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any, Dict, List, Optional
+from pydantic import BaseModel, Field
 from datetime import datetime
 from sqlalchemy.orm import Session
 
@@ -46,18 +46,17 @@ logger = logging.getLogger(__name__)
 # ============================================================
 # ScenarioAssets: 로드된 모든 YAML 데이터를 담는 컨테이너
 # ============================================================
-@dataclass
-class ScenarioAssets:
-    """시나리오의 모든 에셋을 담는 데이터클래스"""
+class ScenarioAssets(BaseModel):
+    """시나리오의 모든 에셋을 담는 Pydantic 모델"""
     scenario_id: str
-    scenario: dict[str, Any] = field(default_factory=dict)
-    story_graph: dict[str, Any] = field(default_factory=dict)
-    npcs: dict[str, Any] = field(default_factory=dict)
-    items: dict[str, Any] = field(default_factory=dict)
-    memory_rules: dict[str, Any] = field(default_factory=dict)
+    scenario: Dict[str, Any] = Field(default_factory=dict)
+    story_graph: Dict[str, Any] = Field(default_factory=dict)
+    npcs: Dict[str, Any] = Field(default_factory=dict)
+    items: Dict[str, Any] = Field(default_factory=dict)
+    memory_rules: Dict[str, Any] = Field(default_factory=dict)
 
     # 추가 에셋 (locks.yaml 등)
-    extras: dict[str, dict[str, Any]] = field(default_factory=dict)
+    extras: Dict[str, Dict[str, Any]] = Field(default_factory=dict)
 
     def get_npc_by_id(self, npc_id: str) -> Optional[dict[str, Any]]:
         """NPC ID로 NPC 정보 조회"""
@@ -75,13 +74,27 @@ class ScenarioAssets:
                 return item
         return None
 
-    def get_node_by_id(self, node_id: str) -> Optional[dict[str, Any]]:
-        """Node ID로 스토리 노드 조회"""
+    def get_location_by_id(self, location_id: str) -> Optional[dict[str, Any]]:
+        """Location ID로 장소 조회 (v3 locations / v1 nodes 모두 지원)"""
+        # v3: locations 키
+        locations = self.story_graph.get("locations", [])
+        for loc in locations:
+            if loc.get("location_id") == location_id:
+                return loc
+        # v1 fallback: nodes 키
         nodes = self.story_graph.get("nodes", [])
         for node in nodes:
-            if node.get("node_id") == node_id:
+            if node.get("node_id") == location_id:
                 return node
         return None
+
+    def get_all_location_ids(self) -> list[str]:
+        """모든 장소 ID 목록 반환 (v3 locations / v1 nodes 모두 지원)"""
+        locations = self.story_graph.get("locations", [])
+        if locations:
+            return [loc.get("location_id") for loc in locations]
+        nodes = self.story_graph.get("nodes", [])
+        return [node.get("node_id") for node in nodes]
 
     def get_all_npc_ids(self) -> list[str]:
         """모든 NPC ID 목록 반환"""
@@ -251,7 +264,7 @@ class ScenarioLoader:
             f"Loaded scenario '{scenario_id}': "
             f"{len(assets.get_all_npc_ids())} NPCs, "
             f"{len(assets.get_all_item_ids())} items, "
-            f"{len(story_graph.get('nodes', []))} story nodes"
+            f"{len(assets.get_all_location_ids())} locations"
         )
 
         return assets
@@ -343,9 +356,11 @@ def print_assets(assets: ScenarioAssets):
 
     print(f"\n[7] 초기 인벤토리: {assets.get_initial_inventory()}")
 
-    print(f"\n[8] Story Graph 노드:")
-    for node in assets.story_graph.get("nodes", []):
-        print(f"    - {node.get('node_id')}: {node.get('summary', 'N/A')[:40]}...")
+    print(f"\n[8] Locations:")
+    for loc_id in assets.get_all_location_ids():
+        loc = assets.get_location_by_id(loc_id)
+        name = loc.get("name", loc.get("summary", "N/A")) if loc else "N/A"
+        print(f"    - {loc_id}: {name}")
 
     print(f"\n[9] State Schema:")
     schema = assets.get_state_schema()
@@ -358,7 +373,7 @@ def print_assets(assets: ScenarioAssets):
 
     # assets 데이터를 json타입으로 출력
     print("\n[10] ScenarioAssets JSON 출력:")
-    print(json.dumps(assets.__dict__, indent=4, ensure_ascii=False))
+    print(json.dumps(assets.model_dump(), indent=4, ensure_ascii=False))
 
 # JSON을 DB에 저장
 # sqlalchemy ORM을 사용하여 저장
@@ -372,12 +387,7 @@ def save_assets_to_db(assets: ScenarioAssets):
     
     db = SessionLocal()
     try:
-        # ScenarioAssets 자체를 딕셔너리로 변환하여 저장
-        # dataclasses.asdict(assets)를 사용하거나, __dict__를 사용
-        # 여기서는 __dict__를 사용하여 간단하게 처리 (메서드 등은 제외됨)
-        # 하지만 dataclass라 asdict가 더 안전할 수 있음 -> assets는 dataclass임
-        from dataclasses import asdict
-        world_asset_data = asdict(assets)
+        world_asset_data = assets.model_dump()
         
         # 현재 시간
         now = datetime.utcnow()

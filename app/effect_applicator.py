@@ -5,13 +5,15 @@ app/effect_applicator.py
 순수 데이터 변환 모듈. LLM 호출 없음.
 
 지원하는 효과 타입:
-- stat_add / stat_sub   → npc_stats
-- var_add               → vars (누적)
-- set_state             → npc_stats 즉시 + StatusEffect 생성 (duration 있을 때)
-- trigger_event         → flags
-- set_env               → vars (덮어쓰기)
-- unlock_ending         → flags
-- change_scene          → next_node
+- npc_stat_add / npc_stat_sub → npc_stats (v3)
+- stat_add / stat_sub         → npc_stats (v1 하위호환)
+- var_add / var_sub            → vars (누적)
+- set_state                    → NPC status 변경 + StatusEffect 생성 (duration 있을 때)
+- flag_set                     → flags (v3)
+- trigger_event                → flags
+- set_env                      → vars (덮어쓰기)
+- unlock_ending                → flags
+- change_scene                 → next_node
 """
 from __future__ import annotations
 
@@ -20,6 +22,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from app.schemas.game_state import StateDelta, WorldStatePipeline
 from app.schemas.item_use import StatusEffect
+from app.schemas.status import NPCStatus
 
 logger = logging.getLogger(__name__)
 
@@ -84,7 +87,8 @@ class EffectApplicator:
     ) -> None:
         """단일 효과 적용"""
 
-        if effect_type == "stat_add":
+        # ── npc_stat_add (v3) / stat_add (v1) ──
+        if effect_type in ("npc_stat_add", "stat_add"):
             npc_id, stat = self._resolve_npc_target(effect["target"], target_npc_id)
             if npc_id == "_player":
                 delta["vars"][stat] = delta["vars"].get(stat, 0) + effect["value"]
@@ -94,7 +98,8 @@ class EffectApplicator:
                     delta["npc_stats"][npc_id].get(stat, 0) + effect["value"]
                 )
 
-        elif effect_type == "stat_sub":
+        # ── npc_stat_sub (v3) / stat_sub (v1) ──
+        elif effect_type in ("npc_stat_sub", "stat_sub"):
             npc_id, stat = self._resolve_npc_target(effect["target"], target_npc_id)
             if npc_id == "_player":
                 delta["vars"][stat] = delta["vars"].get(stat, 0) - effect["value"]
@@ -104,46 +109,63 @@ class EffectApplicator:
                     delta["npc_stats"][npc_id].get(stat, 0) - effect["value"]
                 )
 
+        # ── var_add ──
         elif effect_type == "var_add":
-            key = effect["key"]
+            key = self._resolve_var_key(effect["key"])
             delta["vars"][key] = delta["vars"].get(key, 0) + effect["value"]
 
+        # ── var_sub (v3) ──
+        elif effect_type == "var_sub":
+            key = self._resolve_var_key(effect["key"])
+            delta["vars"][key] = delta["vars"].get(key, 0) - effect["value"]
+
+        # ── flag_set (v3) ──
+        elif effect_type == "flag_set":
+            key = effect["key"]
+            delta["flags"][key] = effect["value"]
+
+        # ── set_state → NPC status 변경 + StatusEffect ──
         elif effect_type == "set_state":
-            npc_id, stat = self._resolve_npc_target(effect["target"], target_npc_id)
+            npc_id, _stat = self._resolve_npc_target(effect["target"], target_npc_id)
             value = effect["value"]
             duration = effect.get("duration")
 
-            # 즉시 적용 (npc_stats에 문자열 값 세팅)
-            delta["npc_stats"].setdefault(npc_id, {})
-            delta["npc_stats"][npc_id][stat] = value
+            # NPCStatus enum으로 변환
+            try:
+                applied_status = NPCStatus(value)
+            except ValueError:
+                logger.warning(f"[EffectApplicator] 알 수 없는 NPCStatus: {value}")
+                return
 
-            # duration이 있으면 StatusEffect 생성
+            # duration이 있으면 StatusEffect 생성 (만료 시 복구용)
             if duration:
                 npc_state = world_state.npcs.get(npc_id)
-                # None이면 빈 문자열로 대체 (tick에서 복구 시 사용)
-                original = npc_state.stats.get(stat, "") if npc_state else ""
+                original_status = npc_state.status if npc_state else NPCStatus.ALIVE
 
                 status_effects.append(StatusEffect(
                     target_npc_id=npc_id,
-                    stat_key=stat,
-                    value=value,
-                    original_value=original,
+                    applied_status=applied_status,
+                    original_status=original_status,
                     expires_at_turn=current_turn + duration,
                     source_item_id=source_item_id,
                 ))
 
+        # ── trigger_event ──
         elif effect_type == "trigger_event":
             event_id = effect["event_id"]
             delta["flags"][event_id] = True
 
+        # ── set_env ──
         elif effect_type == "set_env":
             key = effect["key"]
             delta["vars"][key] = effect["value"]
 
+        # ── unlock_ending ──
         elif effect_type == "unlock_ending":
             ending_id = effect["ending_id"]
             delta["flags"][f"ending_unlocked_{ending_id}"] = True
 
+        # ── change_scene ──
         elif effect_type == "change_scene":
             delta["next_node"] = effect["target"]
 
@@ -179,6 +201,17 @@ class EffectApplicator:
 
         logger.warning(f"[EffectApplicator] target 해석 실패: {target_str}")
         return ("_unknown", target_str)
+
+    @staticmethod
+    def _resolve_var_key(key: str) -> str:
+        """
+        var key에서 'vars.' 접두사를 제거.
+        v3 items.yaml은 'vars.humanity' 형태를 사용하지만
+        delta["vars"]에는 'humanity'로 저장해야 함.
+        """
+        if key.startswith("vars."):
+            return key[5:]
+        return key
 
 
 # 싱글턴

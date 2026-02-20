@@ -89,9 +89,9 @@ class DayController:
             sem = get_status_effect_manager()
             for se_data in result["item_use_result"].get("status_effects", []):
                 if isinstance(se_data, dict):
-                    sem.add_effect(StatusEffect(**se_data))
+                    sem.apply_effect(StatusEffect(**se_data), world_state)
                 elif isinstance(se_data, StatusEffect):
-                    sem.add_effect(se_data)
+                    sem.apply_effect(se_data, world_state)
 
         # 6. Rule Engine 적용: intent 기반 자동 상태 변화
         active_npc_id = result.get("npc_id")  # interact에서 반환되는 npc_id
