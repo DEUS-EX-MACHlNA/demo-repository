@@ -41,6 +41,22 @@ class RedisClient:
         self.client.hset(key, mapping=mapping)
         self.client.expire(key, self.ttl)
 
+    def get_player_info(self, game_id: str) -> Optional[Dict[str, Any]]:
+        """Redis에서 player_info만 가져옵니다."""
+        key = f"game:{game_id}:data"
+        data = self.client.hget(key, "player_info")
+        if not data:
+            return None
+        return json.loads(data)
+
+    def update_player_info(self, game_id: str, player_info: dict):
+        """Redis에서 player_info만 업데이트합니다."""
+        key = f"game:{game_id}:data"
+        # 키 존재 여부 확인 후 업데이트
+        if self.client.exists(key):
+            self.client.hset(key, "player_info", json.dumps(player_info, ensure_ascii=False))
+            self.client.expire(key, self.ttl)
+
     def delete_game_state(self, game_id: str):
         """게임 상태를 Redis에서 삭제합니다."""
         key = f"game:{game_id}:data"

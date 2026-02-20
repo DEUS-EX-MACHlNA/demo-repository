@@ -684,4 +684,69 @@ class GameService:
             user_id=game.user_id,
         )
         
+        return client_sync_data
+
+    # 텍스트로 맵 이동을 받으면 플레이어의 위치를 그 맵으로 변경
+    @staticmethod
+    def change_location(game_id: int, location: str):
+        redis_client = get_redis_client()
+        
+        try:
+            player_info = redis_client.get_player_info(str(game_id))
+            if not player_info:
+                logger.warning(f"No player info found for game_id={game_id} in Redis")
+                return game_id
+                
+            # 전달받은 location으로 현재 노드 변경
+            player_info["current_node"] = location
+            
+            # Redis에 상태 저장 (일부 업데이트)
+            redis_client.update_player_info(str(game_id), player_info)
+            logger.info(f"Updated current_node to {location} for game_id={game_id} in Redis")
+            
+        except Exception as e:
+            logger.error(f"Failed to update location for game_id={game_id} in Redis: {e}")
+
         return game_id
+    
+
+    # 엔딩이 난 게임을 소설로 만들기
+    @staticmethod
+    def make_novel(game_id: int) -> str:
+        from app.database import SessionLocal
+        from app.crud.chat_log import get_chat_logs_by_game_id
+        from app.schemas.status import LogType
+        
+        db = SessionLocal()
+        try:
+            logs = get_chat_logs_by_game_id(db, game_id)
+            if not logs:
+                return "아직 기록된 이야기가 없습니다."
+            
+            novel_lines = ["이것은 당신이 만들어낸 이야기"]
+            for log in logs:
+                content = log.content.strip() if log.content else ""
+                
+                if log.type == LogType.DIALOGUE:
+                    # 플레이어의 대사/행동
+                    novel_lines.append(f'\n"주인공 : {content}"\n')
+                elif log.type == LogType.NARRATIVE:
+                    # 시스템의 나레이션 (상황 설명)
+                    novel_lines.append(content)
+                elif log.type == LogType.NIGHT_EVENT:
+                    # 밤 이벤트
+                    novel_lines.append(f'\n[밤이 되었습니다...]\n{content}')
+                    
+                    # 밤 대화록 (metadata_의 dialogues) -> 얜 나중에 생각해봄
+                    if log.metadata_ and "dialogues" in log.metadata_:
+                        for d in log.metadata_["dialogues"]:
+                            speaker = d.get("speaker_name", "누군가")
+                            text = d.get("dialogue", "...")
+                            if speaker and text:
+                                novel_lines.append(f'{speaker}: "{text}"')
+                else:
+                    novel_lines.append(content)
+                    
+            return "\n".join(novel_lines).strip()
+        finally:
+            db.close()

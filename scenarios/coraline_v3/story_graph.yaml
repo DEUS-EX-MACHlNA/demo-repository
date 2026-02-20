@@ -1,0 +1,25 @@
+# 프로젝트: 인형의 집 - 구역 목록 (v3)
+# 용어 확정: "location" 사용 (node 대신)
+# summary, location_logic, connected_nodes 삭제 — 프론트에서 별도 처리 또는 불필요
+
+locations:
+  - location_id: player_room
+    name: "주인공의 방"
+
+  - location_id: hallway
+    name: "복도"
+
+  - location_id: living_room
+    name: "거실"
+
+  - location_id: kitchen
+    name: "주방/식당"
+
+  - location_id: brother_room
+    name: "동생의 방"
+
+  - location_id: basement
+    name: "지하실/할머니의 방"
+
+  - location_id: garden
+    name: "뒷마당/정원"

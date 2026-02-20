@@ -15,9 +15,9 @@ class CurrentStateSchema(BaseModel):
     # 2. 변수와 플래그 (가장 중요!)
     # 여기는 값이 계속 변하므로 Dict[str, Any]로 유연하게 받습니다.
 
-    vars: Dict[str, int] = Field(
+    vars: Dict[str, Any] = Field(
         default_factory=dict,
-        description="현재 변수 값 (예: {'clue_count': 3, 'trust': 10})"
+        description="현재 변수 값 (예: {'clue_count': 3, 'trust': 10, 'status_effects': []})"
     )
     flags: Dict[str, Any] = Field(
         default_factory=dict,

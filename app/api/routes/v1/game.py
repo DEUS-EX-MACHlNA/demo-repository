@@ -107,3 +107,18 @@ def get_night_log(game_id: int, db: Session = Depends(get_db)):
         serverTime=datetime.utcnow()
     )
     return mock_response
+
+
+# 맵 이동 요청
+@router.post("/{game_id}/move", summary="맵 이동 요청")
+def move_game(game_id: int, location: str, db: Session = Depends(get_db)) -> int:
+
+    result = GameService.change_location(game_id, location)
+    return result
+
+
+# 스토리 만들기 요청
+@router.get("/{game_id}/make_novel", summary="스토리 만들기 요청")
+def make_novel(game_id: int, db: Session = Depends(get_db)) -> str:
+    result = GameService.make_novel(game_id)
+    return result

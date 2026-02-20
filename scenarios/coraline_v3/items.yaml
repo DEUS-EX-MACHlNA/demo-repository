@@ -1,0 +1,231 @@
+# 프로젝트: 인형의 집 - 아이템 데이터 (v3)
+#
+# acquire.method:
+#   - "start"   : 게임 시작 시 자동 지급
+#   - "auto"    : 매 턴 ItemAcquirer가 condition 평가 후 자동 획득
+#   - "manual"  : LLM 엔진이 서사적으로 판단하여 지급 (탐색, 대화 등)
+#                 locks의 item_hint가 이 아이템의 획득 힌트를 제공함
+#
+# acquire.condition: condition_eval.py 표현식 (WorldStatePipeline 기준)
+# acquire.location: 아이템이 존재하는 장소 (LLM 서사 참고용)
+# acquire.success_message: 획득 성공 시 나레이션 + 사용법 힌트
+# acquire.failure_message: 획득 실패 시 나레이션
+#
+# use.effects 타입:
+#   - var_add / var_sub           : vars 값 변경
+#   - npc_stat_add / npc_stat_sub : NPC stats 변경
+#   - set_state                   : NPC status 변경 (via StatusEffectManager)
+#   - trigger_event               : 이벤트 트리거
+#   - flag_set                    : flags 값 설정
+#
+# use.success_message: 사용 성공 시 나레이션 (서사 LLM 컨텍스트)
+# use.failure_message: 사용 조건 미충족 시 나레이션
+
+items:
+  # ────────────────────────────────────────
+  # 소모품 / 유틸리티
+  # ────────────────────────────────────────
+  - item_id: warm_black_tea
+    name: "따뜻한 홍차"
+    type: "consumable"
+    description: "새엄마가 매일 정성스레 준비하는 차. 달콤하지만 끝맛이 비리다."
+    acquire:
+      method: "start"
+      condition: "true"
+      success_message: "새엄마가 건넨 따뜻한 홍차. 마시면 정신이 흐려질 것 같다."
+      failure_message: ""
+    use:
+      actions:
+        - action_id: drink
+          label: "차 마시기"
+          allowed_when: "true"
+          effects:
+            - { type: var_sub, key: "vars.humanity", value: 5 }
+          success_message: "달콤한 홍차를 마셨다. 머릿속이 살짝 흐릿해지는 기분이다."
+          failure_message: "지금은 차를 마실 상황이 아니다."
+
+  - item_id: dried_herbs
+    name: "말린 허브 뭉치"
+    type: "consumable"
+    description: "강한 향을 내는 약초 뭉치. 정신을 맑게 해주는 효능이 있다."
+    acquire:
+      method: "manual"
+      condition: "vars.day >= 2"
+      location: "basement"
+      success_message: "지하실 선반 뒤에서 말린 허브 뭉치를 찾았다. 향을 맡으면 정신이 맑아질 것 같다."
+      failure_message: "아직 지하실에서 쓸 만한 것을 찾을 수 없다. 며칠 더 지나봐야 할 것 같다."
+    use:
+      actions:
+        - action_id: inhale_scent
+          label: "향기 들이마시기"
+          allowed_when: "vars.humanity < 100"
+          effects:
+            - { type: var_add, key: "vars.humanity", value: 5 }
+          success_message: "허브 향을 깊이 들이마시자 흐릿하던 시야가 조금 맑아졌다."
+          failure_message: "이미 정신이 충분히 맑다. 지금은 필요 없을 것 같다."
+
+  - item_id: dog_treat
+    name: "강아지 간식"
+    type: "gift"
+    description: "바론이 가장 좋아하는 육포. 주방 찬장에 숨겨져 있었다."
+    acquire:
+      method: "manual"
+      condition: "true"
+      location: "kitchen"
+      success_message: "주방 찬장 깊숙이 숨겨진 강아지 간식을 발견했다. 바론에게 주면 좋아할 것이다."
+      failure_message: "찬장을 뒤져봤지만 아무것도 없다."
+    use:
+      actions:
+        - action_id: feed_baron
+          label: "바론에게 주기"
+          allowed_when: "true"
+          effects:
+            - { type: npc_stat_add, target: "npc.dog_baron.affection", value: 25 }
+          success_message: "바론이 꼬리를 흔들며 간식을 받아먹었다. 눈빛에 신뢰가 깃든다."
+          failure_message: "바론이 보이지 않는다. 가까이에 있을 때 줘야 할 것 같다."
+
+  - item_id: lubricant_oil
+    name: "윤활유"
+    type: "tool"
+    description: "기계 마찰을 줄여주는 기름. 삐걱거리는 곳에 효과적이다."
+    acquire:
+      method: "manual"
+      condition: "true"
+      location: "garden"
+      success_message: "정원 창고에서 윤활유를 찾았다. 삐걱거리는 문에 쓰면 소리를 줄일 수 있을 것이다."
+      failure_message: "정원에서 쓸 만한 것을 찾지 못했다."
+    use:
+      actions:
+        - action_id: apply_to_door
+          label: "기름칠하기"
+          allowed_when: "true"
+          effects:
+            - { type: var_sub, key: "vars.suspicion_level", value: 5 }
+          success_message: "삐걱거리던 경첩에 기름을 발랐다. 이제 소리 없이 열 수 있을 것이다."
+          failure_message: "기름칠할 곳이 마땅치 않다."
+
+  # ────────────────────────────────────────
+  # [완벽한 기만] 루트 아이템
+  # ────────────────────────────────────────
+  - item_id: industrial_sedative
+    name: "공업용 수면제"
+    type: "tool"
+    description: "강력한 진정 효과가 있는 액체 약물. 주방 잠긴 찬장 안에 보관되어 있다."
+    acquire:
+      method: "manual"
+      # 새엄마가 자리를 비운 동안에만 훔칠 수 있음
+      # 새엄마가 있을 때 시도하면 제지당하고 호감도 -10
+      condition: "npc.stepmother.status == 'missing'"
+      location: "kitchen"
+      success_message: "새엄마가 없는 틈을 타 잠긴 찬장에서 수면제를 꺼냈다. 홍차에 타면 온 가족을 재울 수 있을 것이다."
+      failure_message: "'뭘 찾고 있는 거니?' 새엄마가 싸늘한 눈으로 돌아본다. 찬장에서 손을 뗄 수밖에 없었다."
+    use:
+      actions:
+        - action_id: spike_tea
+          label: "홍차에 수면제 타기"
+          allowed_when: "npc.stepmother.status == 'missing' and player.location == 'kitchen'"
+          effects:
+            - { type: set_state, target: "npc.stepmother.status", value: "sleeping", duration: 5 }
+            - { type: set_state, target: "npc.stepfather.status", value: "sleeping", duration: 5 }
+            - { type: set_state, target: "npc.brother.status", value: "sleeping", duration: 5 }
+          success_message: "홍차에 수면제를 몰래 탔다. 곧 온 가족이 깊은 잠에 빠질 것이다."
+          failure_message: "수면제를 탈 수 있는 홍차는 주방에 있다.... 새엄마가 지켜보지 않을 때를 노려보자...."
+
+  - item_id: secret_key
+    name: "비밀 열쇠"
+    type: "key"
+    description: "거실 어딘가에 숨겨진 정교한 열쇠. 개구멍의 자물쇠와 맞는다."
+    acquire:
+      method: "manual"
+      # 동생 또는 동생의 희생을 통해 열쇠 위치를 알아야 획득 가능
+      condition: "npc.stepmother.status == 'sleeping' or flags.brother_sacrifice == true"
+      location: "living_room"
+      success_message: "거실 바닥 틈새에서 정교한 열쇠를 찾았다. 개구멍의 자물쇠와 맞을 것 같다."
+      failure_message: "'거실에서 뭘 기어 다니는 거야?' 새아빠가 소파에서 일어나며 의심스럽게 바라본다. 열쇠의 위치를 알아야 한다."
+    use:
+      actions:
+        - action_id: unlock_exit
+          label: "개구멍 자물쇠 열기"
+          allowed_when: "has_item(secret_key)"
+          effects:
+            - { type: trigger_event, event_id: "ending_sequence" }
+          success_message: "떨리는 손으로 자물쇠에 열쇠를 꽂았다. 찰칵— 개구멍이 열린다."
+          failure_message: "자물쇠에 맞는 열쇠가 없다."
+
+  # ────────────────────────────────────────
+  # [혼돈의 밤] 루트 아이템
+  # ────────────────────────────────────────
+  - item_id: lighter
+    name: "라이터"
+    type: "tool"
+    description: "거실 벽난로 옆에 놓인 낡은 라이터. 아직 불꽃이 살아 있다."
+    acquire:
+      method: "manual"
+      condition: "true"
+      location: "living_room"
+      success_message: "벽난로 옆에서 낡은 라이터를 주웠다. 아직 불꽃이 살아 있다. 기름에 불을 붙일 수 있을 것이다."
+      failure_message: "벽난로 근처를 살폈지만 쓸 만한 것이 없다."
+    use:
+      actions:
+        - action_id: light_fire
+          label: "불 붙이기"
+          allowed_when: "flags.oil_on_stepmother == true"
+          effects:
+            - { type: var_add, key: "vars.house_on_fire", value: true }
+          success_message: "라이터를 튕기자 기름에 불이 옮겨붙었다. 순식간에 불길이 번진다."
+          failure_message: "불을 붙일 대상이 없다. 먼저 기름을 뿌려야 한다."
+
+  - item_id: oil_bottle
+    name: "기름병"
+    type: "quest_item"
+    description: "인화성이 강한 기름이 든 병. 지하실 선반에 보관되어 있다."
+    acquire:
+      method: "manual"
+      condition: "true"
+      location: "basement"
+      success_message: "지하실 선반에서 인화성 기름병을 찾았다. 새엄마에게 던지면 불을 붙일 수 있을 것이다."
+      failure_message: "'지하실은 잠겨 있다.' 새엄마가 등 뒤에서 속삭인다. '거긴 아이가 갈 곳이 아니란다.' 단추 눈이 어둠 속에서 빛난다."
+    use:
+      actions:
+        - action_id: throw_at_stepmother
+          label: "새엄마에게 기름 던지기"
+          allowed_when: "locks.quest_fire_weakness == true"
+          effects:
+            - { type: flag_set, key: "oil_on_stepmother", value: true }
+          success_message: "기름병을 새엄마에게 내던졌다. 기름이 온몸에 튀며 흠뻑 젖는다."
+          failure_message: "기름을 어디에 쓸지 모르겠다. 누군가 약점을 알려줘야 할 텐데..."
+
+  # ────────────────────────────────────────
+  # [조력자의 희생] 루트 아이템
+  # ────────────────────────────────────────
+  - item_id: real_family_photo
+    name: "진짜 가족사진 (액자)"
+    type: "lore_clue"
+    description: "인형이 되기 전, 가족들의 진짜 얼굴이 담긴 빛바랜 액자. 바론이 마당에서 파내왔다."
+    acquire:
+      method: "auto"
+      # 바론 호감도 최대 시 자동 획득 (바론이 마당에서 꺼내줌)
+      condition: "npc.dog_baron.affection >= 90"
+      success_message: "바론이 마당 구석을 파더니 빛바랜 액자를 물어왔다. 사진 속에는... 진짜 가족의 얼굴이 있다. NPC에게 보여주면 인간성을 일깨울 수 있을 것이다."
+      failure_message: ""
+    use:
+      actions:
+        - action_id: show_to_stepmother
+          label: "새엄마에게 보여주기"
+          allowed_when: "npc.stepmother.location == 'kitchen' and npc.stepmother.location == player.location"
+          effects:
+            - { type: npc_stat_sub, target: "npc.stepmother.humanity", value: 30 }
+            - { type: npc_stat_sub, target: "npc.stepmother.affection", value: 20 }
+            - { type: set_state, target: "npc.stepmother.status", value: "missing", duration: 3 }
+          success_message: "빛바랜 사진 속 진짜 가족의 모습을 본 새엄마의 눈동자가 흔들린다. 인형의 미소 뒤에 감춰진 슬픔이 잠시 드러난다."
+          failure_message: "새엄마가 주방에 있을 때 보여줘야 한다."
+        - action_id: show_to_brother
+          label: "동생에게 보여주기"
+          allowed_when: "npc.brother.location == player.location"
+          effects:
+            - { type: npc_stat_add, target: "npc.brother.humanity", value: 30 }
+            - { type: npc_stat_sub, target: "npc.brother.affection", value: 10 }
+            - { type: flag_set, key: "brother_sacrifice", value: true }
+          success_message: "동생이 사진을 물끄러미 바라본다. '이게... 우리였어?' 유리 눈에 무언가가 스친다."
+          failure_message: "동생이 근처에 없다."
+

@@ -27,3 +27,9 @@ def create_chat_log(
     db.commit()
     db.refresh(db_obj)
     return db_obj
+
+def get_chat_logs_by_game_id(db: Session, game_id: int) -> list[ChatLogs]:
+    """
+    특정 게임의 모든 챗 로그를 ID 순서(생성된 순서)대로 조회
+    """
+    return db.query(ChatLogs).filter(ChatLogs.game_id == game_id).order_by(ChatLogs.id).all()
