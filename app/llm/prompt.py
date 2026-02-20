@@ -278,6 +278,7 @@ def build_tool_call_prompt(
     user_input: str,
     npc_info_list: list,
     inventory_info: list,
+    acquirable_info: list | None = None,
 ) -> str:
     """Tool calling 전용 프롬프트 생성
 
@@ -285,10 +286,19 @@ def build_tool_call_prompt(
         user_input: 사용자 입력 텍스트
         npc_info_list: NPC 정보 리스트 [{"id": str, "name": str, "aliases": list}, ...]
         inventory_info: 인벤토리 정보 리스트 [{"id": str, "name": str}, ...]
+        acquirable_info: 획득 가능 아이템 리스트 [{"id": str, "name": str, "location": str}, ...]
 
     Returns:
         Tool calling 프롬프트 문자열
     """
+    acquirable_section = ""
+    if acquirable_info:
+        items_str = "\n".join(
+            f"- {item['name']} (id: {item['id']}, 장소: {item.get('location', '불명')})"
+            for item in acquirable_info
+        )
+        acquirable_section = f"\n획득 가능 아이템:\n{items_str}"
+
     return f"""당신은 텍스트 어드벤처 게임의 Tool 선택기입니다.
 사용자의 입력을 분석하여 적절한 tool, 인자, 그리고 행동 의도(intent)를 선택하세요.
 
@@ -301,10 +311,15 @@ def build_tool_call_prompt(
 2. **action**: 일반 행동 (이동, 조사, 관찰 등)
    - action: 행동 내용 (필수)
 
-3. **use**: 아이템 사용
+3. **use**: 아이템 사용 또는 획득
    - item: 아이템 ID (필수)
-   - action: 사용 방법 (필수)
+   - action: 사용/획득 방법 (필수)
    - target: 대상 NPC ID (선택, 아이템을 NPC에게 사용할 때)
+   - use_type: "use" (보유 아이템 사용) 또는 "acquire" (새 아이템 획득)
+
+## use_type 판단 기준
+- 플레이어가 **이미 가진 아이템을 쓰려는 경우** → use_type: "use"
+- 플레이어가 **아이템을 줍거나, 훔치거나, 찾으려는 경우** → use_type: "acquire"
 
 ## Intent (행동 의도) 분류
 
@@ -324,6 +339,7 @@ NPC 목록:
 
 인벤토리:
 {_format_inventory(inventory_info)}
+{acquirable_section}
 
 ## 사용자 입력
 "{user_input}"
@@ -341,8 +357,9 @@ NPC 목록:
 예시:
 - "엄마에게 순순히 인사한다" → {{"tool_name": "interact", "args": {{"target": "stepmother", "interact": "엄마에게 순순히 인사한다"}}, "intent": "obey"}}
 - "몰래 부엌을 뒤진다" → {{"tool_name": "action", "args": {{"action": "몰래 부엌을 뒤진다"}}, "intent": "investigate"}}
-- "진짜 가족사진을 아빠에게 보여준다" → {{"tool_name": "use", "args": {{"item": "real_family_photo", "action": "아빠에게 보여준다", "target": "stepfather"}}, "intent": "reveal"}}
-- "수면제를 새엄마 음식에 탄다" → {{"tool_name": "use", "args": {{"item": "industrial_sedative", "action": "음식에 수면제를 탄다", "target": "stepmother"}}, "intent": "investigate"}}
+- "진짜 가족사진을 아빠에게 보여준다" → {{"tool_name": "use", "args": {{"item": "real_family_photo", "action": "아빠에게 보여준다", "target": "stepfather", "use_type": "use"}}, "intent": "reveal"}}
+- "주방 찬장에서 수면제를 꺼낸다" → {{"tool_name": "use", "args": {{"item": "industrial_sedative", "action": "찬장에서 꺼낸다", "use_type": "acquire"}}, "intent": "investigate"}}
+- "수면제를 새엄마 음식에 탄다" → {{"tool_name": "use", "args": {{"item": "industrial_sedative", "action": "음식에 수면제를 탄다", "target": "stepmother", "use_type": "use"}}, "intent": "investigate"}}
 """
 
 

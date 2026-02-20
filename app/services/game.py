@@ -523,10 +523,14 @@ class GameService:
         world_after.vars.setdefault("day_action_log", []).append(day_log_entry)
 
         # ── Step 6: EndingChecker - 엔딩 체크 ──
-        ending_result = check_ending(world_after, assets)
-        ending_info = ending_result.to_ending_info_dict()
-        if ending_result.reached:
-            _apply_delta(world_after, ending_result.triggered_delta.to_dict(), assets)
+        # 아이템 사용으로 엔딩이 트리거된 경우 (ItemUseResolver에서 판정)
+        ending_info = tool_result.ending_info
+        if not ending_info:
+            # 패시브 엔딩 체크 (has_item 조건은 스킵 — 아이템 사용 시에만 트리거)
+            ending_result = check_ending(world_after, assets, skip_has_item=True)
+            ending_info = ending_result.to_ending_info_dict()
+            if ending_result.reached:
+                _apply_delta(world_after, ending_result.triggered_delta.to_dict(), assets)
 
         # ── Step 7: NarrativeLayer - 나레이션 생성 ──
         narrative_layer = get_narrative_layer()
@@ -553,7 +557,7 @@ class GameService:
 
         logger.info(
             f"Day completed: game={game_id}, "
-            f"turn={world_after.turn}, ending={ending_result.reached}"
+            f"turn={world_after.turn}, ending={ending_info is not None}"
         )
 
         return StepResponseSchema(
@@ -619,8 +623,8 @@ class GameService:
         # ── Step 5: Delta 적용 ──
         world_after = _apply_delta(world_state, night_result.night_delta, assets)
 
-        # ── Step 6: EndingChecker - 엔딩 체크 ──
-        ending_result = check_ending(world_after, assets)
+        # ── Step 6: EndingChecker - 엔딩 체크 (has_item 조건 스킵) ──
+        ending_result = check_ending(world_after, assets, skip_has_item=True)
         ending_info = ending_result.to_ending_info_dict()
         if ending_result.reached:
             _apply_delta(world_after, ending_result.triggered_delta.to_dict(), assets)

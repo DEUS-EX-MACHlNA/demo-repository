@@ -109,11 +109,25 @@ def call_tool(
                 "name": item.get("name", item_id),
             })
 
+    # 2-1. 획득 가능 아이템 정보 수집 (manual method, 미보유)
+    acquirable_info = []
+    for item_def in assets.items.get("items", []):
+        item_id = item_def.get("item_id", "")
+        acquire = item_def.get("acquire", {})
+        method = acquire.get("method", "")
+        if method == "manual" and item_id not in world_state.inventory:
+            acquirable_info.append({
+                "id": item_id,
+                "name": item_def.get("name", item_id),
+                "location": acquire.get("location", ""),
+            })
+
     # 3. Tool calling 프롬프트 생성
     prompt = build_tool_call_prompt(
         user_input=user_input,
         npc_info_list=npc_info_list,
         inventory_info=inventory_info,
+        acquirable_info=acquirable_info if acquirable_info else None,
     )
 
     # 4. LLM 호출
@@ -340,23 +354,38 @@ def action(action: str) -> Dict[str, Any]:
     }
 
 
-def use(item: str, action: str, target: str = None) -> Dict[str, Any]:
+def use(item: str, action: str, target: str = None, use_type: str = "use") -> Dict[str, Any]:
     """
-    아이템을 사용합니다. 룰 엔진 기반으로 판정하고, LLM은 호출하지 않습니다.
+    아이템을 사용하거나 획득합니다. 룰 엔진 기반으로 판정하고, LLM은 호출하지 않습니다.
 
     Args:
-        item: 사용할 아이템의 ID (예: "industrial_sedative", "mothers_key")
-        action: 아이템을 어떻게, 왜 사용했는지에 대한 서술
+        item: 아이템의 ID (예: "industrial_sedative", "mothers_key")
+        action: 아이템을 어떻게, 왜 사용/획득했는지에 대한 서술
         target: 대상 NPC ID (선택, 아이템을 NPC에게 사용할 때)
+        use_type: "use" (아이템 사용) 또는 "acquire" (아이템 획득)
 
     Returns:
-        아이템 사용 결과와 상태 변화 (event_description, state_delta, item_use_result)
+        아이템 사용/획득 결과와 상태 변화 (event_description, state_delta)
     """
-    from app.item_use_resolver import get_item_use_resolver
-
     ctx = _tool_context
     world_state = ctx["world_state"]
     assets = ctx["assets"]
+
+    if use_type == "acquire":
+        return _handle_acquire(item, world_state, assets)
+    else:
+        return _handle_use(item, action, target, world_state, assets)
+
+
+def _handle_use(
+    item: str,
+    action: str,
+    target: Optional[str],
+    world_state: WorldStatePipeline,
+    assets: ScenarioAssets,
+) -> Dict[str, Any]:
+    """아이템 사용 처리 (기존 use 로직)"""
+    from app.item_use_resolver import get_item_use_resolver
 
     logger.info(f"use (rule-engine): item={item}, action={action[:50]}..., target={target}")
 
@@ -370,19 +399,44 @@ def use(item: str, action: str, target: str = None) -> Dict[str, Any]:
     )
 
     if result.success:
-        item_info = assets.get_item_by_id(item)
-        item_name = item_info.get("name", item) if item_info else item
-        event_description = [f"{item_name}을(를) 사용했다."]
-        if result.notes:
-            event_description.append(result.notes)
+        event_description = [result.notes] if result.notes else []
     else:
-        event_description = [f"아이템 사용 실패: {result.failure_reason}"]
+        event_description = [result.failure_reason] if result.failure_reason else []
 
-    return {
+    ret = {
         "event_description": event_description,
         "state_delta": result.state_delta,
         "item_id": item,
         "item_use_result": result.model_dump(),
+    }
+    if result.ending_info:
+        ret["ending_info"] = result.ending_info
+    return ret
+
+
+def _handle_acquire(
+    item: str,
+    world_state: WorldStatePipeline,
+    assets: ScenarioAssets,
+) -> Dict[str, Any]:
+    """아이템 획득 처리 (룰 기반)"""
+    from app.item_acquire_resolver import get_item_acquire_resolver
+
+    logger.info(f"acquire (rule-engine): item={item}")
+
+    resolver = get_item_acquire_resolver()
+    result = resolver.resolve(
+        item_id=item,
+        world_state=world_state,
+        assets=assets,
+    )
+
+    event_description = [result["message"]] if result["message"] else []
+
+    return {
+        "event_description": event_description,
+        "state_delta": result["acquisition_delta"],
+        "item_id": item,
     }
 
 

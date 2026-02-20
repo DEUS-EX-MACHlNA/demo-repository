@@ -24,7 +24,7 @@ class ConditionEvaluator:
     - npc.{npc_id}.{stat} {op} {value}     (예: npc.brother.affection >= 70)
     - npc.{npc_id}.{stat} == '{string}'    (예: npc.stepmother.status == 'sleeping')
     - vars.{var_name} {op} {value}         (예: vars.humanity <= 60)
-    - vars.{var_name} == true/false        (예: vars.house_on_fire == true)
+    - vars.{var_name} == true/false        (예: vars.discovered == true)
     - flags.{flag_name} == true/false/null (예: flags.ending == null)
     - has_item({item_id})                  (예: has_item(real_family_photo))
     - system.turn {op} {value}             (예: system.turn >= 40)

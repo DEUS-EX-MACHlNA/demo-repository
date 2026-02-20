@@ -143,9 +143,10 @@ class ItemUseResolver:
                 extra_vars={"target_npc_id": target_npc_id or ""},
             )
             if not self._evaluator.evaluate(allowed_when, context):
+                failure_msg = matched_action.get("failure_message", "")
                 return {
                     "success": False,
-                    "reason": f"사용 조건 미충족: {allowed_when}",
+                    "reason": failure_msg or f"사용 조건 미충족: {allowed_when}",
                 }
 
         return {
@@ -233,10 +234,7 @@ class ItemUseResolver:
         try:
             ending_result = self._ending_checker.check(virtual_state, assets)
             if ending_result.reached:
-                ending_preview = {
-                    "ending_id": ending_result.ending.ending_id,
-                    "name": ending_result.ending.name,
-                }
+                ending_preview = ending_result.to_ending_info_dict()
         except Exception as e:
             logger.warning(f"[ItemUseResolver] 엔딩 체크 실패 (무시): {e}")
 
@@ -296,6 +294,7 @@ class ItemUseResolver:
         """
         delta = simulation["delta"]
         status_effects = simulation["status_effects"]
+        ending_preview = simulation.get("ending_preview")
 
         # 소비 판정
         item_type = item_def.get("type", "")
@@ -307,12 +306,13 @@ class ItemUseResolver:
                 delta["inventory_remove"].append(item_id)
 
         action_id = matched_action.get("action_id", "")
-        notes = matched_action.get("notes", "")
+        notes = matched_action.get("success_message", "") or matched_action.get("notes", "")
         effects_applied = matched_action.get("effects", [])
 
         logger.info(
             f"[ItemUseResolver] 커밋 완료: item={item_id}, action={action_id}, "
-            f"consumed={consumed}, effects={len(effects_applied)}"
+            f"consumed={consumed}, effects={len(effects_applied)}, "
+            f"ending={'YES: ' + ending_preview['ending_id'] if ending_preview else 'no'}"
         )
 
         return ItemUseResult(
@@ -324,6 +324,7 @@ class ItemUseResolver:
             status_effects=status_effects,
             item_consumed=consumed,
             notes=notes,
+            ending_info=ending_preview,
         )
 
 

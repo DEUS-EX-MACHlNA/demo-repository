@@ -1,0 +1,139 @@
+# 프로젝트: 인형의 집 - 정보 해금 시스템 (v3)
+#
+# type:
+#   - quest_gate  : 엔딩 퀘스트 진행에 필수적인 정보 게이트
+#   - item_hint   : manual 아이템의 획득 힌트
+#   - npc_topic   : NPC 대화 주제 해금
+#   - lore        : 세계관 정보
+#
+# unlock_condition: condition_eval.py 표현식
+# access.allowed_npcs: 해금 시 정보가 주입되는 NPC 목록
+
+locks:
+  # ════════════════════════════════════════
+  # 퀘스트 게이트 (quest_gate)
+  # 엔딩 달성에 필수적인 핵심 정보
+  # ════════════════════════════════════════
+
+  # [완벽한 기만 + 조력자의 희생] 공통
+  # 동생이 탈출 경로를 알려줌: 거실에 비밀 열쇠 + 개구멍 자물쇠
+  - info_id: quest_escape_route
+    type: quest_gate
+    info_title: "탈출 경로 (동생의 비밀)"
+    description: "거실 어딘가에 비밀 열쇠가 숨겨져 있고, 주인공 방의 개구멍에 있는 자물쇠를 열면 현실 세계로 돌아갈 수 있다는 정보."
+    unlock_condition: "npc.brother.affection >= 70"
+    access:
+      allowed_npcs: ["brother"]
+
+  # [혼돈의 밤] 할머니가 화염 약점을 알려줌
+  # 할머니에게 생기를 나눠준 뒤 → 새엄마가 불에 취약하다는 정보
+  - info_id: quest_fire_weakness
+    type: quest_gate
+    info_title: "불의 약점"
+    description: "새엄마는 불에 취약하다. 기름을 뿌리고 라이터로 불을 붙이면 새엄마를 쓰러뜨리고 꿈속 세계에서 벗어날 수 있다."
+    unlock_condition: "npc.grandmother.affection >= 50"
+    access:
+      allowed_npcs: ["grandmother"]
+
+  # [조력자의 희생] 동생의 희생 결심
+  # 액자를 본 동생이 인간 시절을 기억하고, 주인공을 위해 희생하기로 결심
+  - info_id: quest_brother_sacrifice
+    type: quest_gate
+    info_title: "동생의 결심"
+    description: "동생은 다시 인간으로 돌아갈 수 없음을 깨닫고, 자신이 가족들을 밖으로 유인할 테니 장롱에 숨어 있다가 탈출하라고 한다. 거실에 비밀 열쇠가 있으니 그걸로 개구멍 자물쇠를 열라고 알려준다."
+    unlock_condition: "flags.brother_sacrifice == true"
+    access:
+      allowed_npcs: ["brother"]
+
+  # ════════════════════════════════════════
+  # 아이템 힌트 (item_hint)
+  # manual 아이템의 존재/위치를 알려주는 정보
+  # ════════════════════════════════════════
+
+  - info_id: hint_sedative
+    type: item_hint
+    info_title: "잠긴 찬장의 비밀"
+    description: "주방 잠긴 찬장 안에 강력한 수면제가 있다. 새엄마가 자리를 비울 때만 훔칠 수 있다."
+    unlock_condition: "locks.quest_blood_request == true"
+    access:
+      allowed_npcs: ["stepfather", "grandmother"]
+
+  - info_id: hint_oil_bottle
+    type: item_hint
+    info_title: "지하실의 기름병"
+    description: "지하실 선반에 인화성이 강한 기름병이 보관되어 있다."
+    unlock_condition: "flags.basement_unlocked == true and npc.grandmother.humanity >= 30"
+    access:
+      allowed_npcs: ["grandmother"]
+
+  - info_id: hint_dried_herbs
+    type: item_hint
+    info_title: "약초 냄새"
+    description: "지하실 선반에서 정신을 맑게 해주는 허브 뭉치를 찾을 수 있다."
+    unlock_condition: "vars.day >= 2"
+    access:
+      allowed_npcs: ["grandmother"]
+
+  # ════════════════════════════════════════
+  # NPC 대화 주제 (npc_topic)
+  # ════════════════════════════════════════
+
+  - info_id: topic_brother_injury
+    type: npc_topic
+    info_title: "부러진 관절"
+    description: "동생의 팔꿈치 안쪽에서 미세한 기계 소음과 함께 찢어진 천 사이로 나무 골격이 보였다."
+    unlock_condition: "npc.brother.affection >= 70"
+    access:
+      allowed_npcs: ["brother"]
+
+  - info_id: topic_father_regret
+    type: npc_topic
+    info_title: "아빠의 후회"
+    description: "새아빠는 이 저택의 '관리자'가 아니라, 첫 번째로 '개조'된 희생자였다는 기억."
+    unlock_condition: "npc.stepfather.humanity >= 40 and has_item(real_family_photo)"
+    access:
+      allowed_npcs: ["stepfather"]
+
+  # ════════════════════════════════════════
+  # 세계관 정보 (lore)
+  # ════════════════════════════════════════
+
+  - info_id: lore_surgery_log
+    type: lore
+    info_title: "수술 일지"
+    description: "지하실 수술대 밑에서 발견된 일지. '루카스(동생) - 3차 공정 완료, 자아 삭제율 80%'라고 적혀 있다."
+    unlock_condition: "vars.humanity <= 60 and vars.suspicion_level >= 30"
+    access:
+      allowed_npcs: ["grandmother"]
+
+  - info_id: lore_mothers_true_form
+    type: lore
+    info_title: "엄마의 본모습"
+    description: "새엄마는 사람이 아니라, 주인이 버리고 간 거대한 '오르골 인형'이 자아를 얻은 존재라는 진실."
+    unlock_condition: "npc.grandmother.humanity >= 50 and flags.truth_revealed == true"
+    access:
+      allowed_npcs: ["grandmother"]
+
+  - info_id: lore_decay_scent
+    type: lore
+    info_title: "부패의 냄새"
+    description: "바론이 주방 찬장 아래에서 계속 짖는 이유. 인형으로 만들다 실패한 '진짜 가족'의 유해가 숨겨져 있다."
+    unlock_condition: "npc.dog_baron.affection >= 80"
+    access:
+      allowed_npcs: ["dog_baron"]
+
+  - info_id: lore_serial_number
+    type: lore
+    info_title: "당신의 시리얼 넘버"
+    description: "주인공의 발목 뒤에 새겨진 희미한 낙인. 당신 역시 이미 '반쯤 완성된 인형'이라는 충격적인 사실."
+    unlock_condition: "vars.humanity <= 30 or vars.day >= 4"
+    access:
+      allowed_npcs: ["stepmother", "grandmother"]
+
+  - info_id: lore_mirage_gateway
+    type: lore
+    info_title: "안개 너머의 진실"
+    description: "정원 밖 안개는 낭떠러지가 아니라, 외부 세계와의 연결을 차단하는 '인형사'의 마법적 장벽이라는 정보."
+    unlock_condition: "flags.truth_revealed == true and locks.lore_surgery_log == true and locks.lore_serial_number == true"
+    access:
+      allowed_npcs: ["brother", "grandmother"]

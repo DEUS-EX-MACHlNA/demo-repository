@@ -2,7 +2,7 @@
 app/item_acquirer.py
 자동 아이템 획득 스캐너
 
-매 액션 종료 후 실행되어, acquire.method == "unlock"인 아이템 중
+매 액션 종료 후 실행되어, acquire.method가 자동 스캔 대상인 아이템 중
 acquire.condition이 충족된 것을 자동으로 인벤토리에 추가합니다.
 """
 from __future__ import annotations
@@ -23,8 +23,9 @@ class ItemAcquirer:
     """
     자동 아이템 획득 스캐너.
 
-    scan() 호출 시 모든 unlock 아이템의 acquire.condition을 평가하여
-    조건 충족 + 미보유 + 미획득 아이템을 자동 인벤토리에 추가합니다.
+    scan() 호출 시 자동 스캔 대상(auto/unlock/reward) 아이템의
+    acquire.condition을 평가하여 조건 충족 + 미보유 + 미획득 아이템을
+    자동 인벤토리에 추가합니다.
     """
 
     def __init__(self) -> None:
@@ -59,8 +60,8 @@ class ItemAcquirer:
             acquire = item_def.get("acquire", {})
             method = acquire.get("method", "")
 
-            # unlock과 reward 메서드만 자동 스캔
-            if method not in ("unlock", "reward"):
+            # auto, unlock, reward 메서드만 자동 스캔
+            if method not in ("auto", "unlock", "reward"):
                 continue
 
             # 이미 인벤토리에 있음

@@ -16,7 +16,7 @@ class PlayerMemoSchema(BaseModel):
 
 class PlayerSchema(BaseModel):
     """플레이어 정보"""
-    current_node: str = Field(..., description="현재 위치하고 있는 스토리 노드 ID (예: act1_open)")
+    current_node: str = Field(..., default_factory="player_room", description="현재 위치하고 있는 스토리 노드 ID (예: act1_open)")
 
     # TODO 현재 맵기준과 connected_nodes조건과 비교를 하여 avaliable_nodes를 계산해야함
     avaliable_nodes: List[str] = Field(default_factory=list, description="현재 접근 가능한 노드 ID 리스트")

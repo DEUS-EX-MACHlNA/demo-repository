@@ -33,6 +33,7 @@ class EndingChecker:
         self,
         world_state: WorldStatePipeline,
         assets: ScenarioAssets,
+        skip_has_item: bool = False,
     ) -> EndingCheckResult:
         """
         엔딩 조건을 체크하고 결과를 반환합니다.
@@ -40,6 +41,9 @@ class EndingChecker:
         Args:
             world_state: 현재 월드 상태
             assets: 시나리오 에셋
+            skip_has_item: True이면 has_item() 조건이 포함된 엔딩을 건너뜀.
+                매턴 패시브 체크 시 True로 호출하여, 아이템 사용 엔딩이
+                단순 보유만으로 트리거되는 것을 방지합니다.
 
         Returns:
             EndingCheckResult: 엔딩 체크 결과
@@ -56,6 +60,10 @@ class EndingChecker:
         for ending_def in endings:
             condition = ending_def.get("condition", "")
             if not condition:
+                continue
+
+            # has_item 조건이 포함된 엔딩은 매턴 패시브 체크에서 스킵
+            if skip_has_item and "has_item(" in condition:
                 continue
 
             # 조건 평가
@@ -152,6 +160,7 @@ def get_ending_checker() -> EndingChecker:
 def check_ending(
     world_state: WorldStatePipeline,
     assets: ScenarioAssets,
+    skip_has_item: bool = False,
 ) -> EndingCheckResult:
     """
     엔딩 체크 편의 함수
@@ -159,12 +168,13 @@ def check_ending(
     Args:
         world_state: 현재 월드 상태
         assets: 시나리오 에셋
+        skip_has_item: True이면 has_item() 조건 포함 엔딩 스킵
 
     Returns:
         EndingCheckResult: 엔딩 체크 결과
     """
     checker = get_ending_checker()
-    return checker.check(world_state, assets)
+    return checker.check(world_state, assets, skip_has_item=skip_has_item)
 
 
 # ============================================================

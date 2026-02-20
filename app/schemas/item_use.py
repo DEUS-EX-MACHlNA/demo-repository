@@ -51,6 +51,7 @@ class ItemUseResult(BaseModel):
     status_effects: List[StatusEffect] = Field(default_factory=list)
     item_consumed: bool = False
     notes: str = ""
+    ending_info: Optional[Dict[str, Any]] = None
 
 
 class AcquisitionResult(BaseModel):
