@@ -37,21 +37,23 @@ def _is_chinese_char(char: str) -> bool:
     return any(start <= cp <= end for start, end in _CHINESE_UNICODE_RANGES)
 
 
+def _find_chinese_token_ids(tokenizer) -> list:
+    """토크나이저 vocab에서 중국어 문자를 포함하는 토큰 ID 목록 반환"""
+    vocab = tokenizer.get_vocab()
+    chinese_ids = []
+    for token, token_id in vocab.items():
+        decoded = tokenizer.convert_tokens_to_string([token])
+        if any(_is_chinese_char(c) for c in decoded):
+            chinese_ids.append(token_id)
+    return chinese_ids
+
+
 class ChineseBlockingLogitsProcessor:
     """중국어 토큰 생성을 차단하는 LogitsProcessor (transformers 전용)"""
 
     def __init__(self, tokenizer):
-        self._chinese_token_ids = self._find_chinese_token_ids(tokenizer)
+        self._chinese_token_ids = _find_chinese_token_ids(tokenizer)
         logger.info(f"중국어 차단 토큰 수: {len(self._chinese_token_ids)}")
-
-    def _find_chinese_token_ids(self, tokenizer) -> list:
-        vocab = tokenizer.get_vocab()
-        chinese_ids = []
-        for token, token_id in vocab.items():
-            decoded = tokenizer.convert_tokens_to_string([token])
-            if any(_is_chinese_char(c) for c in decoded):
-                chinese_ids.append(token_id)
-        return chinese_ids
 
     def __call__(self, input_ids, scores):
         if self._chinese_token_ids:
@@ -112,6 +114,22 @@ class UnifiedLLMEngine:
             return self.config.get("model", "unknown")
         else:
             return self.config.get("model_name", "unknown")
+
+    def _build_vllm_logit_bias(self) -> dict:
+        """vLLM용 중국어 차단 logit_bias 딕셔너리 생성 (lazy, 1회 호출)"""
+        try:
+            from transformers import AutoTokenizer
+            tokenizer = AutoTokenizer.from_pretrained(
+                self._model_name,
+                token=os.environ.get("HF_TOKEN"),
+                trust_remote_code=True,
+            )
+            chinese_ids = _find_chinese_token_ids(tokenizer)
+            logger.info(f"vLLM 중국어 차단 토큰 수: {len(chinese_ids)}")
+            return {str(tid): -100 for tid in chinese_ids}
+        except Exception as e:
+            logger.warning(f"vLLM 토크나이저 로드 실패, 중국어 차단 비활성화: {e}")
+            return {}
 
     def _load_model(self) -> None:
         """모델 로드 (lazy loading)"""
@@ -224,6 +242,10 @@ class UnifiedLLMEngine:
         else:
             formatted_prompt = prompt
 
+        # 중국어 차단 logit_bias (lazy 초기화, 1회만 토크나이저 로드)
+        if not hasattr(self, "_vllm_logit_bias"):
+            self._vllm_logit_bias = self._build_vllm_logit_bias()
+
         base = self.base_url.rstrip("/")
         resp = self._client.post(
             f"{base}/v1/completions",
@@ -234,6 +256,7 @@ class UnifiedLLMEngine:
                 "temperature": temperature,
                 "top_p": top_p,
                 "max_tokens": max_tokens,
+                "logit_bias": self._vllm_logit_bias or None,
             },
         )
         resp.raise_for_status()
