@@ -35,7 +35,7 @@ NPC_ADAPTER_MAP: dict[str, str] = {
     "stepmother": "stepmother_lora",
     "stepfather": "stepfather_lora",
     "brother": "brother_lora",
-    "dog": "dog_lora",
+    "dog_baron": "dog_baron_lora",
     "grandmother": "grandmother_lora",
 }
 
@@ -45,7 +45,7 @@ NPC_HF_REPO_MAP: dict[str, str] = {
     "stepmother":  "lucete171/deus-mother-lora",
     "stepfather":  "lucete171/deus-stepfather-lora",
     "brother":     "lucete171/deus-sibling-lora",
-    "dog":         "lucete171/deus-dog-baron-lora",
+    "dog_baron":   "lucete171/deus-dog-baron-lora",
     "grandmother": "lucete171/deus-grandmother-lora",
 }
 
