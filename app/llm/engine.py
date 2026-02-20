@@ -17,6 +17,7 @@ from .config import (
     DEFAULT_REPETITION_PENALTY,
     get_model_config,
     get_adapter_model,
+    get_adapter_hf_repo,
 )
 
 logger = logging.getLogger(__name__)
@@ -44,7 +45,7 @@ class UnifiedLLMEngine:
         self._tokenizer = None
         self._loaded = False
         self._model_name = model_name
-
+        
         # 설정 로드
         self.config = get_model_config(backend)
         if not self._model_name:
@@ -61,6 +62,14 @@ class UnifiedLLMEngine:
             self.base_url = self.config["base_url"]
             self.api_key = self.config["api_key"]
             self._client = httpx.Client(timeout=httpx.Timeout(60.0))
+            # 이미 vLLM에 로드된 LoRA 어댑터 이름 캐시
+            self._loaded_adapters: set[str] = set()
+
+            # debugging 용
+            logger.info(self.api_key)
+            logger.warning(self.base_url)
+            logger.warning(self._model_name)
+
 
 
         logger.info(f"UnifiedLLMEngine 초기화: backend={backend}, model={self._get_model_name()}")
@@ -142,6 +151,25 @@ class UnifiedLLMEngine:
             kargs.pop("npc_id", None)
             return self.generate_transformers(prompt, **kargs)
 
+    def _ensure_lora_loaded(self, adapter_name: str, hf_repo: str) -> None:
+        """vLLM에 LoRA 어댑터가 아직 로드되지 않았으면 동적으로 로드한다.
+
+        vLLM 서버는 --enable-lora 플래그로 실행되어야 합니다.
+        """
+        if adapter_name in self._loaded_adapters:
+            return
+
+        base = self.base_url.rstrip("/")
+        logger.info(f"LoRA 어댑터 로드 요청: {adapter_name} ← {hf_repo}")
+        resp = self._client.post(
+            f"{base}/v1/load_lora_adapter",
+            headers={"Authorization": f"Bearer {self.api_key}"},
+            json={"lora_name": adapter_name, "lora_path": hf_repo},
+        )
+        resp.raise_for_status()
+        self._loaded_adapters.add(adapter_name)
+        logger.info(f"LoRA 어댑터 로드 완료: {adapter_name}")
+
     def generate_vLLM(self,
         prompt: str,
         system_prompt: str | None = None,
@@ -161,32 +189,48 @@ class UnifiedLLMEngine:
             temperature: 샘플링 온도
             top_p: nucleus sampling
             repetition_penalty: 반복 패널티 (transformers만 사용)
-            npc_id: NPC ID — 매핑된 LoRA 어댑터가 있으면 해당 어댑터를 사용
+            npc_id: NPC ID — config의 NPC_HF_REPO_MAP에 매핑된 HF LoRA 어댑터를 동적 로드 후 사용
 
         Returns:
             생성된 텍스트
         """
-        messages = []
-        if system_prompt:
-            messages.append({"role": "system", "content": system_prompt})
-        messages.append({"role": "user", "content": prompt})
+        # NPC LoRA 어댑터 결정
+        adapter_name = get_adapter_model(npc_id)
+        hf_repo = get_adapter_hf_repo(npc_id)
 
+        if adapter_name and hf_repo:
+            try:
+                self._ensure_lora_loaded(adapter_name, hf_repo)
+                model_to_use = adapter_name
+                logger.info(f"LoRA 어댑터 사용: {adapter_name} (npc_id={npc_id})")
+            except Exception as e:
+                logger.warning(f"LoRA 로드 실패 ({adapter_name}): {e} — base 모델로 fallback")
+                model_to_use = self._model_name
+        else:
+            model_to_use = self._model_name
+
+        if system_prompt:
+            formatted_prompt = f"{system_prompt}\n\n{prompt}"
+        else:
+            formatted_prompt = prompt
+
+        base = self.base_url.rstrip("/")
         resp = self._client.post(
-            f"{self.base_url}/chat/completions",
+            f"{base}/v1/completions",
             headers={"Authorization": f"Bearer {self.api_key}"},
             json={
-                "model": self._model_name,
-                "messages": messages,
+                "model": model_to_use,
+                "prompt": formatted_prompt,
                 "temperature": temperature,
                 "top_p": top_p,
                 "max_tokens": max_tokens,
             },
         )
         resp.raise_for_status()
-        print(f"resp : {resp}")
+        logger.debug(f"vLLM resp status: {resp.status_code}")
         data = resp.json()
-        print(f"data : {data}")
-        return data["choices"][0]["message"]["content"]
+        logger.debug(f"vLLM resp data: {str(data)[:200]}")
+        return data["choices"][0]["text"]
 
     def generate_transformers(
         self,

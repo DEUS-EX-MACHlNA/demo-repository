@@ -142,6 +142,8 @@ class NarrativeLayer:
             llm_engine = _get_llm()
             raw_output = llm_engine.generate(prompt)
             logger.debug(f"[narrative] LLM day response: {raw_output[:200]}")
+            if not raw_output:
+                return self._render_simple_day(event_description, state_delta, world_state, assets)
             return parse_narrative_response(raw_output)
         except Exception as e:
             logger.error(f"LM generation failed: {e}")
@@ -188,6 +190,8 @@ class NarrativeLayer:
             llm_engine = _get_llm()
             raw_output = llm_engine.generate(prompt)
             logger.debug(f"[narrative] LLM night response: {raw_output[:200]}")
+            if not raw_output:
+                return self._render_simple_night(world_state, assets, night_conversation)
             return "---\n\n" + parse_narrative_response(raw_output)
         except Exception as e:
             logger.error(f"LM generation failed: {e}")
@@ -459,6 +463,8 @@ class NarrativeLayer:
             ending_name = ending_info.get("name", "")
             raw_output = llm_engine.generate(prompt, max_tokens=600)
             logger.debug(f"[narrative] LLM ending response: {raw_output[:200]}")
+            if not raw_output:
+                return self._render_simple_ending(ending_info, world_state, assets)
             generated_text = parse_narrative_response(raw_output)
 
             formatted = [

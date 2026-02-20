@@ -13,9 +13,9 @@ ALTERNATIVE_MODEL = "LGAI-EXAONE/EXAONE-3.5-7.8B-Instruct"
 LLMBackend = Literal["vLLM", "transformers"]
 DEFAULT_BACKEND: LLMBackend = "vLLM"
 
-# vLLM 설정
-VLLM_BASE_URL = "https://e069-136-110-8-186.ngrok-free.app/"
-VLLM_SERVED_MODEL_NAME = "kakaocorp/kanana-1.5-8b-instruct-2505" # --served-model-name 에 지정한 이름
+# vLLM 설정 — .env의 VLLM_BASE_URL로 재정의 가능
+VLLM_BASE_URL = os.environ.get("VLLM_BASE_URL", "https://ed0e-34-118-240-239.ngrok-free.app/")
+VLLM_SERVED_MODEL_NAME = os.environ.get("VLLM_MODEL", "kakaocorp/kanana-1.5-8b-instruct-2505")
 
 # Transformers 설정
 TRANSFORMERS_DEVICE = None  # None이면 자동 감지 (cuda/cpu)
@@ -30,20 +30,38 @@ DEFAULT_REPETITION_PENALTY = 1.1
 # HuggingFace 토큰 (환경변수에서 로드)
 HF_TOKEN = os.environ.get("HF_TOKEN")
 
-# NPC ID → vLLM LoRA 어댑터 이름 매핑
-# 매핑이 없는 NPC는 base 모델을 사용
+# NPC ID → vLLM LoRA 어댑터 등록 이름 매핑 (completions 요청 시 model 필드에 사용)
 NPC_ADAPTER_MAP: dict[str, str] = {
-    "stepmother": "stepmother_qwen_op00_00",
-    "stepfather": "stepmother_qwen_op00_00",
-    "brother": "siblings_qwen_op00_00",
+    "stepmother": "stepmother_lora",
+    "stepfather": "stepfather_lora",
+    "brother": "brother_lora",
+    "dog": "dog_lora",
+    "grandmother": "grandmother_lora",
+}
+
+# NPC ID → HuggingFace LoRA 레포 경로 매핑
+# TODO: 각 NPC에 맞는 실제 HF 레포 ID로 교체하세요
+NPC_HF_REPO_MAP: dict[str, str] = {
+    "stepmother":  "lucete171/deus-mother-lora",
+    "stepfather":  "lucete171/deus-stepfather-lora",
+    "brother":     "lucete171/deus-sibling-lora",
+    "dog":         "lucete171/deus-dog-baron-lora",
+    "grandmother": "lucete171/deus-grandmother-lora",
 }
 
 
 def get_adapter_model(npc_id: str | None) -> str | None:
-    """npc_id에 대응하는 vLLM LoRA 어댑터 이름을 반환. 없으면 None."""
+    """npc_id에 대응하는 vLLM LoRA 어댑터 등록 이름을 반환. 없으면 None."""
     if npc_id is None:
         return None
     return NPC_ADAPTER_MAP.get(npc_id)
+
+
+def get_adapter_hf_repo(npc_id: str | None) -> str | None:
+    """npc_id에 대응하는 HuggingFace 레포 경로를 반환. 없으면 None."""
+    if npc_id is None:
+        return None
+    return NPC_HF_REPO_MAP.get(npc_id)
 
 
 def get_model_config(backend: LLMBackend | None = None) -> dict:
