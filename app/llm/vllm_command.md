@@ -29,7 +29,7 @@ pip -q install -U vllm pyngrok
 
 NGROK_AUTHTOKEN
 
-VLLM_BASE_URL = "https://nontheatrical-judiciarily-susanne.ngrok-free.dev/v1"
+VLLM_BASE_URL = "[https://nontheatrical-judiciarily-susanne.ngrok-free.dev/v1](https://nontheatrical-judiciarily-susanne.ngrok-free.dev/v1)"
 
 VLLM_MODEL = "Qwen/Qwen2.5-7B-Instruct"
 
@@ -66,7 +66,14 @@ python -m vllm.entrypoints.openai.api_server \
   --model "$MODEL" \
   --served-model-name "$MODEL" \
   --dtype auto \
-  --max-model-len 8192 \
+  --max-model-len 2048 \
+  --enable-lora \
+  --max-loras 5 \
+  --lora-modules stepmother_lora=lucete171/deus-mother-lora \
+                 stepfather_lora=lucete171/deus-stepfather-lora \
+                 brother_lora=lucete171/deus-sibling-lora \
+                 dog_baron_lora=lucete171/deus-dog-baron-lora \
+                 grandmother_lora=lucete171/deus-grandmother-lora \
   > vllm.log 2>&1 &
 ```
 
@@ -76,3 +83,4 @@ python -m vllm.entrypoints.openai.api_server \
 lsof -i :8000
 kill <PID>
 ```
+
