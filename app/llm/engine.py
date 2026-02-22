@@ -263,7 +263,10 @@ class UnifiedLLMEngine:
         logger.debug(f"vLLM resp status: {resp.status_code}")
         data = resp.json()
         logger.debug(f"vLLM resp data: {str(data)[:200]}")
-        return data["choices"][0]["text"]
+        raw_text = data["choices"][0]["text"]
+        if npc_id:
+            logger.info(f"[LoRA 출력] adapter={model_to_use} | {raw_text[:120]}")
+        return raw_text
 
     def generate_transformers(
         self,

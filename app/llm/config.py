@@ -14,7 +14,7 @@ LLMBackend = Literal["vLLM", "transformers"]
 DEFAULT_BACKEND: LLMBackend = "vLLM"
 
 # vLLM 설정 — .env의 VLLM_BASE_URL로 재정의 가능
-VLLM_BASE_URL = os.environ.get("VLLM_BASE_URL", "https://3d1a-34-143-172-183.ngrok-free.app/")
+VLLM_BASE_URL = os.environ.get("VLLM_BASE_URL", "https://46f9-34-118-241-224.ngrok-free.app/")
 VLLM_SERVED_MODEL_NAME = os.environ.get("VLLM_MODEL", "Qwen/Qwen2.5-7B-Instruct")
 
 # Transformers 설정

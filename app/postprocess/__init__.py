@@ -11,6 +11,7 @@ npc_id에 따라 적절한 후처리기를 선택하여 LLM 출력에 적용한�
 
 from __future__ import annotations
 
+import logging
 from typing import Optional
 
 from .sibling import postprocess as sibling_postprocess
@@ -18,6 +19,8 @@ from .stepmother import postprocess as stepmother_postprocess
 from .stepfather import postprocess as stepfather_postprocess
 from .grandmother import postprocess as grandmother_postprocess
 from .dog_baron import postprocess as dog_baron_postprocess
+
+logger = logging.getLogger(__name__)
 
 
 def humanity_to_level(humanity: int) -> int:
@@ -56,16 +59,20 @@ def postprocess_npc_dialogue(
         후처리된 문자열
     """
     level = humanity_to_level(humanity)
+    logger.debug(f"npc_id={npc_id} | humanity={humanity} → level={level} | raw={text[:80]}")
 
     if npc_id == "brother":
-        return sibling_postprocess(text, glitch_level=level, seed=seed)
+        result = sibling_postprocess(text, glitch_level=level, seed=seed)
     elif npc_id == "stepmother":
-        return stepmother_postprocess(text, monstrosity=level, seed=seed)
+        result = stepmother_postprocess(text, monstrosity=level, seed=seed)
     elif npc_id == "stepfather":
-        return stepfather_postprocess(text, suppression_level=level, seed=seed)
+        result = stepfather_postprocess(text, suppression_level=level, seed=seed)
     elif npc_id == "grandmother":
-        return grandmother_postprocess(text, lucidity_level=level, seed=seed)
+        result = grandmother_postprocess(text, lucidity_level=level, seed=seed)
     elif npc_id == "dog_baron":
-        return dog_baron_postprocess(text, loyalty_level=level, seed=seed)
+        result = dog_baron_postprocess(text, loyalty_level=level, seed=seed)
     else:
-        return text
+        result = text
+
+    logger.debug(f"npc_id={npc_id} | processed={result[:80]}")
+    return result
