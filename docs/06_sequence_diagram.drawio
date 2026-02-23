@@ -1,0 +1,376 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net" modified="2026-02-20" agent="Claude" version="24.0" type="device">
+  <diagram id="seq-day" name="Day Turn 시퀀스 다이어그램">
+    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1800" pageHeight="1200" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <mxCell id="title" value="&lt;b&gt;Day Turn — API 시퀀스 다이어그램&lt;/b&gt;" style="text;html=1;align=center;fontSize=18;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="600" y="10" width="400" height="35" as="geometry"/>
+        </mxCell>
+
+        <!-- Actors/Lifelines -->
+        <mxCell id="act-client" value="&lt;b&gt;Client&lt;/b&gt;" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=0;collapsible=0;recursiveResize=0;outlineConnect=0;fillColor=#dae8fc;strokeColor=#6c8ebf;size=40;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="80" y="60" width="100" height="1100" as="geometry"/>
+        </mxCell>
+        <mxCell id="act-api" value="&lt;b&gt;FastAPI&lt;/b&gt;&lt;br&gt;/v1/game" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=0;collapsible=0;recursiveResize=0;outlineConnect=0;fillColor=#d5e8d4;strokeColor=#82b366;size=40;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="260" y="60" width="100" height="1100" as="geometry"/>
+        </mxCell>
+        <mxCell id="act-svc" value="&lt;b&gt;GameService&lt;/b&gt;" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=0;collapsible=0;recursiveResize=0;outlineConnect=0;fillColor=#fff2cc;strokeColor=#d6b656;size=40;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="440" y="60" width="110" height="1100" as="geometry"/>
+        </mxCell>
+        <mxCell id="act-lock" value="&lt;b&gt;Lock&lt;br&gt;Manager&lt;/b&gt;" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=0;collapsible=0;recursiveResize=0;outlineConnect=0;fillColor=#f8cecc;strokeColor=#b85450;size=40;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="620" y="60" width="80" height="1100" as="geometry"/>
+        </mxCell>
+        <mxCell id="act-day" value="&lt;b&gt;Day&lt;br&gt;Controller&lt;/b&gt;" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=0;collapsible=0;recursiveResize=0;outlineConnect=0;fillColor=#f8cecc;strokeColor=#b85450;size=40;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="780" y="60" width="80" height="1100" as="geometry"/>
+        </mxCell>
+        <mxCell id="act-tools" value="&lt;b&gt;Tools&lt;/b&gt;" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=0;collapsible=0;recursiveResize=0;outlineConnect=0;fillColor=#e1d5e7;strokeColor=#9673a6;size=40;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="940" y="60" width="80" height="1100" as="geometry"/>
+        </mxCell>
+        <mxCell id="act-llm" value="&lt;b&gt;LLM&lt;br&gt;Engine&lt;/b&gt;" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=0;collapsible=0;recursiveResize=0;outlineConnect=0;fillColor=#f5f5f5;strokeColor=#666666;size=40;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1100" y="60" width="80" height="1100" as="geometry"/>
+        </mxCell>
+        <mxCell id="act-db" value="&lt;b&gt;PostgreSQL&lt;/b&gt;" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=0;collapsible=0;recursiveResize=0;outlineConnect=0;fillColor=#ffe6cc;strokeColor=#d79b00;size=40;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="1300" y="60" width="100" height="1100" as="geometry"/>
+        </mxCell>
+
+        <!-- Messages -->
+        <!-- 1. Client -> API -->
+        <mxCell id="m1" value="POST /step { chat_input }" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;strokeWidth=2;fontSize=10;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="130" y="130" as="sourcePoint"/>
+            <mxPoint x="310" y="130" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 2. API -> Service -->
+        <mxCell id="m2" value="process_turn(db, game_id, input)" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;strokeWidth=1.5;fontSize=10;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="310" y="170" as="sourcePoint"/>
+            <mxPoint x="495" y="170" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 3. Service -> DB: Load WorldState -->
+        <mxCell id="m3" value="SELECT game (JSONB)" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;strokeWidth=1;fontSize=9;dashed=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="495" y="210" as="sourcePoint"/>
+            <mxPoint x="1350" y="210" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m3r" value="Games row" style="html=1;verticalAlign=bottom;endArrow=open;endFill=0;strokeWidth=1;fontSize=9;dashed=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1350" y="240" as="sourcePoint"/>
+            <mxPoint x="495" y="240" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 4. Service -> LockManager -->
+        <mxCell id="m4" value="check_unlocks(ws, locks)" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;strokeWidth=1.5;fontSize=10;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="495" y="280" as="sourcePoint"/>
+            <mxPoint x="660" y="280" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m4r" value="LockCheckResult" style="html=1;verticalAlign=bottom;endArrow=open;endFill=0;strokeWidth=1;fontSize=9;dashed=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="660" y="310" as="sourcePoint"/>
+            <mxPoint x="495" y="310" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 5. Service -> DayController -->
+        <mxCell id="m5" value="process(user_input, ws, assets)" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;strokeWidth=1.5;fontSize=10;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="495" y="360" as="sourcePoint"/>
+            <mxPoint x="820" y="360" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 6. DayController -> Tools: call_tool -->
+        <mxCell id="m6" value="call_tool(user_text, ws, assets)" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;strokeWidth=1.5;fontSize=10;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="820" y="400" as="sourcePoint"/>
+            <mxPoint x="980" y="400" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 7. Tools -> LLM: Tool selection -->
+        <mxCell id="m7" value="generate(tool_call_prompt)" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;strokeWidth=1.5;fontSize=10;fontColor=#9673a6;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="980" y="440" as="sourcePoint"/>
+            <mxPoint x="1140" y="440" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m7r" value="{tool, args, intent}" style="html=1;verticalAlign=bottom;endArrow=open;endFill=0;strokeWidth=1;fontSize=9;dashed=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1140" y="470" as="sourcePoint"/>
+            <mxPoint x="980" y="470" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 8. Tools -> LLM: Tool execution -->
+        <mxCell id="m8" value="generate(action_prompt)" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;strokeWidth=1.5;fontSize=10;fontColor=#9673a6;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="980" y="520" as="sourcePoint"/>
+            <mxPoint x="1140" y="520" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m8r" value="LLMParsedResponse" style="html=1;verticalAlign=bottom;endArrow=open;endFill=0;strokeWidth=1;fontSize=9;dashed=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1140" y="560" as="sourcePoint"/>
+            <mxPoint x="980" y="560" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- LLM call annotation -->
+        <mxCell id="llm-box" value="LLM Call ×2" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#9673a6;fontSize=9;dashed=1;dashPattern=3 3;fontColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="1160" y="430" width="80" height="140" as="geometry"/>
+        </mxCell>
+
+        <!-- 9. Tools -> DayController: return -->
+        <mxCell id="m9r" value="ToolResult" style="html=1;verticalAlign=bottom;endArrow=open;endFill=0;strokeWidth=1;fontSize=9;dashed=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="980" y="610" as="sourcePoint"/>
+            <mxPoint x="820" y="610" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 10. DayController -> Service: return -->
+        <mxCell id="m10r" value="ToolResult (merged with rule_delta)" style="html=1;verticalAlign=bottom;endArrow=open;endFill=0;strokeWidth=1;fontSize=9;dashed=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="820" y="660" as="sourcePoint"/>
+            <mxPoint x="495" y="660" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 11. Service: _apply_delta -->
+        <mxCell id="m11" value="_apply_delta() + ItemAcquirer.scan()" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;strokeWidth=1;fontSize=9;fontColor=#d6b656;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="495" y="720" as="sourcePoint"/>
+            <mxPoint x="540" y="720" as="targetPoint"/>
+            <Array as="points"><mxPoint x="540" y="700"/><mxPoint x="540" y="720"/></Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m11-note" value="state 갱신 + 아이템 자동 획득" style="text;html=1;align=left;fontSize=9;fillColor=none;strokeColor=none;fontColor=#999;" vertex="1" parent="1">
+          <mxGeometry x="550" y="710" width="200" height="20" as="geometry"/>
+        </mxCell>
+
+        <!-- 12. Service: EndingChecker -->
+        <mxCell id="m12-note" value="EndingChecker.check() → ending 조건 확인" style="text;html=1;align=left;fontSize=9;fillColor=none;strokeColor=none;fontColor=#999;" vertex="1" parent="1">
+          <mxGeometry x="550" y="760" width="250" height="20" as="geometry"/>
+        </mxCell>
+
+        <!-- 13. Service -> LLM: NarrativeLayer -->
+        <mxCell id="m13" value="NarrativeLayer.render() → generate()" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;strokeWidth=1.5;fontSize=10;fontColor=#82b366;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="495" y="810" as="sourcePoint"/>
+            <mxPoint x="1140" y="810" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m13r" value="narrative text" style="html=1;verticalAlign=bottom;endArrow=open;endFill=0;strokeWidth=1;fontSize=9;dashed=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1140" y="850" as="sourcePoint"/>
+            <mxPoint x="495" y="850" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 14. Service -> DB: save -->
+        <mxCell id="m14" value="UPDATE games SET (JSONB)" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;strokeWidth=1;fontSize=9;dashed=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="495" y="900" as="sourcePoint"/>
+            <mxPoint x="1350" y="900" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m14r" value="OK" style="html=1;verticalAlign=bottom;endArrow=open;endFill=0;strokeWidth=1;fontSize=9;dashed=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1350" y="930" as="sourcePoint"/>
+            <mxPoint x="495" y="930" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 15. Service -> API -> Client: response -->
+        <mxCell id="m15r" value="StepResponseSchema" style="html=1;verticalAlign=bottom;endArrow=open;endFill=0;strokeWidth=1.5;fontSize=10;dashed=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="495" y="980" as="sourcePoint"/>
+            <mxPoint x="310" y="980" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m16r" value="200 OK { narrative, ending_info, ... }" style="html=1;verticalAlign=bottom;endArrow=open;endFill=0;strokeWidth=2;fontSize=10;dashed=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="310" y="1020" as="sourcePoint"/>
+            <mxPoint x="130" y="1020" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+
+  <diagram id="seq-night" name="Night Turn 시퀀스 다이어그램">
+    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1800" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <mxCell id="title2" value="&lt;b&gt;Night Turn — API 시퀀스 다이어그램&lt;/b&gt;" style="text;html=1;align=center;fontSize=18;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="550" y="10" width="400" height="35" as="geometry"/>
+        </mxCell>
+
+        <!-- Actors -->
+        <mxCell id="n-client" value="&lt;b&gt;Client&lt;/b&gt;" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=0;collapsible=0;recursiveResize=0;outlineConnect=0;fillColor=#dae8fc;strokeColor=#6c8ebf;size=40;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="80" y="60" width="100" height="1000" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-svc" value="&lt;b&gt;GameService&lt;/b&gt;" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=0;collapsible=0;recursiveResize=0;outlineConnect=0;fillColor=#fff2cc;strokeColor=#d6b656;size=40;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="300" y="60" width="110" height="1000" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-night" value="&lt;b&gt;Night&lt;br&gt;Controller&lt;/b&gt;" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=0;collapsible=0;recursiveResize=0;outlineConnect=0;fillColor=#e1d5e7;strokeColor=#9673a6;size=40;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="520" y="60" width="90" height="1000" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-agents" value="&lt;b&gt;Agents&lt;/b&gt;&lt;br&gt;(reflection,&lt;br&gt;planning,&lt;br&gt;dialogue)" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=0;collapsible=0;recursiveResize=0;outlineConnect=0;fillColor=#e1d5e7;strokeColor=#9673a6;size=50;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="720" y="60" width="90" height="1000" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-llm" value="&lt;b&gt;LLM&lt;/b&gt;" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=0;collapsible=0;recursiveResize=0;outlineConnect=0;fillColor=#f5f5f5;strokeColor=#666666;size=40;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="930" y="60" width="80" height="1000" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-db" value="&lt;b&gt;PostgreSQL&lt;/b&gt;" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=0;collapsible=0;recursiveResize=0;outlineConnect=0;fillColor=#ffe6cc;strokeColor=#d79b00;size=40;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="1130" y="60" width="100" height="1000" as="geometry"/>
+        </mxCell>
+
+        <!-- Messages -->
+        <mxCell id="nm1" value="POST /night" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;strokeWidth=2;fontSize=10;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="130" y="130" as="sourcePoint"/>
+            <mxPoint x="355" y="130" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="nm2" value="process(ws, assets)" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;strokeWidth=1.5;fontSize=10;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="355" y="190" as="sourcePoint"/>
+            <mxPoint x="565" y="190" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Phase 1 -->
+        <mxCell id="np1-box" value="Phase 1: Reflection" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#C62828;fontSize=9;dashed=1;fontColor=#C62828;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="540" y="220" width="480" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="nm3" value="_run_reflections()" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;strokeWidth=1;fontSize=9;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="565" y="260" as="sourcePoint"/>
+            <mxPoint x="765" y="260" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="nm3a" value="generate(reflection_prompt) ×N" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;strokeWidth=1;fontSize=9;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="765" y="295" as="sourcePoint"/>
+            <mxPoint x="970" y="295" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="nm3r" value="reflection insights" style="html=1;verticalAlign=bottom;endArrow=open;endFill=0;strokeWidth=1;fontSize=8;dashed=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="970" y="320" as="sourcePoint"/>
+            <mxPoint x="765" y="320" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Phase 2 -->
+        <mxCell id="np2-box" value="Phase 2: Planning" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#2E7D32;fontSize=9;dashed=1;fontColor=#2E7D32;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="540" y="360" width="480" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="nm4" value="_run_planning()" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;strokeWidth=1;fontSize=9;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="565" y="400" as="sourcePoint"/>
+            <mxPoint x="765" y="400" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="nm4a" value="retrieve_memories() + generate(plan_prompt) ×N" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;strokeWidth=1;fontSize=9;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="765" y="435" as="sourcePoint"/>
+            <mxPoint x="970" y="435" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="nm4r" value="short_term_plan" style="html=1;verticalAlign=bottom;endArrow=open;endFill=0;strokeWidth=1;fontSize=8;dashed=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="970" y="460" as="sourcePoint"/>
+            <mxPoint x="765" y="460" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Phase 3 -->
+        <mxCell id="np3-box" value="Phase 3: Dialogue (6 utterances)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#1565C0;fontSize=9;dashed=1;fontColor=#1565C0;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="540" y="500" width="480" height="130" as="geometry"/>
+        </mxCell>
+        <mxCell id="nm5" value="_run_dialogues()" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;strokeWidth=1;fontSize=9;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="565" y="540" as="sourcePoint"/>
+            <mxPoint x="765" y="540" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="nm5a" value="generate_utterance() ×6" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;strokeWidth=1;fontSize=9;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="765" y="575" as="sourcePoint"/>
+            <mxPoint x="970" y="575" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="nm5r" value="conversation[]" style="html=1;verticalAlign=bottom;endArrow=open;endFill=0;strokeWidth=1;fontSize=8;dashed=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="970" y="605" as="sourcePoint"/>
+            <mxPoint x="765" y="605" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Phase 4 -->
+        <mxCell id="np4-box" value="Phase 4: Impact Analysis" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#E65100;fontSize=9;dashed=1;fontColor=#E65100;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="540" y="650" width="480" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="nm6" value="_analyze_impacts()" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;strokeWidth=1;fontSize=9;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="565" y="690" as="sourcePoint"/>
+            <mxPoint x="765" y="690" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="nm6a" value="analyze_conversation_impact() ×N pairs" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;strokeWidth=1;fontSize=9;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="765" y="725" as="sourcePoint"/>
+            <mxPoint x="970" y="725" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="nm6r" value="stat_changes per NPC" style="html=1;verticalAlign=bottom;endArrow=open;endFill=0;strokeWidth=1;fontSize=8;dashed=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="970" y="750" as="sourcePoint"/>
+            <mxPoint x="765" y="750" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Return NightResult -->
+        <mxCell id="nm7r" value="NightResult" style="html=1;verticalAlign=bottom;endArrow=open;endFill=0;strokeWidth=1.5;fontSize=10;dashed=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="565" y="810" as="sourcePoint"/>
+            <mxPoint x="355" y="810" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Save to DB -->
+        <mxCell id="nm8" value="UPDATE games" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;strokeWidth=1;fontSize=9;dashed=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="355" y="860" as="sourcePoint"/>
+            <mxPoint x="1180" y="860" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Return to Client -->
+        <mxCell id="nm9r" value="200 OK { narrative, world_state, ending_info }" style="html=1;verticalAlign=bottom;endArrow=open;endFill=0;strokeWidth=2;fontSize=10;dashed=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="355" y="930" as="sourcePoint"/>
+            <mxPoint x="130" y="930" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

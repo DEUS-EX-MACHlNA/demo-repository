@@ -10,7 +10,6 @@ app/effect_applicator.py
 - var_add / var_sub            → vars (누적)
 - set_state                    → NPC status 변경 + StatusEffect 생성 (duration 있을 때)
 - flag_set                     → flags (v3)
-- trigger_event                → flags
 - set_env                      → vars (덮어쓰기)
 - unlock_ending                → flags
 - change_scene                 → next_node
@@ -149,11 +148,6 @@ class EffectApplicator:
                     expires_at_turn=current_turn + duration,
                     source_item_id=source_item_id,
                 ))
-
-        # ── trigger_event ──
-        elif effect_type == "trigger_event":
-            event_id = effect["event_id"]
-            delta["flags"][event_id] = True
 
         # ── set_env ──
         elif effect_type == "set_env":

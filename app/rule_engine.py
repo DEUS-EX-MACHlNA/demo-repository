@@ -36,13 +36,11 @@ def apply_memory_rules(
         {
             "vars": {"humanity": 1, "suspicion_level": 2},
             "npc_stats": {"stepmother": {"trust": -10}},
-            "triggered_events": ["event_id1", "event_id2"],
         }
     """
     delta: Dict[str, Any] = {
         "vars": {},
         "npc_stats": {},
-        "triggered_events": [],
     }
 
     if not memory_rules or "rewrite_rules" not in memory_rules:
@@ -102,9 +100,7 @@ def _apply_effect(
     - var_sub: 변수 감소 (key, value)
     - npc_stat_add: NPC 스탯 증가 (npc, stat, value)
     - npc_stat_sub: NPC 스탯 감소 (npc, stat, value)
-    - trigger_event: 이벤트 트리거 (event_id)
     - set_state: 상태 설정 (target, value)
-    - npc_memory_rewrite: NPC 메모리 업데이트 (현재 스킵)
     """
     effect_type = effect.get("type", "")
 
@@ -145,20 +141,6 @@ def _apply_effect(
                 delta["npc_stats"][npc_id] = {}
             delta["npc_stats"][npc_id][stat] = delta["npc_stats"][npc_id].get(stat, 0) - value
             logger.debug(f"[RuleEngine] npc_stat_sub: {npc_id}.{stat} -= {value}")
-
-    # trigger_event
-    elif effect_type == "trigger_event":
-        event_id = effect.get("event_id", "")
-        if event_id:
-            delta["triggered_events"].append(event_id)
-            logger.debug(f"[RuleEngine] trigger_event: {event_id}")
-
-    # npc_memory_rewrite (현재는 로깅만)
-    elif effect_type == "npc_memory_rewrite":
-        npc_id = _resolve_npc_id(effect.get("npc", ""), active_npc_id)
-        field = effect.get("field", "")
-        mode = effect.get("mode", "")
-        logger.debug(f"[RuleEngine] npc_memory_rewrite: {npc_id}.{field} (mode={mode}) - 미구현, 스킵")
 
     # 알 수 없는 타입
     else:
@@ -208,7 +190,6 @@ def merge_rule_delta(
     merged = {
         "vars": {},
         "npc_stats": {},
-        "triggered_events": [],
         "turn_increment": 1 if include_turn_increment else 0,
     }
 
@@ -232,14 +213,9 @@ def merge_rule_delta(
         for stat, value in stats.items():
             merged["npc_stats"][npc_id][stat] = merged["npc_stats"][npc_id].get(stat, 0) + value
 
-    # triggered_events 병합 (합집합)
-    events = set(tool_delta.get("triggered_events", []))
-    events.update(rule_delta.get("triggered_events", []))
-    merged["triggered_events"] = list(events)
-
     # 기타 필드는 tool_delta 우선
     for key in tool_delta:
-        if key not in ("vars", "npc_stats", "triggered_events"):
+        if key not in ("vars", "npc_stats"):
             merged[key] = tool_delta[key]
 
     return merged

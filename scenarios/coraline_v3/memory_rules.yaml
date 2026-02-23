@@ -5,47 +5,40 @@
 # 변경 사항 (v2 대비):
 #   - npc_memory_rewrite effect 삭제 (미구현, 당분간 불필요)
 #   - notes 삭제 (미사용)
-#   - intent 종류: investigate, obey, rebel, reveal, converse, summarize
-#     - converse 추가: 일반 대화 (탐색도 복종도 아닌 중립적 대화)
+#   - intent 종류: investigate, obey, rebel, reveal, summarize, neutral
+#     - neutral: 별 뜻 없는 일반 대화 (스탯 변화 없음)
 #   - npc: __active__ → 가장 최근 상호작용 NPC (DayController에서 active_npc_id로 전달)
 #
 # effect 타입 (rule_engine.py 지원):
 #   - var_add / var_sub         : vars 값 증감
 #   - npc_stat_add / npc_stat_sub : NPC stats 증감
-#   - trigger_event             : 이벤트 트리거
 
 rewrite_rules:
   - rule_id: investigate_increase_suspicion
     when: "intent == 'investigate'"
     effects:
-      - { type: var_add, key: vars.suspicion_level, value: 2 }
-      - { type: var_add, key: vars.humanity, value: 1 }
+      - { type: var_add, key: vars.suspicion_level, value: 5 }
+      - { type: var_add, key: vars.humanity, value: 2 }
 
   - rule_id: obey_and_assimilate
     when: "intent == 'obey'"
     effects:
-      - { type: npc_stat_add, npc: __active__, stat: affection, value: 5 }
-      - { type: var_sub, key: vars.humanity, value: 3 }
-      - { type: var_sub, key: vars.suspicion_level, value: 1 }
+      - { type: npc_stat_add, npc: __active__, stat: affection, value: 8 }
+      - { type: var_sub, key: vars.humanity, value: 5 }
+      - { type: var_sub, key: vars.suspicion_level, value: 3 }
 
   - rule_id: rebel_and_confront
     when: "intent == 'rebel'"
     effects:
-      - { type: npc_stat_sub, npc: __active__, stat: affection, value: 10 }
-      - { type: var_add, key: vars.suspicion_level, value: 5 }
+      - { type: npc_stat_sub, npc: __active__, stat: affection, value: 12 }
+      - { type: var_add, key: vars.suspicion_level, value: 8 }
 
   - rule_id: reveal_truth
     when: "intent == 'reveal'"
     effects:
-      - { type: npc_stat_add, npc: __active__, stat: humanity, value: 15 }
-
-  - rule_id: converse_neutral
-    when: "intent == 'converse'"
-    effects:
-      - { type: npc_stat_add, npc: __active__, stat: affection, value: 2 }
-      - { type: var_sub, key: vars.humanity, value: 1 }
+      - { type: npc_stat_add, npc: __active__, stat: humanity, value: 20 }
 
   - rule_id: summarize_day_reflection
     when: "intent == 'summarize'"
     effects:
-      - { type: var_add, key: vars.humanity, value: 2 }
+      - { type: var_add, key: vars.humanity, value: 5 }

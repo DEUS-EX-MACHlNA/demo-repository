@@ -37,7 +37,7 @@ class NPCState(BaseModel):
         stats = data.get("stats", {})
         if not stats:
             stats = {}
-            for key in ["trust", "fear", "suspicion", "humanity"]:
+            for key in ["trust", "suspicion", "humanity"]:
                 if key in data:
                     stats[key] = data[key]
 
@@ -67,10 +67,10 @@ class WorldStatePipeline(BaseModel):
     npcs: Dict[str, NPCState] = Field(default_factory=dict)
     flags: Dict[str, Any] = Field(default_factory=dict)
     inventory: List[str] = Field(default_factory=list)
-    # item_state_changes
 
     locks: Dict[str, bool] = Field(default_factory=dict)
     vars: Dict[str, Any] = Field(default_factory=dict)
+    day_action_log: List[Dict[str, Any]] = Field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return self.model_dump()
@@ -90,6 +90,7 @@ class WorldStatePipeline(BaseModel):
             inventory=data.get("inventory", []),
             locks=data.get("locks", {}),
             vars=data.get("vars", {}),
+            day_action_log=data.get("day_action_log", []),
         )
 
 class WorldState(WorldStatePipeline):

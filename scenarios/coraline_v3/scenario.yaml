@@ -102,6 +102,20 @@ endings:
       마지막 의식이 끊기기 전 주인공의 입가에 새겨지는
       인형 특유의 영원하고 딱딱한 미소로 마무리하라.
 
+  - ending_id: caught_and_confined
+    name: "감시의 올가미 (The Watchful Snare)"
+    type: failure
+    condition: "vars.suspicion_level >= 100"
+    epilogue_prompt: |
+      식탁 위 홍차잔이 달그락 소리를 내며 멈춘다. 세 쌍의 단추 눈이 일제히 주인공을 향한다.
+      새엄마가 고개를 90도로 꺾으며 미소 짓는다. 관절이 돌아가는 딱딱 소리가 식탁 아래에서 울린다.
+      "우리 예쁜 아이, 어디 가려고 했던 거니?"
+      새아빠의 나무 손가락이 주인공의 어깨를 움켜쥐고, 동생이 고개를 까딱이며 낄낄댄다.
+      지하실 계단을 끌려 내려가는 동안 벽에 걸린 다른 '아이들'의 초상화가 보인다 — 전부 같은 미소를 짓고 있다.
+      수술대 위, 형광등 아래에서 새엄마가 실과 바늘을 꺼내며 속삭인다.
+      "이제 영원히 우리 가족이야. 아프지 않을 거야. 곧 아무것도 느끼지 못하게 될 테니까."
+      의식이 흐려지기 전 마지막으로 보이는 것은 — 새엄마가 꺼내 든 한 쌍의 유리 단추 눈.
+
   - ending_id: eternal_dinner
     name: "영원한 식사 시간 (The Eternal Dinner)"
     type: failure
@@ -125,8 +139,6 @@ state_schema:
     status_effects: { default: [] }                      # StatusEffectManager가 관리하는 활성 효과 목록
   flags:
     ending: { default: null }
-    basement_unlocked: { default: false }
-    truth_revealed: { default: false }                   # 할머니를 통해 진실을 알았는지 여부
     brother_sacrifice: { default: false }                # 동생의 희생 플래그
     stepmother_away: { default: false }                  # 새엄마 자리 비움 (피 요청 수락 후)
     oil_on_stepmother: { default: false }                # 기름병을 던졌는지 여부

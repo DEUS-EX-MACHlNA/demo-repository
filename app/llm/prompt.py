@@ -317,6 +317,12 @@ def build_tool_call_prompt(
    - target: 대상 NPC ID (선택, 아이템을 NPC에게 사용할 때)
    - use_type: "use" (보유 아이템 사용) 또는 "acquire" (새 아이템 획득)
 
+## 중요: Tool 선택 우선순위 규칙
+1. **아이템 + NPC 조합 → 반드시 `use`**: 인벤토리 아이템을 NPC에게 보여주기/사용/건네기/던지기 → use (NOT interact)
+   예: "가족사진을 동생에게 보여준다" → use, "수면제를 새엄마 음식에 탄다" → use
+2. **아이템 언급 없이 NPC와 대화** → interact
+3. **NPC 없이 환경 행동** → action
+
 ## use_type 판단 기준
 - 플레이어가 **이미 가진 아이템을 쓰려는 경우** → use_type: "use"
 - 플레이어가 **아이템을 줍거나, 훔치거나, 찾으려는 경우** → use_type: "acquire"

@@ -1,0 +1,202 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net" modified="2026-02-20" agent="Claude" version="24.0" type="device">
+  <diagram id="user-scenarios" name="유저 시나리오 (Quest Route Map)">
+    <mxGraphModel dx="1800" dy="1200" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2000" pageHeight="1400" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <mxCell id="title" value="&lt;b&gt;유저 시나리오 — 인형의 집 Quest Route Map&lt;/b&gt;&lt;br&gt;coraline_v3 scenario: 5 Endings (3 Victory + 2 Defeat)" style="text;html=1;align=center;fontSize=16;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="550" y="15" width="600" height="45" as="geometry"/>
+        </mxCell>
+
+        <!-- ========== GAME START ========== -->
+        <mxCell id="game-start" value="&lt;b&gt;게임 시작&lt;/b&gt;&lt;br&gt;플레이어: 인형의 집에 갇힌 소녀&lt;br&gt;인형 가족과 함께 탈출구를 찾아야 한다&lt;br&gt;&lt;i&gt;Turn Limit: 50&lt;/i&gt;" style="shape=mxgraph.flowchart.terminator;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="680" y="80" width="340" height="70" as="geometry"/>
+        </mxCell>
+
+        <!-- NPC 소개 -->
+        <mxCell id="npcs-intro" value="&lt;div style='text-align:left;'&gt;&lt;b&gt;NPC 인형 가족&lt;/b&gt;&lt;br&gt;👩 새엄마 (stepmother): fear=80, humanity=0&lt;br&gt;👨 새아빠 (stepfather): fear=60, humanity=20&lt;br&gt;👦 오빠 (brother): fear=40, humanity=50&lt;br&gt;👵 할머니 (grandmother): fear=50&lt;br&gt;🐕 바론 (dog_baron): fear=30&lt;/div&gt;" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;size=18;fillColor=#FFF8E1;strokeColor=#d6b656;fontSize=11;align=left;spacingLeft=8;" vertex="1" parent="1">
+          <mxGeometry x="30" y="80" width="300" height="140" as="geometry"/>
+        </mxCell>
+
+        <!-- ========== KEY ACTIONS (플레이어 행동 영역) ========== -->
+        <mxCell id="actions-zone" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#CCCCCC;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="280" y="200" width="1150" height="250" as="geometry"/>
+        </mxCell>
+        <mxCell id="actions-title" value="&lt;b&gt;핵심 플레이어 행동 (Day Phase)&lt;/b&gt;" style="text;html=1;align=center;fontSize=13;fontStyle=1;fillColor=none;strokeColor=none;fontColor=#666;" vertex="1" parent="1">
+          <mxGeometry x="700" y="205" width="300" height="25" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="act-explore" value="&lt;b&gt;탐색 (action)&lt;/b&gt;&lt;br&gt;집 내부 7개 장소 탐색&lt;br&gt;&lt;i&gt;player_room, hallway,&lt;br&gt;living_room, kitchen,&lt;br&gt;brother_room, basement,&lt;br&gt;garden&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="300" y="245" width="170" height="110" as="geometry"/>
+        </mxCell>
+        <mxCell id="act-talk" value="&lt;b&gt;대화 (interact)&lt;/b&gt;&lt;br&gt;NPC와 상호작용&lt;br&gt;&lt;i&gt;affection / fear 변화&lt;br&gt;Intent: LEADING,&lt;br&gt;EMPATHIC, NEUTRAL&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="510" y="245" width="160" height="110" as="geometry"/>
+        </mxCell>
+        <mxCell id="act-item" value="&lt;b&gt;아이템 사용 (use)&lt;/b&gt;&lt;br&gt;획득한 아이템 활용&lt;br&gt;&lt;i&gt;old_key, matches,&lt;br&gt;sedative_herb,&lt;br&gt;brother_doll, ...&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="710" y="245" width="160" height="110" as="geometry"/>
+        </mxCell>
+        <mxCell id="act-lock" value="&lt;b&gt;정보 해제 (Lock)&lt;/b&gt;&lt;br&gt;조건 충족 시 자동 unlock&lt;br&gt;&lt;i&gt;quest_gate / item_hint&lt;br&gt;npc_topic / lore&lt;/i&gt;&lt;br&gt;→ NPC memory에 inject" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="910" y="245" width="170" height="110" as="geometry"/>
+        </mxCell>
+        <mxCell id="act-night" value="&lt;b&gt;밤 페이즈 (Night)&lt;/b&gt;&lt;br&gt;NPC들의 자율 행동&lt;br&gt;&lt;i&gt;Reflection → Planning&lt;br&gt;→ Dialogue&lt;br&gt;→ Impact Analysis&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1120" y="245" width="170" height="110" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="a-start" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeWidth=2;" edge="1" parent="1" source="game-start" target="actions-zone">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- ========== ROUTE DIVERGENCE ========== -->
+        <mxCell id="diverge" value="엔딩 분기" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=13;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="780" y="500" width="140" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="a-div" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeWidth=2;" edge="1" parent="1" source="actions-zone" target="diverge">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- ========== VICTORY ROUTE 1: Stealth Exit ========== -->
+        <mxCell id="v1-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F5E9;strokeColor=#2E7D32;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="30" y="640" width="350" height="350" as="geometry"/>
+        </mxCell>
+        <mxCell id="v1-title" value="&lt;b&gt;🏆 승리 루트 1: 은밀한 탈출&lt;/b&gt;&lt;br&gt;&lt;i&gt;stealth_exit&lt;/i&gt;" style="text;html=1;align=center;fontSize=14;fontStyle=0;fillColor=none;strokeColor=none;fontColor=#2E7D32;" vertex="1" parent="1">
+          <mxGeometry x="50" y="650" width="310" height="35" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="v1-s1" value="1. 집 탐색 → old_key 획득&lt;br&gt;&lt;i&gt;(auto acquire: basement 탐색 조건)&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2E7D32;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="50" y="695" width="310" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="v1-s2" value="2. sedative_herb 획득&lt;br&gt;&lt;i&gt;(garden 탐색 + 조건 충족)&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2E7D32;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="50" y="745" width="310" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="v1-s3" value="3. NPC에게 수면제 사용 → SLEEPING&lt;br&gt;&lt;i&gt;(StatusEffectManager: 3턴 지속)&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2E7D32;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="50" y="795" width="310" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="v1-s4" value="4. old_key로 현관문 열기" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2E7D32;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="50" y="845" width="310" height="35" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="v1-cond" value="&lt;div style='text-align:left;'&gt;&lt;b&gt;엔딩 조건:&lt;/b&gt;&lt;br&gt;has_item(old_key)&lt;br&gt;AND flags.door_unlocked == true&lt;br&gt;AND npc.stepmother.status == SLEEPING&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#C8E6C9;strokeColor=#2E7D32;fontSize=9;align=left;spacingLeft=8;" vertex="1" parent="1">
+          <mxGeometry x="50" y="895" width="310" height="70" as="geometry"/>
+        </mxCell>
+
+        <!-- ========== VICTORY ROUTE 2: Chaotic Breakout ========== -->
+        <mxCell id="v2-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F5E9;strokeColor=#2E7D32;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="420" y="640" width="350" height="350" as="geometry"/>
+        </mxCell>
+        <mxCell id="v2-title" value="&lt;b&gt;🏆 승리 루트 2: 혼돈 속 탈출&lt;/b&gt;&lt;br&gt;&lt;i&gt;chaotic_breakout&lt;/i&gt;" style="text;html=1;align=center;fontSize=14;fontStyle=0;fillColor=none;strokeColor=none;fontColor=#2E7D32;" vertex="1" parent="1">
+          <mxGeometry x="440" y="650" width="310" height="35" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="v2-s1" value="1. matches 획득&lt;br&gt;&lt;i&gt;(kitchen 탐색 조건)&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2E7D32;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="440" y="695" width="310" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="v2-s2" value="2. 집에 불 지르기&lt;br&gt;&lt;i&gt;use(matches, light_fire)&lt;br&gt;→ flags.house_on_fire = true&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2E7D32;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="440" y="745" width="310" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="v2-s3" value="3. 혼란 속에서 탈출&lt;br&gt;&lt;i&gt;NPC들이 혼란 → 감시 약화&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2E7D32;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="440" y="810" width="310" height="40" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="v2-cond" value="&lt;div style='text-align:left;'&gt;&lt;b&gt;엔딩 조건:&lt;/b&gt;&lt;br&gt;has_item(matches)&lt;br&gt;AND flags.house_on_fire == true&lt;br&gt;AND flags.door_unlocked == true&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#C8E6C9;strokeColor=#2E7D32;fontSize=9;align=left;spacingLeft=8;" vertex="1" parent="1">
+          <mxGeometry x="440" y="870" width="310" height="70" as="geometry"/>
+        </mxCell>
+
+        <!-- ========== VICTORY ROUTE 3: Sibling Sacrifice ========== -->
+        <mxCell id="v3-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F5E9;strokeColor=#2E7D32;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="810" y="640" width="350" height="350" as="geometry"/>
+        </mxCell>
+        <mxCell id="v3-title" value="&lt;b&gt;🏆 승리 루트 3: 형제의 희생&lt;/b&gt;&lt;br&gt;&lt;i&gt;sibling_sacrifice&lt;/i&gt;" style="text;html=1;align=center;fontSize=14;fontStyle=0;fillColor=none;strokeColor=none;fontColor=#2E7D32;" vertex="1" parent="1">
+          <mxGeometry x="830" y="650" width="310" height="35" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="v3-s1" value="1. 오빠와 지속적 교감&lt;br&gt;&lt;i&gt;interact(brother) → affection ↑&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2E7D32;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="830" y="695" width="310" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="v3-s2" value="2. brother_doll 획득&lt;br&gt;&lt;i&gt;(brother_room 탐색 + affection 조건)&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2E7D32;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="830" y="745" width="310" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="v3-s3" value="3. 오빠의 humanity 충분히 상승&lt;br&gt;&lt;i&gt;npc.brother.humanity &gt;= 80&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2E7D32;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="830" y="800" width="310" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="v3-s4" value="4. 오빠가 스스로 가족을 막고 탈출 도움" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2E7D32;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="830" y="855" width="310" height="35" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="v3-cond" value="&lt;div style='text-align:left;'&gt;&lt;b&gt;엔딩 조건:&lt;/b&gt;&lt;br&gt;npc.brother.humanity &gt;= 80&lt;br&gt;AND has_item(brother_doll)&lt;br&gt;AND flags.brother_ally == true&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#C8E6C9;strokeColor=#2E7D32;fontSize=9;align=left;spacingLeft=8;" vertex="1" parent="1">
+          <mxGeometry x="830" y="900" width="310" height="70" as="geometry"/>
+        </mxCell>
+
+        <!-- ========== DEFEAT 1: Captured ========== -->
+        <mxCell id="d1-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFEBEE;strokeColor=#C62828;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="1220" y="640" width="350" height="260" as="geometry"/>
+        </mxCell>
+        <mxCell id="d1-title" value="&lt;b&gt;💀 패배 1: 미완성 인형 (포획)&lt;/b&gt;&lt;br&gt;&lt;i&gt;captured&lt;/i&gt;" style="text;html=1;align=center;fontSize=14;fontStyle=0;fillColor=none;strokeColor=none;fontColor=#C62828;" vertex="1" parent="1">
+          <mxGeometry x="1240" y="650" width="310" height="35" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="d1-s1" value="새엄마의 의심 지속적 상승&lt;br&gt;&lt;i&gt;반항적 행동 → fear 감소, affection 감소&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#C62828;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1240" y="695" width="310" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="d1-s2" value="새엄마 Phase C(Punishment) 진입&lt;br&gt;&lt;i&gt;affection &lt;= 20 or fear &gt;= 90&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#C62828;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1240" y="745" width="310" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="d1-s3" value="플레이어 포획 → 인형으로 변환" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#C62828;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1240" y="800" width="310" height="35" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="d1-cond" value="&lt;div style='text-align:left;'&gt;&lt;b&gt;엔딩 조건:&lt;/b&gt;&lt;br&gt;npc.stepmother.affection &lt;= 10&lt;br&gt;AND npc.stepmother.fear &gt;= 95&lt;br&gt;AND flags.caught == true&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFCDD2;strokeColor=#C62828;fontSize=9;align=left;spacingLeft=8;" vertex="1" parent="1">
+          <mxGeometry x="1240" y="850" width="310" height="70" as="geometry"/>
+        </mxCell>
+
+        <!-- ========== DEFEAT 2: Turn Limit ========== -->
+        <mxCell id="d2-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFEBEE;strokeColor=#C62828;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="1220" y="940" width="350" height="200" as="geometry"/>
+        </mxCell>
+        <mxCell id="d2-title" value="&lt;b&gt;💀 패배 2: 영원한 저녁식사&lt;/b&gt;&lt;br&gt;&lt;i&gt;turn_limit (시간 초과)&lt;/i&gt;" style="text;html=1;align=center;fontSize=14;fontStyle=0;fillColor=none;strokeColor=none;fontColor=#C62828;" vertex="1" parent="1">
+          <mxGeometry x="1240" y="950" width="310" height="35" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="d2-s1" value="50턴 안에 어떤 엔딩도 달성 못함&lt;br&gt;&lt;i&gt;탐색/행동이 비효율적&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#C62828;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1240" y="995" width="310" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="d2-s2" value="인형 가족의 일원이 되어&lt;br&gt;영원히 저녁식사를 함께 함" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#C62828;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1240" y="1050" width="310" height="40" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="d2-cond" value="&lt;div style='text-align:left;'&gt;&lt;b&gt;엔딩 조건:&lt;/b&gt;&lt;br&gt;system.turn == turn_limit (50)&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFCDD2;strokeColor=#C62828;fontSize=9;align=left;spacingLeft=8;" vertex="1" parent="1">
+          <mxGeometry x="1240" y="1100" width="310" height="35" as="geometry"/>
+        </mxCell>
+
+        <!-- Arrows from diverge to routes -->
+        <mxCell id="a-v1" value="" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeWidth=2;strokeColor=#2E7D32;" edge="1" parent="1" source="diverge" target="v1-box">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="a-v2" value="" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeWidth=2;strokeColor=#2E7D32;" edge="1" parent="1" source="diverge" target="v2-box">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="a-v3" value="" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeWidth=2;strokeColor=#2E7D32;" edge="1" parent="1" source="diverge" target="v3-box">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="a-d1" value="" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeWidth=2;strokeColor=#C62828;" edge="1" parent="1" source="diverge" target="d1-box">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="a-d2" value="" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeWidth=2;strokeColor=#C62828;dashed=1;" edge="1" parent="1" source="diverge" target="d2-box">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- ========== KEY ITEMS ========== -->
+        <mxCell id="items-box" value="&lt;div style='text-align:left;'&gt;&lt;b&gt;핵심 아이템 목록&lt;/b&gt;&lt;br&gt;&lt;br&gt;🔑 old_key — 현관문 열쇠 (basement)&lt;br&gt;🔥 matches — 성냥 (kitchen)&lt;br&gt;🌿 sedative_herb — 수면 약초 (garden)&lt;br&gt;🪆 brother_doll — 오빠의 인형 (brother_room)&lt;br&gt;&lt;br&gt;&lt;b&gt;획득 방식:&lt;/b&gt;&lt;br&gt;• start: 게임 시작 시 보유&lt;br&gt;• auto: 조건 충족 시 자동 획득&lt;br&gt;• manual: LLM 판단으로 획득&lt;/div&gt;" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;size=18;fillColor=#FFF8E1;strokeColor=#d6b656;fontSize=11;align=left;spacingLeft=10;" vertex="1" parent="1">
+          <mxGeometry x="30" y="1050" width="320" height="220" as="geometry"/>
+        </mxCell>
+
+        <!-- ========== GAME LOOP VISUAL ========== -->
+        <mxCell id="loop-note" value="&lt;div style='text-align:center;'&gt;&lt;b&gt;게임 루프 구조&lt;/b&gt;&lt;br&gt;&lt;br&gt;[ Day Phase ] ←→ [ Night Phase ]&lt;br&gt;&lt;br&gt;Day: 플레이어 행동&lt;br&gt;(interact / action / use)&lt;br&gt;↓&lt;br&gt;Night: NPC 자율 행동&lt;br&gt;(Reflection → Planning&lt;br&gt;→ Dialogue → Impact)&lt;br&gt;↓&lt;br&gt;반복 (최대 50턴)&lt;/div&gt;" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;size=18;fillColor=#E3F2FD;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="420" y="1050" width="260" height="220" as="geometry"/>
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

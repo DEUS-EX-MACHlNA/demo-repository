@@ -8,9 +8,7 @@ from enum import Enum
 class NPCStatus(str, Enum):
     """NPC 상태"""
     ALIVE = "alive"
-    DECEASED = "deceased"
     MISSING = "missing"
-    UNKNOWN = "unknown"
     SLEEPING = "sleeping"
 
 
@@ -33,11 +31,12 @@ class ItemStatus(str, Enum):
 
 class Intent(str, Enum):
     """파싱된 의도 타입"""
-    LEADING = "leading"
-    NEUTRAL = "neutral"
-    EMPATHIC = "empathic"
+    INVESTIGATE = "investigate"
+    OBEY = "obey"
+    REBEL = "rebel"
+    REVEAL = "reveal"
     SUMMARIZE = "summarize"
-    UNKNOWN = "unknown"
+    NEUTRAL = "neutral"
 
 
 class ToolName(str, Enum):

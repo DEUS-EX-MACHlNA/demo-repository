@@ -17,6 +17,26 @@ from app.schemas import ToolResult, WorldStatePipeline, UserInputSchema
 logger = logging.getLogger(__name__)
 
 
+def _detect_inventory_item_in_input(
+    user_input: str,
+    world_state: WorldStatePipeline,
+    assets: ScenarioAssets,
+) -> str | None:
+    """사용자 입력에 인벤토리 아이템의 이름/ID가 포함되어 있는지 감지.
+
+    Returns:
+        매칭된 아이템 ID 또는 None
+    """
+    input_lower = user_input.lower()
+    for item_id in world_state.inventory:
+        if item_id in input_lower:
+            return item_id
+        item_def = assets.get_item_by_id(item_id)
+        if item_def and item_def.get("name", "").lower() in input_lower:
+            return item_id
+    return None
+
+
 class DayController:
     """
     낮 페이즈 컨트롤러
@@ -48,7 +68,7 @@ class DayController:
         Returns:
             ToolResult: tool 실행 결과 (Rule Engine delta 포함)
         """
-        from app.tools import call_tool, TOOLS, _final_values_to_delta
+        from app.tools import call_tool, TOOLS, _final_values_to_delta, get_tool_context
         from app.rule_engine import apply_memory_rules, merge_rule_delta
 
         # UserInputSchema를 문자열로 변환
@@ -64,7 +84,26 @@ class DayController:
         tool_name = tool_selection["tool_name"]
         tool_args = tool_selection["args"]
         intent = tool_selection.get("intent", "neutral")
+
+        # 1.5. 라우팅 가드: interact인데 인벤토리 아이템이 입력에 포함 → use로 재라우팅
+        if tool_name == "interact":
+            detected_item = _detect_inventory_item_in_input(user_input_str, world_state, assets)
+            if detected_item:
+                logger.info(f"[DayController] 라우팅 재지정: interact → use (detected item: {detected_item})")
+                tool_name = "use"
+                tool_args = {
+                    "item": detected_item,
+                    "action": user_input_str,
+                    "target": tool_args.get("target"),
+                    "use_type": "use",
+                }
+                tool_selection["tool_name"] = tool_name
+                tool_selection["args"] = tool_args
+
         logger.info(f"[DayController] Tool 선택: {tool_name}, intent={intent}, args={tool_args}")
+
+        # intent를 tool context에 저장 (interact에서 world_snapshot에 포함시키기 위함)
+        get_tool_context()["intent"] = intent
 
         # 의사결정 로그에 기록 (intent 포함)
         self._decision_log.append({
@@ -174,15 +213,15 @@ if __name__ == "__main__":
         npcs={
             "stepmother": NPCState(
                 npc_id="stepmother",
-                stats={"affection": 50, "fear": 80, "humanity": 0}
+                stats={"affection": 50, "humanity": 0, "plus_hits": 0, "minus_hits": 0}
             ),
             "stepfather": NPCState(
                 npc_id="stepfather",
-                stats={"affection": 30, "fear": 60, "humanity": 20}
+                stats={"affection": 30, "humanity": 20, "plus_hits": 0, "minus_hits": 0}
             ),
             "brother": NPCState(
                 npc_id="brother",
-                stats={"affection": 60, "fear": 40, "humanity": 50}
+                stats={"affection": 60, "humanity": 50, "plus_hits": 0, "minus_hits": 0}
             ),
         },
         inventory=[],

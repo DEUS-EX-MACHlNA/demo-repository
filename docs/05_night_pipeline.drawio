@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net" modified="2026-02-20" agent="Claude" version="24.0" type="device">
+  <diagram id="night-pipeline" name="Night 파이프라인 (Generative Agents)">
+    <mxGraphModel dx="1400" dy="1200" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1800" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <mxCell id="title" value="&lt;b&gt;Night Pipeline — GameService.process_night() + NightController&lt;/b&gt;&lt;br&gt;Based on Generative Agents (Park et al. 2023)" style="text;html=1;align=center;verticalAlign=middle;fontSize=16;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="350" y="20" width="560" height="50" as="geometry"/>
+        </mxCell>
+
+        <!-- Start -->
+        <mxCell id="start" value="POST /v1/game/{id}/night&lt;br&gt;&lt;i&gt;NightRequestBody&lt;/i&gt;" style="shape=mxgraph.flowchart.terminator;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="530" y="90" width="260" height="50" as="geometry"/>
+        </mxCell>
+
+        <!-- Pre-processing -->
+        <mxCell id="pre1" value="&lt;b&gt;1. WorldState 로드 + ScenarioAssets 로드&lt;/b&gt;&lt;br&gt;(Day pipeline과 동일)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="480" y="180" width="360" height="45" as="geometry"/>
+        </mxCell>
+        <mxCell id="a0" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeWidth=2;" edge="1" parent="1" source="start" target="pre1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <mxCell id="pre2" value="&lt;b&gt;2. LockManager.check_unlocks()&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="530" y="260" width="260" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="a1" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeWidth=2;" edge="1" parent="1" source="pre1" target="pre2"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <mxCell id="pre3" value="&lt;b&gt;3. StatusEffectManager.tick()&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="530" y="330" width="260" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="a2" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeWidth=2;" edge="1" parent="1" source="pre2" target="pre3"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- NightController Big Box -->
+        <mxCell id="nc-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F0FF;strokeColor=#9673a6;fontSize=11;dashed=1;dashPattern=8 4;" vertex="1" parent="1">
+          <mxGeometry x="120" y="410" width="1080" height="950" as="geometry"/>
+        </mxCell>
+        <mxCell id="nc-title" value="&lt;b&gt;4. NightController.process(world_snapshot, assets)&lt;/b&gt;" style="text;html=1;align=center;fontSize=15;fontStyle=1;fillColor=none;strokeColor=none;fontColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="380" y="415" width="460" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="a3" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeWidth=2;" edge="1" parent="1" source="pre3" target="nc-box">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="660" y="410" as="targetPoint"/></mxGeometry>
+        </mxCell>
+
+        <!-- ===== Phase 1: Reflection ===== -->
+        <mxCell id="ph1-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCE4EC;strokeColor=#C62828;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="160" y="460" width="1000" height="180" as="geometry"/>
+        </mxCell>
+        <mxCell id="ph1-title" value="&lt;b&gt;Phase 1: Reflection (성찰)&lt;/b&gt;&lt;br&gt;&lt;i&gt;_run_reflections()&lt;/i&gt;" style="text;html=1;align=left;fontSize=13;fontStyle=0;fillColor=none;strokeColor=none;fontColor=#C62828;" vertex="1" parent="1">
+          <mxGeometry x="180" y="465" width="300" height="35" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="ph1-s1" value="&lt;b&gt;for each NPC:&lt;/b&gt;&lt;br&gt;determine_current_phase&lt;br&gt;(npc.phases, npc.stats)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#C62828;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="180" y="510" width="200" height="55" as="geometry"/>
+        </mxCell>
+        <mxCell id="ph1-s2" value="should_reflect?&lt;br&gt;&lt;i&gt;현재 phase ≠ 이전 phase?&lt;/i&gt;" style="rhombus;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#C62828;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="430" y="510" width="160" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="ph1-s3" value="&lt;b&gt;perform_reflection()&lt;/b&gt;&lt;br&gt;LLM: Phase 전이 성찰문 생성&lt;br&gt;→ memory_stream에 저장&lt;br&gt;&lt;i&gt;type: MEMORY_REFLECTION&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#C62828;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="650" y="505" width="220" height="65" as="geometry"/>
+        </mxCell>
+        <mxCell id="ph1-skip" value="Skip" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#999;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="650" y="590" width="80" height="30" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="ph1a1" style="html=1;strokeWidth=1.5;" edge="1" parent="1" source="ph1-s1" target="ph1-s2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="ph1a2" value="Yes" style="html=1;strokeWidth=1.5;fontSize=9;" edge="1" parent="1" source="ph1-s2" target="ph1-s3"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="ph1a3" value="No" style="html=1;strokeWidth=1.5;fontSize=9;" edge="1" parent="1" source="ph1-s2" target="ph1-skip"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <mxCell id="ph1-note" value="&lt;div style='text-align:left;'&gt;&lt;b&gt;Phase 전이 조건 예시&lt;/b&gt;&lt;br&gt;A(Pleasant) → B(Testing):&lt;br&gt;&amp;nbsp;&amp;nbsp;affection &lt;= 40 or fear &gt;= 70&lt;br&gt;B(Testing) → C(Punishment):&lt;br&gt;&amp;nbsp;&amp;nbsp;affection &lt;= 20 or fear &gt;= 90&lt;/div&gt;" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;size=15;fillColor=#FFF8E1;strokeColor=#d6b656;fontSize=9;align=left;spacingLeft=6;" vertex="1" parent="1">
+          <mxGeometry x="910" y="505" width="230" height="90" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== Phase 2: Planning ===== -->
+        <mxCell id="ph2-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F5E9;strokeColor=#2E7D32;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="160" y="660" width="1000" height="170" as="geometry"/>
+        </mxCell>
+        <mxCell id="ph2-title" value="&lt;b&gt;Phase 2: Planning (단기 계획)&lt;/b&gt;&lt;br&gt;&lt;i&gt;_run_planning()&lt;/i&gt;" style="text;html=1;align=left;fontSize=13;fillColor=none;strokeColor=none;fontColor=#2E7D32;" vertex="1" parent="1">
+          <mxGeometry x="180" y="665" width="300" height="35" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="ph2-s1" value="&lt;b&gt;format_agenda_items&lt;/b&gt;&lt;br&gt;day_action_log 분석&lt;br&gt;&lt;i&gt;[치명적]/[위험] 태깅&lt;br&gt;(NPC triggers 기반)&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2E7D32;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="180" y="710" width="190" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="ph2-s2" value="&lt;b&gt;retrieve_memories()&lt;/b&gt;&lt;br&gt;가중 검색:&lt;br&gt;recency × α +&lt;br&gt;importance × β +&lt;br&gt;relevance × γ" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2E7D32;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="410" y="710" width="180" height="75" as="geometry"/>
+        </mxCell>
+        <mxCell id="ph2-s3" value="&lt;b&gt;generate_short_term_plan()&lt;/b&gt;&lt;br&gt;LLM: 단기 계획 생성&lt;br&gt;&lt;i&gt;long_term_plan + 현재 phase&lt;br&gt;+ day_action_log 기반&lt;/i&gt;&lt;br&gt;→ memory[&quot;current_plan&quot;]에 저장" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2E7D32;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="640" y="705" width="240" height="85" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="ph2a1" style="html=1;strokeWidth=1.5;" edge="1" parent="1" source="ph2-s1" target="ph2-s2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="ph2a2" style="html=1;strokeWidth=1.5;" edge="1" parent="1" source="ph2-s2" target="ph2-s3"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <mxCell id="ph2-note" value="&lt;div style='text-align:left;'&gt;&lt;b&gt;Memory Retrieval&lt;/b&gt;&lt;br&gt;항상 포함:&lt;br&gt;• long_term_plan&lt;br&gt;• latest reflection&lt;br&gt;나머지: 가중치 top-k&lt;br&gt;recency decay = 0.95/turn&lt;/div&gt;" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;size=15;fillColor=#FFF8E1;strokeColor=#d6b656;fontSize=9;align=left;spacingLeft=6;" vertex="1" parent="1">
+          <mxGeometry x="920" y="705" width="210" height="100" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== Phase 3: Dialogue ===== -->
+        <mxCell id="ph3-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E3F2FD;strokeColor=#1565C0;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="160" y="850" width="1000" height="220" as="geometry"/>
+        </mxCell>
+        <mxCell id="ph3-title" value="&lt;b&gt;Phase 3: Group Dialogue (NPC 가족 회의)&lt;/b&gt;&lt;br&gt;&lt;i&gt;_run_dialogues() — 6 utterances&lt;/i&gt;" style="text;html=1;align=left;fontSize=13;fillColor=none;strokeColor=none;fontColor=#1565C0;" vertex="1" parent="1">
+          <mxGeometry x="180" y="855" width="400" height="35" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="ph3-loop" value="&lt;b&gt;for i in range(6):&lt;/b&gt;&lt;br&gt;speaker = random NPC" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#1565C0;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="180" y="900" width="170" height="45" as="geometry"/>
+        </mxCell>
+        <mxCell id="ph3-gen" value="&lt;b&gt;generate_utterance()&lt;/b&gt;&lt;br&gt;speaker_persona + stats&lt;br&gt;+ conversation_history&lt;br&gt;+ world_snapshot&lt;br&gt;→ LLM → 대사 생성" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#1565C0;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="400" y="895" width="200" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="ph3-post" value="&lt;b&gt;postprocess_npc_dialogue()&lt;/b&gt;&lt;br&gt;humanity 기반 글리치 효과&lt;br&gt;&lt;i&gt;sibling: echo/glitch&lt;br&gt;stepmother: madness&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#1565C0;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="650" y="895" width="210" height="75" as="geometry"/>
+        </mxCell>
+        <mxCell id="ph3-store" value="&lt;b&gt;store_dialogue_memories()&lt;/b&gt;&lt;br&gt;모든 NPC memory_stream에&lt;br&gt;대화 기록 저장&lt;br&gt;&lt;i&gt;type: MEMORY_DIALOGUE&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#1565C0;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="400" y="995" width="220" height="60" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="ph3a1" style="html=1;strokeWidth=1.5;" edge="1" parent="1" source="ph3-loop" target="ph3-gen"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="ph3a2" style="html=1;strokeWidth=1.5;" edge="1" parent="1" source="ph3-gen" target="ph3-post"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="ph3a3" style="html=1;strokeWidth=1.5;" edge="1" parent="1" source="ph3-post" target="ph3-store"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <mxCell id="ph3-vis" value="&lt;div style='text-align:center;'&gt;&lt;b&gt;대화 흐름 예시&lt;/b&gt;&lt;br&gt;새엄마: &quot;오늘 저녁은...&quot;&lt;br&gt;오빠: &quot;응, 그̶̛렇̴지...&quot;&lt;br&gt;새아빠: &quot;좋은 가족이야.&quot;&lt;br&gt;할머니: &quot;난 다 알고 있어.&quot;&lt;br&gt;새엄마: &quot;누가 문을 열었지?&quot;&lt;br&gt;오빠: &quot;도̷̛망̶쳐...&quot;&lt;/div&gt;" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;size=15;fillColor=#FFF8E1;strokeColor=#d6b656;fontSize=9;align=left;spacingLeft=6;" vertex="1" parent="1">
+          <mxGeometry x="910" y="890" width="210" height="130" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== Phase 4: Impact Analysis ===== -->
+        <mxCell id="ph4-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF3E0;strokeColor=#E65100;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="160" y="1090" width="1000" height="160" as="geometry"/>
+        </mxCell>
+        <mxCell id="ph4-title" value="&lt;b&gt;Phase 4: Impact Analysis (영향 분석)&lt;/b&gt;&lt;br&gt;&lt;i&gt;_analyze_impacts()&lt;/i&gt;" style="text;html=1;align=left;fontSize=13;fillColor=none;strokeColor=none;fontColor=#E65100;" vertex="1" parent="1">
+          <mxGeometry x="180" y="1095" width="350" height="35" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="ph4-s1" value="&lt;b&gt;for each NPC pair:&lt;/b&gt;&lt;br&gt;analyze_conversation_impact()&lt;br&gt;&lt;i&gt;LLM: 대화가 각 NPC stat에&lt;br&gt;미친 영향 분석&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#E65100;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="200" y="1140" width="240" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="ph4-s2" value="&lt;b&gt;parse_stat_changes_text()&lt;/b&gt;&lt;br&gt;동적 regex 파싱&lt;br&gt;&lt;i&gt;stat_names 기반&lt;/i&gt;&lt;br&gt;→ npc_stats delta 누적" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#E65100;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="500" y="1140" width="210" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="ph4-s3" value="&lt;b&gt;night_delta 생성&lt;/b&gt;&lt;br&gt;{npc_stats: {&lt;br&gt;&amp;nbsp;&amp;nbsp;stepmother: {fear: +5, ...},&lt;br&gt;&amp;nbsp;&amp;nbsp;brother: {humanity: -3, ...}&lt;br&gt;}}" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#E65100;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="770" y="1135" width="220" height="80" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="ph4a1" style="html=1;strokeWidth=1.5;" edge="1" parent="1" source="ph4-s1" target="ph4-s2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="ph4a2" style="html=1;strokeWidth=1.5;" edge="1" parent="1" source="ph4-s2" target="ph4-s3"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- NightResult output -->
+        <mxCell id="nc-out" value="&lt;b&gt;→ NightResult&lt;/b&gt;&lt;br&gt;{ night_delta, night_conversation, night_description }" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=12;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="380" y="1280" width="460" height="45" as="geometry"/>
+        </mxCell>
+
+        <!-- Post-processing -->
+        <mxCell id="post1" value="&lt;b&gt;5. _apply_delta(night_delta)&lt;/b&gt;&lt;br&gt;NPC stats 갱신 (clamp 0-100)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="470" y="1380" width="300" height="45" as="geometry"/>
+        </mxCell>
+        <mxCell id="ap1" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeWidth=2;" edge="1" parent="1" source="nc-out" target="post1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <mxCell id="post2" value="&lt;b&gt;6. EndingChecker.check()&lt;/b&gt;&lt;br&gt;밤 이후 엔딩 조건 확인" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="470" y="1460" width="300" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="ap2" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeWidth=2;" edge="1" parent="1" source="post1" target="post2"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <mxCell id="post3" value="&lt;b&gt;7. NarrativeLayer.render()&lt;/b&gt;&lt;br&gt;밤 내러티브 생성 (LLM)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="470" y="1535" width="300" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="ap3" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeWidth=2;" edge="1" parent="1" source="post2" target="post3"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <mxCell id="post4" value="&lt;b&gt;8. day_action_log 초기화&lt;/b&gt;&lt;br&gt;vars[&quot;day_action_log&quot;] = []&lt;br&gt;+ DB 저장" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="470" y="1610" width="300" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="ap4" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeWidth=2;" edge="1" parent="1" source="post3" target="post4"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- End -->
+        <mxCell id="end" value="&lt;b&gt;Return NightResponseResult&lt;/b&gt;&lt;br&gt;{ narrative, world_state, ending_info }" style="shape=mxgraph.flowchart.terminator;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="440" y="1700" width="360" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="aend" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeWidth=2;" edge="1" parent="1" source="post4" target="end"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

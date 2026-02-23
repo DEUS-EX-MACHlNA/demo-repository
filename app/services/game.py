@@ -115,6 +115,7 @@ def _world_state_to_games(game: Games, world_state: WorldStatePipeline) -> None:
     state_data["turn"] = world_state.turn
     state_data["flags"] = world_state.flags or {}
     state_data["vars"] = world_state.vars or {}
+    state_data["day_action_log"] = list(world_state.day_action_log)
     snapshot["state"] = state_data
 
     locks_wrapper = snapshot.get("locks", {})
@@ -295,6 +296,7 @@ class GameService:
         turn = state_data.get("turn", 1)
         flags = state_data.get("flags", {})
         vars_ = state_data.get("vars", {})
+        day_action_log = state_data.get("day_action_log", [])
         
         # Locks: list -> dict mapping
         locks_wrapper = meta.get("locks", {})
@@ -329,7 +331,8 @@ class GameService:
             flags=flags,
             inventory=inventory,
             locks=locks,
-            vars=vars_
+            vars=vars_,
+            day_action_log=day_action_log,
         )
 
     @staticmethod
@@ -516,7 +519,7 @@ class GameService:
             "intent": tool_result.intent,
             "events": tool_result.event_description,
         }
-        world_after.vars.setdefault("day_action_log", []).append(day_log_entry)
+        world_after.day_action_log.append(day_log_entry)
 
         # ── Step 6: EndingChecker - 엔딩 체크 ──
         # 아이템 사용으로 엔딩이 트리거된 경우 (ItemUseResolver에서 판정)
@@ -643,7 +646,7 @@ class GameService:
             )
 
         # ── Step 7.5: day_action_log 초기화 (다음 낮을 위해) ──
-        world_after.vars["day_action_log"] = []
+        world_after.day_action_log = []
 
         # ── Step 8: WorldStatePipeline → DB 반영 ──
         _world_state_to_games(game, world_after)

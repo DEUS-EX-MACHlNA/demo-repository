@@ -199,6 +199,7 @@ def interact(target: str, interact: str) -> Dict[str, Any]:
         "inventory": world_state.inventory,
         "genre": assets.scenario.get("genre", ""),
         "tone": assets.scenario.get("tone", ""),
+        "intent": ctx.get("intent", "neutral"),
     }
 
     # 3. NPC 대사 생성 (메모리 검색은 generate_utterance 내부에서 수행)
@@ -255,6 +256,7 @@ def interact(target: str, interact: str) -> Dict[str, Any]:
                 persona_summary=format_persona(npc_persona),
                 llm=llm_engine,
                 current_turn=world_state.turn,
+                hits_info=impact.get("hits_info"),
             )
         except Exception as e:
             logger.warning(f"메모리 저장 실패: {e}")
@@ -303,15 +305,25 @@ def _analyze_impact(
         llm=llm_engine,
         stat_names=stat_names,
         world_context=world_context,
+        include_triggers=True
     )
 
     # NPC의 stat delta만 추출하여 state_delta로 구성
     npc_stats = result.get("npc_stats", {})
     npc_stat_delta = npc_stats.get(npc_id, {})
 
+    # plus_hits / minus_hits를 state_delta에서 분리 (importance 계산용)
+    hits_info = None
+    if npc_stat_delta:
+        plus_hits = npc_stat_delta.pop("plus_hits", 0)
+        minus_hits = npc_stat_delta.pop("minus_hits", 0)
+        if plus_hits or minus_hits:
+            hits_info = {"plus_hits": plus_hits, "minus_hits": minus_hits}
+
     return {
         "state_delta": {"npc_stats": {npc_id: npc_stat_delta}} if npc_stat_delta else {},
         "event_description": result.get("event_description", []),
+        "hits_info": hits_info,
     }
 
 

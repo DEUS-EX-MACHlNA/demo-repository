@@ -47,7 +47,6 @@ class LockManager:
             LockCheckResult: 해금 결과
         """
         newly_unlocked: List[UnlockedInfo] = []
-        triggered_events: List[str] = []
 
         locks = locks_data.get("locks", [])
 
@@ -71,16 +70,12 @@ class LockManager:
                 
                 unlocked_info = UnlockedInfo(
                     info_id=info_id,
+                    type=lock.get("type", ""),
                     info_title=lock.get("info_title", ""),
                     description=lock.get("description", ""),
-                    reveal_trigger=lock.get("reveal_trigger", ""),
-                    linked_info_id=lock.get("linked_info_id"),
                     allowed_npcs=lock.get("access", {}).get("allowed_npcs", []),
                 )
                 newly_unlocked.append(unlocked_info)
-
-                if unlocked_info.reveal_trigger:
-                    triggered_events.append(unlocked_info.reveal_trigger)
 
                 logger.info(f"[LockManager] 정보 해금: {info_id} - {unlocked_info.info_title}")
 
@@ -90,7 +85,6 @@ class LockManager:
         return LockCheckResult(
             newly_unlocked=newly_unlocked,
             all_unlocked_ids=self._unlocked_ids.copy(),
-            triggered_events=triggered_events,
         )
 
     def get_unlocked_info_for_npc(
@@ -120,10 +114,9 @@ class LockManager:
             if npc_id in allowed_npcs:
                 result.append(UnlockedInfo(
                     info_id=info_id,
+                    type=lock.get("type", ""),
                     info_title=lock.get("info_title", ""),
                     description=lock.get("description", ""),
-                    reveal_trigger=lock.get("reveal_trigger", ""),
-                    linked_info_id=lock.get("linked_info_id"),
                     allowed_npcs=allowed_npcs,
                 ))
 
@@ -173,8 +166,7 @@ class LockManager:
                 memory_type=MEMORY_TYPE_SECRET,
                 metadata={
                     "info_id": unlocked_info.info_id,
-                    "reveal_trigger": unlocked_info.reveal_trigger,
-                    "linked_info_id": unlocked_info.linked_info_id,
+                    "type": unlocked_info.type
                 },
             )
 
@@ -299,7 +291,6 @@ if __name__ == "__main__":
         print(f"      설명: {info.description[:60]}...")
         print(f"      접근 가능 NPC: {info.allowed_npcs}")
     print(f"  전체 해금된 정보 수: {len(result2.all_unlocked_ids)}")
-    print(f"  트리거된 이벤트: {result2.triggered_events}")
 
     # 메모리 주입 확인
     print(f"\n[5] NPC 메모리 확인:")
@@ -342,7 +333,6 @@ if __name__ == "__main__":
         print(f"    - {info.info_id}: {info.info_title}")
         print(f"      설명: {info.description[:60]}...")
     print(f"  전체 해금된 정보 수: {len(result3.all_unlocked_ids)}")
-    print(f"  트리거된 이벤트: {result3.triggered_events}")
 
     # 테스트 케이스 4: 중복 체크 (이미 해금된 정보)
     print(f"\n[7] 테스트 4: 중복 체크 (같은 조건 재실행)")

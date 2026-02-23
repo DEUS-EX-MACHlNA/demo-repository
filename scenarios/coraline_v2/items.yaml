@@ -1,0 +1,144 @@
+items:
+  # 1. 보라색 라벨의 약병 (수면제) - 루트 1, 배드 루트 2
+  - item_id: sleeping_pills
+    name: "보라색 라벨의 약병"
+    type: "consumable"
+    description: "손가락만 한 크기의 짙은 보라색 유리병. 라벨에는 '착한 아이에게는 달콤한 꿈을'이라는 문구가 흐릿하게 적혀 있으며, 내용물은 점성이 있는 투명한 액체다."
+    acquire:
+      method: "interaction"
+      condition: "(area.current == 'living_room' and npc.stepmother.affection >= 50 and dialog.topic == 'insomnia') or (area.current == 'kitchen' and npc.stepmother.location == 'basement' and action == 'climb_chair')"
+    use:
+      actions:
+        - action_id: combine_with_tea
+          label: "홍차에 타기"
+          allowed_when: "has_item(earl_grey_tea)"
+          effects:
+            - { type: add_item, item_id: "spiked_tea" }
+            - { type: remove_item, item_id: "sleeping_pills" }
+            - { type: remove_item, item_id: "earl_grey_tea" }
+          notes: "5일 차 저녁 식사 전, 가족들을 재우기 위한 필수 조합."
+
+  # 1-1. 홍차 (Earl Grey Tea) - 루트 1 필수
+  - item_id: earl_grey_tea
+    name: "홍차"
+    type: "consumable"
+    description: "새엄마가 애용하는 정교한 도자기 찻주전자에 담긴 따뜻한 홍차. 진한 황금빛을 띠며, 베르가못의 향이 은은하게 풍긴다."
+    acquire:
+      method: "interaction"
+      condition: "(area.current == 'kitchen' and system.time == 'evening_prep') or (npc.stepmother.dialog.request == 'tea')"
+    use:
+      actions:
+        - action_id: drink
+          label: "마시기"
+          allowed_when: "true"
+          effects:
+            - { type: stat_add, target: "player.stamina", value: 10 }
+          notes: "그냥 마시면 기력 회복. 수면제와 조합하여 사용해야 함."
+
+  # 2. 훼손된 가족 사진 (진짜 가족 사진) - 루트 4
+  - item_id: real_family_photo
+    name: "훼손된 가족 사진"
+    type: "lore_clue"
+    description: "가장자리가 불에 그을리고 흙이 묻은 낡은 흑백 사진. 활짝 웃고 있는 '인간' 시절의 가족들이 찍혀 있으나, 주인공의 얼굴 부분만 긁혀서 지워져 있다."
+    acquire:
+      method: "interaction"
+      condition: "area.current == 'backyard' and (npc.dog.affection >= 'trust' or action == 'dig')"
+    use:
+      actions:
+        - action_id: show_to_lucas
+          label: "동생에게 보여주기"
+          allowed_when: "npc.target.id == 'brother'"
+          effects:
+            - { type: stat_add, target: "npc.brother.humanity", value: 40 }
+            - { type: unlock_lore, lore_id: "real_family_truth" }
+          notes: "동생의 인형화 기억을 깨트리고 인간성을 회복시킴."
+        - action_id: show_to_grandmother
+          label: "할머니에게 보여주기"
+          allowed_when: "npc.target.id == 'grandmother'"
+          effects:
+            - { type: unlock_lore, lore_id: "grandmother_past" }
+
+  # 3. 고래기름 통 (기름병) - 루트 2
+  - item_id: whale_oil_can
+    name: "고래기름 통"
+    type: "tool"
+    description: "녹이 슨 양철 캔. 겉면에 기름때가 쩔어 있어 미끌거린다. 뚜껑을 열면 역한 기름 냄새와 함께 비릿한 향이 난다."
+    acquire:
+      method: "search"
+      condition: "(area.current == 'basement' and object == 'medical_waste_box') or (area.current == 'living_room' and object == 'firewood_pile')"
+    use:
+      actions:
+        - action_id: fuel_fireplace
+          label: "벽난로에 붓기"
+          allowed_when: "area.current == 'living_room'"
+          effects:
+             - { type: set_env, key: "fireplace_fuled", value: true }
+          notes: "화재 이벤트를 위한 준비물."
+        - action_id: give_to_grandmother
+          label: "할머니에게 건네기"
+          allowed_when: "npc.grandmother.sanity == 'sane'"
+          effects:
+             - { type: trigger_event, event_id: "grandmother_sacrifice" }
+
+  # 4. 은색 지포 라이터 - 루트 2
+  - item_id: silver_lighter
+    name: "은색 지포 라이터"
+    type: "tool"
+    description: "오래된 은색 금속 라이터. 표면에 가문의 문장이 정교하게 음각되어 있으나, 긁힌 자국이 많다."
+    acquire:
+      method: "search"
+      condition: "area.current == 'living_room' and (object == 'sofa_gap' or (npc.stepfather.location != 'living_room' and object == 'newspaper_stand'))"
+    use:
+      actions:
+        - action_id: light_fire
+          label: "불 붙이기"
+          allowed_when: "env.fireplace_fuled == true"
+          effects:
+            - { type: trigger_event, event_id: "fire_outbreak" }
+            - { type: unlock_ending, ending_id: "chaos_night" }
+          notes: "고래기름 통과 함께 사용하여 화재 이벤트 발생."
+        - action_id: use_light
+          label: "빛 비추기"
+          allowed_when: "light_level == 'dark'"
+          effects:
+            - { type: set_env, key: "temp_light", value: true }
+
+  # 5. 낡은 태엽 로봇 (동생의 장난감) - 루트 4
+  - item_id: old_robot_toy
+    name: "낡은 태엽 로봇"
+    type: "gift"
+    description: "한쪽 팔이 떨어져 나간 양철 로봇 장난감. 등 뒤의 태엽을 감으면 슬픈 오르골 멜로디가 짧게 재생된다."
+    acquire:
+      method: "search"
+      condition: "area.current == 'glitch_room' and object == 'dollhouse_model'"
+    use:
+      actions:
+        - action_id: give_to_lucas
+          label: "동생에게 주기"
+          allowed_when: "npc.target.id == 'brother'"
+          effects:
+            - { type: stat_add, target: "npc.brother.humanity", value: 30 }
+            - { type: trigger_event, event_id: "lucas_awakening" }
+          notes: "동생의 인간성을 최대로 끌어올리는 각성 아이템."
+
+  # 6. 황동 열쇠 (마스터 키) - 모든 탈출 엔딩
+  - item_id: brass_key
+    name: "황동 열쇠"
+    type: "key"
+    description: "뼈처럼 하얗게 도색된 황동 열쇠. 손잡이 부분이 인간의 두개골 모양으로 조각되어 있어 잡을 때마다 서늘한 느낌을 준다."
+    acquire:
+      method: "interaction"
+      condition: "(npc.stepmother.status == 'sleeping') or (env.house_status == 'chaos') or (event.lucas_thief == true)"
+    use:
+      actions:
+        - action_id: unlock_dog_hole
+          label: "개구멍 열기"
+          allowed_when: "area.current == 'player_room' and object == 'dog_hole'"
+          effects:
+            - { type: unlock_exit, exit_id: "real_world" }
+          notes: "최종 탈출구 개방."
+        - action_id: unlock_main_door
+          label: "현관문 열기"
+          allowed_when: "area.current == 'hallway' and object == 'main_door'"
+          effects:
+            - { type: unlock_exit, exit_id: "front_door" }

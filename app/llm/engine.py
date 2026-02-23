@@ -170,7 +170,8 @@ class UnifiedLLMEngine:
         if system_prompt:
             messages.append({"role": "system", "content": system_prompt})
         messages.append({"role": "user", "content": prompt})
-
+        logger.info(f"BASE URL : {self.base_url}")
+        
         resp = self._client.post(
             f"{self.base_url}/chat/completions",
             headers={"Authorization": f"Bearer {self.api_key}"},

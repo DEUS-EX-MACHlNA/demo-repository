@@ -75,6 +75,7 @@ class ItemAcquirer:
             # 조건 평가
             condition = acquire.get("condition", "")
             if not condition:
+                logger.info(f"[ItemAcquirer] {item_id} 자동 획득 조건 불충족 !")
                 continue
 
             if self._evaluator.evaluate(condition, context):

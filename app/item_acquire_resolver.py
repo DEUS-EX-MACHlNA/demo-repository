@@ -51,6 +51,7 @@ class ItemAcquireResolver:
         # 1. 아이템 정의 확인
         item_def = assets.get_item_by_id(item_id)
         if not item_def:
+            logger.info("[ItemAcquireResolver] 존재하지 않는 아이템입니다 !!")
             return {
                 "success": False,
                 "item_id": item_id,
@@ -61,6 +62,7 @@ class ItemAcquireResolver:
         # 2. 이미 인벤토리에 있는지
         if item_id in world_state.inventory:
             item_name = item_def.get("name", item_id)
+            logger.info("[ItemAcquireResolver] 이미 존재하는 아이템입니다 !!")
             return {
                 "success": False,
                 "item_id": item_id,
@@ -80,6 +82,7 @@ class ItemAcquireResolver:
             )
             if not self._evaluator.evaluate(condition, context):
                 failure_msg = acquire.get("failure_message", "")
+                logger.info("[ItemAcquireResolver] 현재 조건이 불충족되어 획득이 불가능한 아이템입니다 !!")
                 return {
                     "success": False,
                     "item_id": item_id,
