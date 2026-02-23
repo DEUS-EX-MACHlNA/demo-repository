@@ -24,17 +24,37 @@ logger = logging.getLogger(__name__)
 _instance: Optional[UnifiedLLMEngine] = None
 
 # 중국어 유니코드 범위
+# 한국어(Hangul), 일본어(Hiragana/Katakana)는 제외하고 CJK 계열만 포함
 _CHINESE_UNICODE_RANGES = [
-    (0x4E00, 0x9FFF),   # CJK Unified Ideographs
+    (0x2E80, 0x2EFF),   # CJK Radicals Supplement (부수 보충)
+    (0x2F00, 0x2FDF),   # Kangxi Radicals (강희 자전)
     (0x3400, 0x4DBF),   # CJK Unified Ideographs Extension A
-    (0x20000, 0x2A6DF), # CJK Unified Ideographs Extension B
+    (0x4E00, 0x9FFF),   # CJK Unified Ideographs (기본 한자)
     (0xF900, 0xFAFF),   # CJK Compatibility Ideographs
+    (0x20000, 0x2A6DF), # CJK Unified Ideographs Extension B
+    (0x2A700, 0x2B73F), # CJK Unified Ideographs Extension C
+    (0x2B740, 0x2B81F), # CJK Unified Ideographs Extension D
+    (0x2B820, 0x2CEAF), # CJK Unified Ideographs Extension E
+    (0x2CEB0, 0x2EBEF), # CJK Unified Ideographs Extension F
 ]
 
 
 def _is_chinese_char(char: str) -> bool:
     cp = ord(char)
     return any(start <= cp <= end for start, end in _CHINESE_UNICODE_RANGES)
+
+
+def _strip_chinese_chars(text: str) -> str:
+    """생성된 텍스트에서 중국어 문자를 제거 (logit_bias 실패 시 안전망)
+
+    logit_bias/LogitsProcessor가 모든 경우를 커버하지 못할 때를 대비한
+    2차 방어선. 중국어 유니코드 범위에 해당하는 문자만 제거하고 나머지는 유지.
+    """
+    result = "".join(c for c in text if not _is_chinese_char(c))
+    if len(result) < len(text):
+        removed = len(text) - len(result)
+        logger.warning(f"중국어 문자 {removed}개 제거 (logit_bias 누락 추정): {text[:80]!r}")
+    return result
 
 
 def _find_chinese_token_ids(tokenizer) -> list:
@@ -264,6 +284,7 @@ class UnifiedLLMEngine:
         data = resp.json()
         logger.debug(f"vLLM resp data: {str(data)[:200]}")
         raw_text = data["choices"][0]["text"]
+        raw_text = _strip_chinese_chars(raw_text)  # 2차 방어: 잔류 중국어 제거
         if npc_id:
             logger.info(f"[LoRA 출력] adapter={model_to_use} | {raw_text[:120]}")
         return raw_text
@@ -370,7 +391,8 @@ class UnifiedLLMEngine:
 
         # 디코딩
         generated_tokens = outputs[0][input_ids.shape[-1]:]
-        return self._tokenizer.decode(generated_tokens, skip_special_tokens=True).strip()
+        decoded = self._tokenizer.decode(generated_tokens, skip_special_tokens=True).strip()
+        return _strip_chinese_chars(decoded)  # 2차 방어: 잔류 중국어 제거
 
     def get_llm_with_tools(self, tools: list) -> Any:
         """
