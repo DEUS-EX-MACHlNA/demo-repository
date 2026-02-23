@@ -99,9 +99,11 @@ def generate_utterance(
         history = "(대화 시작)"
 
     if world_snapshot:
+        humanity = speaker_stats.get("humanity", 100)
         prompt = _build_rich_utterance_prompt(
-            speaker_name, speaker_persona, persona_str, emotion_str,
+            speaker_id, speaker_name, speaker_persona, persona_str, emotion_str,
             plan_text, mem_ctx, history, listener_name, world_snapshot,
+            humanity=humanity,
         )
     else:
         # 폴백: 간단 프롬프트
@@ -122,7 +124,66 @@ def generate_utterance(
     return resp.strip()
 
 
+_HUMANITY_DIRECTIVES: dict[str, dict[int, str]] = {
+    "stepmother": {
+        1: "차분하고 통제적. 달콤하지만 은근한 위협. 완벽주의적 규율 강조.",
+        2: "불안정 시작. 달콤함과 날카로움이 공존. 가끔 말이 반복되거나 과도해짐.",
+        3: "광기적 집착. 감정이 달콤함↔분노로 폭발적 급변. 말이 끊기거나 반복 과다. 은근함 없이 직접적 집착/위협.",
+    },
+    "stepfather": {
+        1: "규칙을 강조하되 인간적 기억 흔적이 새어나옴. 가끔 과거 감정이 드러남.",
+        2: "냉정하고 명령적. 감정 절제. 짧고 단호한 지시 위주.",
+        3: "완전 기계적. 극도로 짧은 명령형 문장. 감정 일절 없음. 규칙과 지시만 반복.",
+    },
+    "grandmother": {
+        1: "의식 또렷. 따뜻하지만 가끔 공포스러운 진실을 말함.",
+        2: "반명료. 문장을 완성하기 어려움. 과거와 현재가 뒤섞임.",
+        3: "혼수 상태. 단편적 단어 나열. 문장 불완전. 의미 불분명한 단어들.",
+    },
+    "brother": {
+        1: "정상적인 5세 아이. 애정을 갈구하고 외로워함. 자연스러운 아이 말투.",
+        2: "혼란. 말을 더듬고 같은 단어를 반복. 가끔 자신을 3인칭으로 부름.",
+        3: "인형화. 감정 없이 평탄하게 말함. '나' 대신 '이 아이' 또는 3인칭 사용. 느낌표 없음.",
+    },
+    "dog_baron": {
+        1: "우호적이고 활발. 꼬리 흔드는 이미지. 플레이어에게 친밀하게 반응.",
+        2: "경계적·주저함. 조심스럽게 접근. 머뭇거리는 반응.",
+        3: "적대적. 으르렁거리며 위협. 접근 거부. 공격적 행동 묘사.",
+    },
+}
+
+_HUMANITY_DEFAULT: dict[int, str] = {
+    1: "자연스러운 기본 반응.",
+    2: "다소 경직되거나 불안한 반응.",
+    3: "극도로 위협적이거나 단절된 반응.",
+}
+
+_HUMANITY_LEVEL_LABELS = {1: "정상", 2: "중간", 3: "극단"}
+
+
+def _build_humanity_directive(npc_id: str, humanity: int) -> str:
+    """humanity 수치를 레벨로 변환해 NPC별 행동 지침 문자열 반환.
+
+    레벨 매핑 (postprocess/__init__.py의 humanity_to_level과 동일):
+        ≥ 70  → 레벨 1 (정상)
+        40~69 → 레벨 2 (중간)
+        < 40  → 레벨 3 (극단)
+    """
+    if humanity >= 70:
+        level = 1
+    elif humanity >= 40:
+        level = 2
+    else:
+        level = 3
+
+    directives = _HUMANITY_DIRECTIVES.get(npc_id, _HUMANITY_DEFAULT)
+    label = _HUMANITY_LEVEL_LABELS[level]
+    guide = directives[level]
+    return f"humanity={humanity} → {label} 상태. {guide}"
+
+
 def _build_rich_utterance_prompt(
+    speaker_id: str,
     speaker_name: str,
     speaker_persona: dict[str, Any],
     persona_str: str,
@@ -132,6 +193,7 @@ def _build_rich_utterance_prompt(
     history: str,
     listener_name: str,
     ws: dict[str, Any],
+    humanity: int = 100,
 ) -> str:
     """world_snapshot이 있을 때 사용하는 구체화된 NPC 발화 프롬프트."""
     genre = ws.get("genre", "")
@@ -150,6 +212,8 @@ def _build_rich_utterance_prompt(
     # 인벤토리
     inventory = ", ".join(ws.get("inventory", [])) or "(없음)"
 
+    humanity_directive = _build_humanity_directive(speaker_id, humanity)
+
     return (
         f"[ROLE]\n"
         f"너는 NPC \"{speaker_name}\"이다. 장르는 '{genre}'. {tone}.\n"
@@ -167,8 +231,9 @@ def _build_rich_utterance_prompt(
         f"현재 계획(단기): {plan_text}\n"
         f"스탯 반영 가이드:\n"
         f"- fear↑: 더 집착/불안/통제\n"
-        f"- humanity↑: 더 인간적/망설임/죄책감\n"
         f"- affection↓: 더 차갑고 거리감\n\n"
+        f"[현재 상태 가이드]\n"
+        f"{humanity_directive}\n\n"
         f"[WORLD SNAPSHOT]\n"
         f"day={ws.get('day', 1)}, turn={ws.get('turn', 1)}, "
         f"suspicion_level={ws.get('suspicion_level', 0)}, "
