@@ -372,8 +372,8 @@ def print_assets(assets: ScenarioAssets):
     print("=" * 60)
 
     # assets 데이터를 json타입으로 출력
-    print("\n[10] ScenarioAssets JSON 출력:")
-    print(json.dumps(assets.model_dump(), indent=4, ensure_ascii=False))
+    # print("\n[10] ScenarioAssets JSON 출력:")
+    # print(json.dumps(assets.__dict__, indent=4, ensure_ascii=False))
 
 # JSON을 DB에 저장
 # sqlalchemy ORM을 사용하여 저장
@@ -457,8 +457,7 @@ if __name__ == "__main__":
     for scenario_id in scenarios:
         print(f"\n[3] 시나리오 로드: {scenario_id}")
         assets = loader.load(scenario_id)
-        if scenario_id == "coraline":
-            print_assets(assets)
+        # print_assets(assets)
         save_assets_to_db(assets)
         # 여기서 DB에 저장하는 로직 추가 
     

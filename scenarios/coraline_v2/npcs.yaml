@@ -4,7 +4,7 @@ npcs:
   - npc_id: stepmother
     name: "새엄마 (엘리노어)"
     role: "메인 감시자 및 집도의"
-    stats: { affection: 50, fear: 80, humanity: -100 } # TODO 최종보스로서 인간성은 0 고정 더이상 아님!
+    stats: { affection: 50, fear: 80, humanity: -100 }
     persona:
       values: ["완벽한 가족", "우아한 질서", "통제"]
       taboos: ["무례한 행동", "식사 거부", "비밀 통로 언급"]

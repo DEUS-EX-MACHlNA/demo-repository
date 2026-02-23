@@ -29,11 +29,14 @@ from app.schemas.world_meta_data import (
     EndingSchema,
     )
 from app.schemas.item_info import ItemSchema
+from app.schemas.status import ItemStatus
 import json
 import copy
 from typing import Dict, Any
 from app.crud import scenario as crud_scenario
 from app.crud import game as crud_game
+from app.schemas.client_sync import GameClientSyncSchema
+from app.services.game import _scenario_to_assets
 
 
 class ScenarioService:
@@ -123,6 +126,7 @@ class ScenarioService:
             current_node=start_node,
             inventory=start_inventory, # -> ["item_id_1", "item_id_2"] 형태
             memo=initial_memos,
+            stats={"humanity": 100},  # 기본 스탯 설정
             memory=[]
         )
         
@@ -181,6 +185,11 @@ class ScenarioService:
         
         items_list = []
         for item in source_items:
+            # 초기 상태 결정: 'start'로 획득하는 아이템은 ACQUIRED 상태
+            initial_state = ItemStatus.NOT_ACQUIRED
+            if item.get("acquire", {}).get("method") == "start":
+                initial_state = ItemStatus.ACQUIRED
+
             items_list.append(ItemSchema(
                 item_id=item["item_id"],
                 name=item["name"],
@@ -188,8 +197,7 @@ class ScenarioService:
                 description=item["description"],
                 acquire=item["acquire"],
                 use=item["use"],
-                used=item.get("used", False),
-                state=item.get("state", ""),
+                state=item.get("state", initial_state),
                 location=item.get("location", "")
             ))
             
@@ -237,7 +245,7 @@ class ScenarioService:
         # (3) Current State 생성
         current_state_obj = CurrentStateSchema(
             turn=state_schema.get("system", {}).get("turn", {}).get("default", 1),
-            date=state_schema.get("system", {}).get("date", {}).get("default", "Unknown Date"),
+            date=state_schema.get("system", {}).get("date", {}).get("default", 1),
             vars=initial_vars,
             flags=initial_flags,
             # active_events=[] # 삭제됨
@@ -300,9 +308,6 @@ class ScenarioService:
             scenario_id: 생성할 게임과 연결할 시나리오의 PK
             user_id: 게임을 생성한 사용자 ID (기본값 1)
 
-        Returns:
-            int: 생성된 `Games.id`
-
         Raises:
             ValueError: 지정한 시나리오가 존재하지 않을 때
         """
@@ -326,18 +331,40 @@ class ScenarioService:
                 world_meta_data=world_state_data,
                 player_data=player_data,
                 npc_data=npc_data,
-                summary={},  # TODO: 이 부분은 추후 LLM에 넣어 둘 내용을 의미
+                # summary={},  # TODO: 이 부분은 추후 LLM에 넣어 둘 내용을 의미
                 status=GameStatus.LIVE,
             )
         
             crud_game.create_game(db, game)
-            # 여기서는 반환 타입을 맞추기 위해 래퍼를 씌워주지만, 
-            # 보통은 그냥 객체를 반환하거나 ID만 반환하기도 함.
-            # 반환 스키마에 맞춰서 데이터 주입
+            
+            # Redis Caching
+            try:
+                from app.redis_client import get_redis_client
+                redis_client = get_redis_client()
+                
+                # Check npc_data structure for caching
+                npc_stats = {}
+                if "npcs" in npc_data:
+                     for npc in npc_data["npcs"]:
+                        # NpcSchema 객체 혹은 dict일 수 있음 (create_game 시점엔 dict)
+                        if isinstance(npc, dict) and "npc_id" in npc:
+                            npc_stats[npc["npc_id"]] = npc
+                        elif hasattr(npc, "npc_id"):
+                             npc_stats[npc.npc_id] = npc.dict()
+
+                redis_client.set_game_state(
+                    str(game.id),
+                    world_state_data,
+                    npc_stats,
+                    player_data
+                )
+            except Exception as e:
+                # Redis 실패가 게임 생성을 막지 않도록 로깅만 함
+                print(f"[ScenarioService] Failed to cache initial game state: {e}")
+
             return GameClientSyncSchema(
-                world=world_state_data,
-                player=player_data,
-                npcs=npc_data
+                game_id=game.id,
+                user_id=user_id,
             )
         finally:
             db.close()

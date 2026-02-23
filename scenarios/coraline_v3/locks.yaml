@@ -111,6 +111,7 @@ locks:
     info_title: "엄마의 본모습"
     description: "새엄마는 사람이 아니라, 주인이 버리고 간 거대한 '오르골 인형'이 자아를 얻은 존재라는 진실."
     unlock_condition: "npc.grandmother.humanity >= 30"
+
     access:
       allowed_npcs: ["grandmother"]
 

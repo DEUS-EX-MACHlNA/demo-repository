@@ -47,10 +47,8 @@ from app.schemas.tool import (
 
 # Request/Response
 from app.schemas.request_response import (
-    UserInputSchema,
-    StepRequest,
-    StepResponse,
-    TurnResult,
+
+    StepResponseSchema,
     StepRequestSchema,
     NightRequestBody,
     NightResponseResult,

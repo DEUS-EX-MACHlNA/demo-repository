@@ -398,7 +398,7 @@ def analyze_conversation_impact(
         "}\n"
         "```"
     )
-    resp = llm.generate(prompt, max_tokens=200, temperature=0.3)
+    resp = llm.generate(prompt=prompt, max_tokens=200, temperature=0.3)
 
     result = _parse_impact_response(resp, npc1_id, npc1_name, npc2_id, npc2_name, stat_names, include_triggers)
     logger.debug(f"conversation_impact: {result}")
