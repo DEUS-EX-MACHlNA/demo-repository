@@ -93,12 +93,6 @@ class WorldStatePipeline(BaseModel):
             day_action_log=data.get("day_action_log", []),
         )
 
-class WorldState(WorldStatePipeline):
-    world_state_pipeline: Dict[str, Any]
-    npc_location: Optional[str] = None
-    item_state_changes: Optional[str] = None
-    npc_disables_states: Optional[str] = None
-
 class StateDelta(BaseModel):
     """상태 변경을 위한 델타 명세
 
