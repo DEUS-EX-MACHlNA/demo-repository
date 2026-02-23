@@ -23,7 +23,6 @@ failure_conditions:
   - "ending == 'unfinished_doll'"
   - "ending == 'eternal_dinner'"
 
-# TODO 아이템에 
 endings:
   - ending_id: stealth_exit_test
     name: "존1시나 깔@롱하고 완벽한 기만 (The Sugoi Stealth Exit)"

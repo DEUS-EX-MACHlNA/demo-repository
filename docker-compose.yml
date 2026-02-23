@@ -7,6 +7,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
       POSTGRES_DB: maratang_db
+      TZ: Asia/Seoul
     ports:
       - "1557:5432"
     volumes:

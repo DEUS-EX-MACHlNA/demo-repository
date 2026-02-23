@@ -33,7 +33,8 @@ def get_games(db: Session = Depends(get_db)):
     return [
         {
             "game_id": g.id,
-            "summary": g.summary if g.summary else {}
+            "summary": g.summary if g.summary else {},
+            "status": g.status,
         }
         for g in games
     ]

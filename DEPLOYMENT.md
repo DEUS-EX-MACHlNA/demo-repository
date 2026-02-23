@@ -136,7 +136,75 @@ Unity WebGL 빌드 파일을 서버의 **Nginx**를 통해 직접 서비스합�
 
 본격적인 배포 전에 다음 작업들을 수행해야 합니다:
 
-1.  **[Task] Docker Compose 분리**: 개발용(`dev`)과 배포용(`prod`) 설정 파일 분리.
+1.  **[Task] Docker Compose 분리**: 개발용(`dev`)과 배포용(`prod`) 설정 파일 분리. (완료)
 2.  **[Task] Nginx 설정**: 리버스 프록시 및 정적 파일 호스팅을 위한 Nginx 설정 작성.
-3.  **[Task] 비밀값 관리**: 하드코딩된 비밀번호들을 환경 변수(.env)로 이동.
+3.  **[Task] 비밀값 관리**: 하드코딩된 비밀번호들을 환경 변수(.env)로 이동. (완료)
 4.  **[Task] LLM 안정성**: vLLM 서비스 실패 시 자동 재시작 설정 추가.
+
+---
+
+## 🎯 특별 부록: 빈 서버 발급 직후 해야 할 일 (나침반 가이드)
+
+### 🚨 호스트 IP와 `.pem` 키를 방금 받으셨나요?
+서버 컴퓨터를 샀다고 코드가 저절로 돌아가진 않습니다! 깃허브 액션(GitHub Actions)이 코드를 알아서 배포하게 만들기 위해, **최초 1회 오너(Owner)가 직접 빈 서버에 들어가서 세팅해야 할 3가지 필수 관문**을 안내해 드립니다.
+
+### 관문 1: 인프라 개척 (서버 접속 및 필수 프로그램 설치)
+새로 산 깡통 컴퓨터(Ubuntu)에 도커를 깔아야 합니다. (Mac 터미널 이용)
+
+1. 받은 키 권한 변경 (중요: 권한이 넓으면 접속이 튕깁니다)
+   ```bash
+   chmod 400 your-key.pem 
+   ```
+2. 서버 접속
+   ```bash
+   ssh -i "your-key.pem" ubuntu@당신의호스트IP
+   ```
+   *(이후부터는 AWS 서버 내부입니다)*
+3. 시스템 업데이트 및 도커(Docker) 설치
+   ```bash
+   sudo apt update
+   sudo apt install -y docker.io docker-compose
+   ```
+4. 권한 부여 (매번 sudo 안 쳐도 되게 설정 후 로그아웃)
+   ```bash
+   sudo usermod -aG docker $USER
+   exit
+   ```
+
+### 관문 2: 금고 숨기기 (`.env.prod` 직통 배달)
+DB 비밀번호와 깃허브 토큰 같은 진짜진짜 중요한 비밀 정보는 깃허브에 안 올렸기 때문에 서버에 없습니다. 직접 만들어 줘야 합니다!
+
+1. 다시 서버 접속 후, 프로젝트 폴더 만들기
+   ```bash
+   ssh -i "your-key.pem" ubuntu@당신의호스트IP
+   mkdir -p demo-repository
+   cd demo-repository
+   ```
+2. `.env` 파일 편집기 열기
+   ```bash
+   nano .env.prod
+   ```
+3. 키보드로 아래 내용을 붙여넣기 (비밀번호는 본인이 원하는 걸로)
+   ```ini
+   POSTGRES_USER=maratang_admin
+   POSTGRES_PASSWORD=나만의진짜강력한DB비밀번호
+   POSTGRES_DB=maratang_prod_db
+   TZ=Asia/Seoul
+   ```
+4. 저장하고 나오기 (Ctrl+O -> Enter -> Ctrl+X)
+
+### 관문 3: 방화벽 뚫기 및 깃허브에게 열쇠 건네주기
+이제 서버 안의 준비는 백점입니다! 외부와 연결만 열어주면 됩니다.
+
+1. **AWS(또는 클라우드) 대시보드 접속**
+   - 인스턴스의 **[보안 그룹(Security Group)] - [인바운드 규칙]** 으로 이동합니다.
+   - 포트 `8000` (FastAPI 앱포트)를 소스를 `0.0.0.0/0` (Anywhere)로 열어줍니다!
+2. **GitHub 사이트 접속 (액션 권한 넘기기)**
+   - 우리 깃허브 리포지토리의 `[Settings] - [Secrets and variables] - [Actions]` 메뉴로 갑니다.
+   - `New repository secret` 버튼을 눌러 다음 3개의 기밀을 깃허브 금고에 맡깁니다.
+     - `EC2_HOST` : 할당받으신 주소 (예: 12.34.56.78)
+     - `EC2_USERNAME` : `ubuntu` (또는 ec2-user)
+     - `EC2_SSH_KEY` : 가지고 계신 `.pem` 파일의 안쪽 글자 텍스트 **전부** (-----BEGIN RSA PRIVATE KEY----- 부터 끝까지)
+
+**🎉 축하합니다! 모든 기초 공사가 끝났습니다!**
+이제 로컬에서 코드를 짜다가 `git push origin main`만 날리시면, 깃허브가 저 3번의 열쇠를 들고 알아서 서버에 접속해서 1, 2번에서 깔아둔 도커 위에 코드를 엎어치고 배포해 줄 겁니다!

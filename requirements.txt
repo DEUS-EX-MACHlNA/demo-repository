@@ -11,3 +11,4 @@ alembic
 torch
 httpx
 numpy
+apscheduler

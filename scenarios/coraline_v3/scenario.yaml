@@ -64,8 +64,8 @@ endings:
     #   1. 거실에서 라이터 습득 (acquire.condition = true), 지하실에서 기름병 습득 (acquire.condition = true)
     #   2. 할머니 호감도↑ → 새엄마의 화염 약점 정보 획득 (locks.quest_fire_weakness) → 기름병 사용 조건 충족 (use.actions["allowed_when"] = 'locks.quest_fire_weakness == true')
     #   3. 기름병 사용 시 flag 변경 (flags.oil_on_stepmother) → 라이터 사용 가능 (use.actions["allowed_when"] = 'flags.oil_on_stepmother == true')
-    #   3. 라이터 사용 시 var 변경 (vars.house_on_fire) → 엔딩 도달
-    condition: "vars.house_on_fire == true"
+    #   3. 라이터 사용 시 flag 변경 (flags.house_on_fire) → 엔딩 도달
+    condition: "flags.house_on_fire == true"
     epilogue_prompt: |
       주인공이 새엄마에게 기름병을 던지고, 라이터로 불을 붙이는 순간의 각오를 묘사하라.
       불길에 휩싸인 새엄마의 비명, 연기 속에 무너지는 저택,
