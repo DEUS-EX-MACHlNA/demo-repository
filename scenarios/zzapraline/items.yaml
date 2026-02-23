@@ -79,8 +79,8 @@ items:
           label: "음식에 타기"
           allowed_when: "system.phase == 'evening_prep'"
           effects:
-            - { type: set_state, target: "npc.target.status", value: "sleeping", duration: 3 }
-          notes: "특정 NPC를 3턴간 무력화하여 자유로운 탐색 기회를 확보."
+            - { type: set_state, target: "npc.all.status", value: "sleeping", duration: 3 }
+          notes: "모든 NPC를 3턴간 무력화하여 자유로운 탐색 기회를 확보."
 
   - item_id: oil_and_lighter
     name: "기름병과 라이터"

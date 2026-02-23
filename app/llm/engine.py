@@ -23,6 +23,43 @@ logger = logging.getLogger(__name__)
 
 _instance: Optional[UnifiedLLMEngine] = None
 
+# 중국어 유니코드 범위
+_CHINESE_UNICODE_RANGES = [
+    (0x4E00, 0x9FFF),   # CJK Unified Ideographs
+    (0x3400, 0x4DBF),   # CJK Unified Ideographs Extension A
+    (0x20000, 0x2A6DF), # CJK Unified Ideographs Extension B
+    (0xF900, 0xFAFF),   # CJK Compatibility Ideographs
+]
+
+
+def _is_chinese_char(char: str) -> bool:
+    cp = ord(char)
+    return any(start <= cp <= end for start, end in _CHINESE_UNICODE_RANGES)
+
+
+def _find_chinese_token_ids(tokenizer) -> list:
+    """토크나이저 vocab에서 중국어 문자를 포함하는 토큰 ID 목록 반환"""
+    vocab = tokenizer.get_vocab()
+    chinese_ids = []
+    for token, token_id in vocab.items():
+        decoded = tokenizer.convert_tokens_to_string([token])
+        if any(_is_chinese_char(c) for c in decoded):
+            chinese_ids.append(token_id)
+    return chinese_ids
+
+
+class ChineseBlockingLogitsProcessor:
+    """중국어 토큰 생성을 차단하는 LogitsProcessor (transformers 전용)"""
+
+    def __init__(self, tokenizer):
+        self._chinese_token_ids = _find_chinese_token_ids(tokenizer)
+        logger.info(f"중국어 차단 토큰 수: {len(self._chinese_token_ids)}")
+
+    def __call__(self, input_ids, scores):
+        if self._chinese_token_ids:
+            scores[:, self._chinese_token_ids] = -float("inf")
+        return scores
+
 
 class UnifiedLLMEngine:
     """통합 LLM 엔진 - 다양한 백엔드 지원"""
@@ -44,7 +81,7 @@ class UnifiedLLMEngine:
         self._tokenizer = None
         self._loaded = False
         self._model_name = model_name
-
+        
         # 설정 로드
         self.config = get_model_config(backend)
         if not self._model_name:
@@ -62,6 +99,12 @@ class UnifiedLLMEngine:
             self.api_key = self.config["api_key"]
             self._client = httpx.Client(timeout=httpx.Timeout(60.0))
 
+            # debugging 용
+            logger.info(self.api_key)
+            logger.warning(self.base_url)
+            logger.warning(self._model_name)
+
+
 
         logger.info(f"UnifiedLLMEngine 초기화: backend={backend}, model={self._get_model_name()}")
 
@@ -71,6 +114,22 @@ class UnifiedLLMEngine:
             return self.config.get("model", "unknown")
         else:
             return self.config.get("model_name", "unknown")
+
+    def _build_vllm_logit_bias(self) -> dict:
+        """vLLM용 중국어 차단 logit_bias 딕셔너리 생성 (lazy, 1회 호출)"""
+        try:
+            from transformers import AutoTokenizer
+            tokenizer = AutoTokenizer.from_pretrained(
+                self._model_name,
+                token=os.environ.get("HF_TOKEN"),
+                trust_remote_code=True,
+            )
+            chinese_ids = _find_chinese_token_ids(tokenizer)
+            logger.info(f"vLLM 중국어 차단 토큰 수: {len(chinese_ids)}")
+            return {str(tid): -100 for tid in chinese_ids}
+        except Exception as e:
+            logger.warning(f"vLLM 토크나이저 로드 실패, 중국어 차단 비활성화: {e}")
+            return {}
 
     def _load_model(self) -> None:
         """모델 로드 (lazy loading)"""
@@ -127,6 +186,9 @@ class UnifiedLLMEngine:
 
         self._model.eval()
 
+        # 중국어 차단 processor 캐싱 (vocab 분석은 1회만 수행)
+        self._chinese_processor = ChineseBlockingLogitsProcessor(self._tokenizer)
+
     def generate(self, prompt, **kargs):
         try:
             if self.backend == "vLLM":
@@ -161,33 +223,50 @@ class UnifiedLLMEngine:
             temperature: 샘플링 온도
             top_p: nucleus sampling
             repetition_penalty: 반복 패널티 (transformers만 사용)
-            npc_id: NPC ID — 매핑된 LoRA 어댑터가 있으면 해당 어댑터를 사용
+            npc_id: NPC ID — vLLM 기동 시 --lora-modules로 등록된 어댑터 이름을 사용
+                    등록된 어댑터가 없으면 base 모델로 생성
 
         Returns:
             생성된 텍스트
         """
-        messages = []
+        # NPC에 매핑된 어댑터 이름 조회 (vLLM --lora-modules로 사전 등록된 이름)
+        adapter_name = get_adapter_model(npc_id)
+        if adapter_name:
+            model_to_use = adapter_name
+            logger.info(f"LoRA 어댑터 사용: {adapter_name} (npc_id={npc_id})")
+        else:
+            model_to_use = self._model_name
+
         if system_prompt:
-            messages.append({"role": "system", "content": system_prompt})
-        messages.append({"role": "user", "content": prompt})
-        logger.info(f"BASE URL : {self.base_url}")
-        
+            formatted_prompt = f"{system_prompt}\n\n{prompt}"
+        else:
+            formatted_prompt = prompt
+
+        # 중국어 차단 logit_bias (lazy 초기화, 1회만 토크나이저 로드)
+        if not hasattr(self, "_vllm_logit_bias"):
+            self._vllm_logit_bias = self._build_vllm_logit_bias()
+
+        base = self.base_url.rstrip("/")
         resp = self._client.post(
-            f"{self.base_url}/chat/completions",
+            f"{base}/v1/completions",
             headers={"Authorization": f"Bearer {self.api_key}"},
             json={
-                "model": self._model_name,
-                "messages": messages,
+                "model": model_to_use,
+                "prompt": formatted_prompt,
                 "temperature": temperature,
                 "top_p": top_p,
                 "max_tokens": max_tokens,
+                "logit_bias": self._vllm_logit_bias or None,
             },
         )
         resp.raise_for_status()
-        print(f"resp : {resp}")
+        logger.debug(f"vLLM resp status: {resp.status_code}")
         data = resp.json()
-        print(f"data : {data}")
-        return data["choices"][0]["message"]["content"]
+        logger.debug(f"vLLM resp data: {str(data)[:200]}")
+        raw_text = data["choices"][0]["text"]
+        if npc_id:
+            logger.info(f"[LoRA 출력] adapter={model_to_use} | {raw_text[:120]}")
+        return raw_text
 
     def generate_transformers(
         self,
@@ -271,6 +350,10 @@ class UnifiedLLMEngine:
             pad_token_id = self._tokenizer.eos_token_id
 
         # 생성
+        from transformers import LogitsProcessorList
+        chinese_processor = getattr(self, "_chinese_processor", None)
+        logits_processor = LogitsProcessorList([chinese_processor]) if chinese_processor else None
+
         with torch.no_grad():
             outputs = self._model.generate(
                 input_ids,
@@ -282,6 +365,7 @@ class UnifiedLLMEngine:
                 repetition_penalty=repetition_penalty,
                 eos_token_id=self._tokenizer.eos_token_id,
                 pad_token_id=pad_token_id,
+                logits_processor=logits_processor,
             )
 
         # 디코딩

@@ -189,18 +189,7 @@ def interact(target: str, interact: str) -> Dict[str, Any]:
     npc_persona = npc_info.get("persona", {})
 
     # 2. world_snapshot 조립
-    world_snapshot = {
-        "day": world_state.vars.get("day", 1),
-        "turn": world_state.turn,
-        "suspicion_level": world_state.vars.get("suspicion_level", 0),
-        "player_humanity": world_state.vars.get("humanity", 100),
-        "flags": {k: v for k, v in world_state.flags.items() if v},
-        "node_id": world_state.vars.get("node_id", "unknown"),
-        "inventory": world_state.inventory,
-        "genre": assets.scenario.get("genre", ""),
-        "tone": assets.scenario.get("tone", ""),
-        "intent": ctx.get("intent", "neutral"),
-    }
+    world_snapshot = _build_world_snapshot(world_state, assets)
 
     # 3. NPC 대사 생성 (메모리 검색은 generate_utterance 내부에서 수행)
     npc_response = generate_utterance(
@@ -218,6 +207,7 @@ def interact(target: str, interact: str) -> Dict[str, Any]:
 
     # 3-1. NPC 대사 후처리 (글리치/광기 효과 적용)
     npc_humanity = npc_state.stats.get("humanity", 100) if npc_state else 100
+    logger.debug(f"[LoRA raw] {npc_response}")
     npc_response = postprocess_npc_dialogue(
         text=npc_response,
         npc_id=target,
@@ -347,17 +337,19 @@ def action(action: str) -> Dict[str, Any]:
 
     logger.info(f"action 호출: action={action[:50]}...")
 
-    # 프롬프트 생성
-    prompt = build_action_prompt(
+    # world_snapshot 생성 (필요한 정보만 추출)
+    world_snapshot = _build_world_snapshot(world_state, assets)
+
+    # 프롬프트 생성 (system/user 분리)
+    system_prompt, user_prompt = build_action_prompt(
         action=action,
-        user_state=None,
-        world_state=world_state.to_dict(),
+        world_snapshot=world_snapshot,
         npc_context=assets.export_for_prompt(),
         assets=assets,
     )
 
     # LLM 호출
-    raw_output = llm_engine.generate(prompt=prompt)
+    raw_output = llm_engine.generate(prompt=user_prompt, system_prompt=system_prompt)
     llm_response = parse_response(raw_output)
 
     return {
@@ -465,6 +457,27 @@ TOOLS: Dict[str, callable] = {
 # ============================================================
 # 유틸리티 함수
 # ============================================================
+def _build_world_snapshot(
+    world_state: WorldStatePipeline,
+    assets: ScenarioAssets,
+) -> Dict[str, Any]:
+    """Tool 함수에서 공통으로 사용하는 world_snapshot 생성.
+
+    전체 world_state 대신 LLM에 필요한 핵심 정보만 추출한다.
+    """
+    return {
+        "day": world_state.vars.get("day", 1),
+        "turn": world_state.turn,
+        "suspicion_level": world_state.vars.get("suspicion_level", 0),
+        "player_humanity": world_state.vars.get("humanity", 100),
+        "flags": {k: v for k, v in world_state.flags.items() if v},
+        "node_id": world_state.vars.get("node_id", "unknown"),
+        "inventory": world_state.inventory,
+        "genre": assets.scenario.get("genre", ""),
+        "tone": assets.scenario.get("tone", ""),
+    }
+
+
 def _final_values_to_delta(
     raw_delta: Dict[str, Any],
     world_state: WorldStatePipeline,

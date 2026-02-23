@@ -1,4 +1,4 @@
-from typing import Dict, List, Any, TYPE_CHECKING
+from typing import Dict, List, Any, Tuple, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from app.loader import ScenarioAssets
@@ -168,86 +168,92 @@ SYSTEM_PROMPT = """당신은 인터랙티브 노벨 게임의 내러티브 엔�
 # ============================================================
 def build_action_prompt(
     action: str,
-    user_state: Dict[str, Any] | None = None,
-    world_state: Dict | None = None,
+    world_snapshot: Dict[str, Any] | None = None,
     npc_context: List[str] | None = None,
     assets: "ScenarioAssets | None" = None,
-) -> str:
-    """action 의도 전용 프롬프트 생성"""
-    prompt_parts = [SYSTEM_PROMPT_ACTION]
+) -> Tuple[str, str]:
+    """action 의도 전용 프롬프트 생성
 
-    if world_state:
-        prompt_parts.append(
+    Returns:
+        (system_prompt, user_prompt) 튜플
+    """
+    system_prompt = SYSTEM_PROMPT_ACTION
+
+    user_parts = []
+
+    if world_snapshot:
+        user_parts.append(
             "[세계 상태]\n" +
-            "\n".join(f"- {k}: {v}" for k, v in world_state.items())
-        )
-
-    if user_state:
-        prompt_parts.append(
-            "[사용자 상태]\n" +
-            "\n".join(f"- {k}: {v}" for k, v in user_state.items())
+            "\n".join(f"- {k}: {v}" for k, v in world_snapshot.items())
         )
 
     if npc_context:
-        prompt_parts.append(
+        user_parts.append(
             "[등장인물]\n" + "\n".join(npc_context)
         )
 
-    prompt_parts.append(
+    user_parts.append(
         "[행동]\n" + action
     )
 
     # 동적 OUTPUT_FORMAT 생성
     npc_stat_names = assets.get_npc_stat_names() if assets else None
-    prompt_parts.append(build_output_format(npc_stat_names))
-    prompt_parts.append("[출력]\n")
+    user_parts.append(build_output_format(npc_stat_names))
+    user_parts.append("[출력]\n")
 
-    return "\n\n".join(prompt_parts)
+    user_prompt = "\n\n".join(user_parts)
+
+    return system_prompt, user_prompt
 
 
-def build_item_prompt(
+def build_use_prompt(
     item_name: str,
+    action: str,
+    world_snapshot: Dict[str, Any] | None = None,
     item_def: Dict[str, Any] | None = None,
-    world_state: Dict | None = None,
+    target_npc_id: str | None = None,
     npc_context: List[str] | None = None,
     assets: "ScenarioAssets | None" = None,
-) -> str:
-    """item 의도 전용 프롬프트 생성"""
-    prompt_parts = [SYSTEM_PROMPT_ITEM]
+) -> Tuple[str, str]:
+    """use 의도 전용 프롬프트 생성
 
-    if world_state:
-        prompt_parts.append(
+    Returns:
+        (system_prompt, user_prompt) 튜플
+    """
+    system_prompt = SYSTEM_PROMPT_ITEM
+
+    user_parts = []
+
+    if world_snapshot:
+        user_parts.append(
             "[세계 상태]\n" +
-            "\n".join(f"- {k}: {v}" for k, v in world_state.items())
+            "\n".join(f"- {k}: {v}" for k, v in world_snapshot.items())
         )
 
     if item_def:
-        prompt_parts.append(
-            "[아이템 정보]\n" +
-            f"- 이름: {item_name}\n" +
-            "\n".join(f"- {k}: {v}" for k, v in item_def.items())
-        )
+        item_info_lines = [f"- 이름: {item_name}"]
+        for k, v in item_def.items():
+            if k not in ("acquire",):
+                item_info_lines.append(f"- {k}: {v}")
+        user_parts.append("[아이템 정보]\n" + "\n".join(item_info_lines))
     else:
-        prompt_parts.append(
-            "[아이템 정보]\n" +
-            f"- 이름: {item_name}"
-        )
+        user_parts.append(f"[아이템 정보]\n- 이름: {item_name}")
+
+    if target_npc_id:
+        user_parts.append(f"[대상]\n- NPC: {target_npc_id}")
 
     if npc_context:
-        prompt_parts.append(
-            "[등장인물]\n" + "\n".join(npc_context)
-        )
+        user_parts.append("[등장인물]\n" + "\n".join(npc_context))
 
-    prompt_parts.append(
-        "[아이템 사용]\n" + f"{item_name}을(를) 사용한다"
-    )
+    user_parts.append(f"[아이템 사용]\n{action}")
 
     # 동적 OUTPUT_FORMAT 생성
     npc_stat_names = assets.get_npc_stat_names() if assets else None
-    prompt_parts.append(build_output_format(npc_stat_names))
-    prompt_parts.append("[출력]\n")
+    user_parts.append(build_output_format(npc_stat_names))
+    user_parts.append("[출력]\n")
 
-    return "\n\n".join(prompt_parts)
+    user_prompt = "\n\n".join(user_parts)
+    return system_prompt, user_prompt
 
 
 # ============================================================
@@ -439,7 +445,7 @@ def build_family_meeting_prompt(
         "2. 계획 (Plan): 플레이어를 어떻게 통제/처벌할지 구체적 논의\n"
         "3. 대화 (Dialogue): 서로 비난하며 에스컬레이션, 결론은 플레이어 위협\n\n"
         "[톤 가이드]\n"
-        "- 몬스터 같은 말투: '키키키', '후후후', '...봤다' 등 사용\n"
+        "- 몬스터 같은 말투: '키키키', '후후후', '...봤다' 등 사용\n" # rule base로 수정하고 프롬프트에서 건드리지 말자
         "- 급격한 감정 변화: 달콤함 → 광기, 침묵 → 폭발\n"
         "- 구체적 처벌 언급: 눈 꿰매기, 손가락 자르기, 가두기 등\n"
         "- 가족끼리도 서로 비난: '네 감시가 부족해서!', '네 잘못이야!'\n\n"

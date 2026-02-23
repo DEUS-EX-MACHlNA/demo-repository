@@ -52,6 +52,7 @@ class EffectApplicator:
         """
         delta: Dict[str, Any] = {
             "npc_stats": {},
+            "npc_status_changes": {},
             "flags": {},
             "vars": {},
             "inventory_add": [],
@@ -129,25 +130,34 @@ class EffectApplicator:
             value = effect["value"]
             duration = effect.get("duration")
 
-            # NPCStatus enum으로 변환
-            try:
-                applied_status = NPCStatus(value)
-            except ValueError:
-                logger.warning(f"[EffectApplicator] 알 수 없는 NPCStatus: {value}")
-                return
+            # _all_npcs 센티넬을 개별 NPC로 확장
+            target_ids = (
+                list(world_state.npcs.keys())
+                if npc_id == "_all_npcs"
+                else [npc_id]
+            )
 
-            # duration이 있으면 StatusEffect 생성 (만료 시 복구용)
-            if duration:
-                npc_state = world_state.npcs.get(npc_id)
-                original_status = npc_state.status if npc_state else NPCStatus.ALIVE
+            for tid in target_ids:
+                if stat == "status":
+                    # NPC status enum 변경 (sleeping, deceased 등)
+                    delta["npc_status_changes"][tid] = value
+                else:
+                    # 일반 스탯 세팅
+                    delta["npc_stats"].setdefault(tid, {})
+                    delta["npc_stats"][tid][stat] = value
 
-                status_effects.append(StatusEffect(
-                    target_npc_id=npc_id,
-                    applied_status=applied_status,
-                    original_status=original_status,
-                    expires_at_turn=current_turn + duration,
-                    source_item_id=source_item_id,
-                ))
+                # duration이 있으면 StatusEffect 생성
+                if duration and stat == "status":
+                    npc_state = world_state.npcs.get(tid)
+                    original = npc_state.status.value if npc_state else "alive"
+
+                    status_effects.append(StatusEffect(
+                        target_npc_id=tid,
+                        applied_status=NPCStatus(value),
+                        original_status=NPCStatus(original),
+                        expires_at_turn=current_turn + duration,
+                        source_item_id=source_item_id,
+                    ))
 
         # ── set_env ──
         elif effect_type == "set_env":
@@ -184,6 +194,8 @@ class EffectApplicator:
             if prefix == "npc":
                 if npc_ref == "target":
                     return (target_npc_id or "_unknown", stat)
+                elif npc_ref == "all":
+                    return ("_all_npcs", stat)
                 return (npc_ref, stat)
             elif prefix == "player":
                 return ("_player", f"{npc_ref}.{stat}")

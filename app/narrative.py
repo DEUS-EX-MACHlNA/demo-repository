@@ -86,8 +86,12 @@ class NarrativeLayer:
         """
         is_night = night_conversation is not None
 
-        import torch
-        use_lm = self._enable_lm and torch.cuda.is_available()
+        llm_engine = _get_llm()
+        if llm_engine.backend == "vLLM":
+            use_lm = self._enable_lm
+        else:
+            import torch
+            use_lm = self._enable_lm and torch.cuda.is_available()
 
         if is_night:
             logger.info("Rendering narrative (night phase)")
@@ -138,6 +142,8 @@ class NarrativeLayer:
             llm_engine = _get_llm()
             raw_output = llm_engine.generate(prompt)
             logger.debug(f"[narrative] LLM day response: {raw_output[:200]}")
+            if not raw_output:
+                return self._render_simple_day(event_description, state_delta, world_state, assets)
             return parse_narrative_response(raw_output)
         except Exception as e:
             logger.error(f"LM generation failed: {e}")
@@ -184,6 +190,8 @@ class NarrativeLayer:
             llm_engine = _get_llm()
             raw_output = llm_engine.generate(prompt)
             logger.debug(f"[narrative] LLM night response: {raw_output[:200]}")
+            if not raw_output:
+                return self._render_simple_night(world_state, assets, night_conversation)
             return "---\n\n" + parse_narrative_response(raw_output)
         except Exception as e:
             logger.error(f"LM generation failed: {e}")
@@ -420,8 +428,12 @@ class NarrativeLayer:
     ) -> str:
         logger.info(f"Rendering ending: {ending_info.get('ending_id', 'unknown')}")
 
-        import torch
-        use_lm = self._enable_lm and torch.cuda.is_available()
+        llm_engine = _get_llm()
+        if llm_engine.backend == "vLLM":
+            use_lm = self._enable_lm
+        else:
+            import torch
+            use_lm = self._enable_lm and torch.cuda.is_available()
 
         if use_lm:
             dialogue = self._render_lm_ending(ending_info, world_state, assets)
@@ -451,6 +463,8 @@ class NarrativeLayer:
             ending_name = ending_info.get("name", "")
             raw_output = llm_engine.generate(prompt, max_tokens=600)
             logger.debug(f"[narrative] LLM ending response: {raw_output[:200]}")
+            if not raw_output:
+                return self._render_simple_ending(ending_info, world_state, assets)
             generated_text = parse_narrative_response(raw_output)
 
             formatted = [

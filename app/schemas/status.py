@@ -51,6 +51,6 @@ class NpcId(str, Enum):
     STEPMOTHER = "stepmother"
     STEPFATHER = "stepfather"
     BROTHER = "brother"
-    DOG = "dog"
+    DOG_BARON = "dog_baron"
     GRANDMOTHER = "grandmother"
 

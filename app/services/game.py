@@ -30,6 +30,7 @@ from app.db_models.scenario import Scenario
 from app.crud import game as crud_game
 from app.loader import ScenarioAssets
 from app.schemas.game_state import NPCState, WorldStatePipeline, StateDelta
+from app.schemas.status import NPCStatus
 from app.schemas.request_response import StepResponseSchema, NightResponseResult
 from app.schemas.tool import ToolResult
 from app.schemas.night import NightResult
@@ -64,6 +65,14 @@ def _apply_delta(
                     npc.stats[stat_name] = max(0, min(100, old + delta_value))
                 else:
                     npc.stats[stat_name] = delta_value
+
+    # 1b. NPC status changes (enum, not numeric)
+    for npc_id, new_status in delta.npc_status_changes.items():
+        if npc_id in world_state.npcs:
+            try:
+                world_state.npcs[npc_id].status = NPCStatus(new_status)
+            except ValueError:
+                logger.warning(f"Invalid NPC status: {new_status}")
 
     # 2. Flags (덮어쓰기)
     world_state.flags.update(delta.flags)
@@ -171,6 +180,10 @@ def _world_state_to_games(game: Games, world_state: WorldStatePipeline) -> None:
             memory = npc_state.get("memory")
         if memory is not None:
             target["memory"] = memory
+
+        status = getattr(npc_state, "status", None)
+        if status is not None:
+            target["status"] = status.value if hasattr(status, "value") else str(status)
 
     npc_data["npcs"] = npc_list
     game.npc_data = npc_data
@@ -319,10 +332,19 @@ class GameService:
             if not nid:
                 continue
 
+            stats = npc.get("stats", {})
+            memory = npc.get("memory", {})
+            status_str = npc.get("status", "alive")
+            try:
+                status = NPCStatus(status_str)
+            except ValueError:
+                status = NPCStatus.ALIVE
+
             npcs[nid] = NPCState(
                 npc_id=nid,
-                stats=npc.get("stats", {}),
-                memory=npc.get("memory", {}),
+                status=status,
+                stats=stats,
+                memory=memory,
             )
 
         return WorldStatePipeline(
