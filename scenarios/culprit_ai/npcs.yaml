@@ -4,6 +4,7 @@ npcs:
   - npc_id: family
     user_id: "{user_id}"
     name: "피해자 가족"
+    aliases: ["가족", "유가족", "피해자 가족", "피해자측", "유족", "가족분", "피해자의 가족", "유가족분"]
     role: "증언자"
     stats: { trust: 0, fear: 0, suspicion: 0 }
     persona:
@@ -16,6 +17,7 @@ npcs:
   - npc_id: partner
     user_id: "{user_id}"
     name: "동료 수사관"
+    aliases: ["동료", "수사관", "파트너", "동료 수사관", "동료수사관", "상대방", "같이 일하는 사람", "동기"]
     role: "견제자"
     stats: { trust: 0, fear: 0, suspicion: 1 }
     persona:
@@ -28,6 +30,7 @@ npcs:
   - npc_id: witness
     user_id: "{user_id}"
     name: "목격자"
+    aliases: ["목격자", "증인", "목격인", "목격한 사람", "본 사람", "증언자"]
     role: "불완전 기억"
     stats: { trust: 0, fear: 2, suspicion: 0 }
     persona:

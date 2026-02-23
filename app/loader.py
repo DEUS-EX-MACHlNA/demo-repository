@@ -1,13 +1,42 @@
 """
 app/loader.py
 YAML 파일 로더 및 ScenarioAssets 데이터클래스
+
+
+손 볼 부분
+yaml 파일을 로드해서 Json으로 변하는 부분은 오캐이, 하지만 추후에 새로운 yaml규칙을 추가하거나 수정을 할 경우 어찌 할 것이냐?
+새로운 시나리오가 있다 -> 기존대로 파싱한다 -> DB에 새로운 시나리오를 추가한다
+기존 시나리오를 업데이트 할 것이다 -> 기존대로 파싱한다 -> DB에 업데이트 된 내용을 반영한다
+-> 그럼 실제 배포시에는 어떻게 할 것이냐?
+1. 최초로 서버(모델)이 실행되면 여기서 리스트를 다 읽는다
+2. 그 리스트를 루프문을 돌려서 DB에 merge형식으로 저장시킨다
+3. 만약에 디버깅/테스트용으로 출력을 하게 된다면 안에서 루프 돌면서 쓰면 되겠지
+
+
+
+1. 그래서 리스트는 어차피 DB에서 리스트화가 되어 있으니
+2. 이렇게 로드를 했으니, 이걸 DB에 넣는거, 그리고 새로운 게임을 시작할때, scenario_id를 받아서 games에 넣는 파일을 생성
+
+
+
 """
 from __future__ import annotations
+import sys
+from pathlib import Path
+
+# 프로젝트 루트를 sys.path에 추가 (직접 실행시 필요)
+project_root = Path(__file__).parent.parent
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
 
 import logging
-from dataclasses import dataclass, field
-from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Dict, List, Optional
+from pydantic import BaseModel, Field
+from datetime import datetime
+from sqlalchemy.orm import Session
+
+from app.db_models.scenario import Scenario
+from app.database import get_db, SessionLocal
 
 import yaml
 
@@ -17,18 +46,17 @@ logger = logging.getLogger(__name__)
 # ============================================================
 # ScenarioAssets: 로드된 모든 YAML 데이터를 담는 컨테이너
 # ============================================================
-@dataclass
-class ScenarioAssets:
-    """시나리오의 모든 에셋을 담는 데이터클래스"""
+class ScenarioAssets(BaseModel):
+    """시나리오의 모든 에셋을 담는 Pydantic 모델"""
     scenario_id: str
-    scenario: dict[str, Any] = field(default_factory=dict)
-    story_graph: dict[str, Any] = field(default_factory=dict)
-    npcs: dict[str, Any] = field(default_factory=dict)
-    items: dict[str, Any] = field(default_factory=dict)
-    memory_rules: dict[str, Any] = field(default_factory=dict)
+    scenario: Dict[str, Any] = Field(default_factory=dict)
+    story_graph: Dict[str, Any] = Field(default_factory=dict)
+    npcs: Dict[str, Any] = Field(default_factory=dict)
+    items: Dict[str, Any] = Field(default_factory=dict)
+    memory_rules: Dict[str, Any] = Field(default_factory=dict)
 
     # 추가 에셋 (locks.yaml 등)
-    extras: dict[str, dict[str, Any]] = field(default_factory=dict)
+    extras: Dict[str, Dict[str, Any]] = Field(default_factory=dict)
 
     def get_npc_by_id(self, npc_id: str) -> Optional[dict[str, Any]]:
         """NPC ID로 NPC 정보 조회"""
@@ -46,13 +74,27 @@ class ScenarioAssets:
                 return item
         return None
 
-    def get_node_by_id(self, node_id: str) -> Optional[dict[str, Any]]:
-        """Node ID로 스토리 노드 조회"""
+    def get_location_by_id(self, location_id: str) -> Optional[dict[str, Any]]:
+        """Location ID로 장소 조회 (v3 locations / v1 nodes 모두 지원)"""
+        # v3: locations 키
+        locations = self.story_graph.get("locations", [])
+        for loc in locations:
+            if loc.get("location_id") == location_id:
+                return loc
+        # v1 fallback: nodes 키
         nodes = self.story_graph.get("nodes", [])
         for node in nodes:
-            if node.get("node_id") == node_id:
+            if node.get("node_id") == location_id:
                 return node
         return None
+
+    def get_all_location_ids(self) -> list[str]:
+        """모든 장소 ID 목록 반환 (v3 locations / v1 nodes 모두 지원)"""
+        locations = self.story_graph.get("locations", [])
+        if locations:
+            return [loc.get("location_id") for loc in locations]
+        nodes = self.story_graph.get("nodes", [])
+        return [node.get("node_id") for node in nodes]
 
     def get_all_npc_ids(self) -> list[str]:
         """모든 NPC ID 목록 반환"""
@@ -71,6 +113,13 @@ class ScenarioAssets:
             if item.get("acquire", {}).get("method") == "start"
         ]
 
+    def get_items_by_acquire_method(self, method: str) -> list[dict[str, Any]]:
+        """특정 acquire method를 가진 아이템 목록 반환"""
+        return [
+            item for item in self.items.get("items", [])
+            if item.get("acquire", {}).get("method") == method
+        ]
+
     def get_turn_limit(self) -> int:
         """턴 제한 반환"""
         return self.scenario.get("turn_limit", 12)
@@ -82,6 +131,30 @@ class ScenarioAssets:
     def get_state_schema(self) -> dict[str, Any]:
         """상태 스키마 반환"""
         return self.scenario.get("state_schema", {})
+
+    def export_for_prompt(self) -> list[str]:
+        """프롬프트용 NPC 컨텍스트 문자열 목록 반환"""
+        result: list[str] = []
+        for npc in self.npcs.get("npcs", []):
+            nid = npc.get("npc_id", "")
+            name = npc.get("name", "")
+            role = npc.get("role", "")
+            result.append(f"{nid}: {name} - {role}")
+        return result
+
+    def get_npc_stat_names(self) -> list[str]:
+        """
+        모든 NPC에서 사용되는 스탯 이름 목록 반환 (중복 제거)
+
+        Returns:
+            유니크한 스탯 이름 리스트 (예: ["affection", "fear", "humanity"])
+        """
+        stat_names: set[str] = set()
+        for npc in self.npcs.get("npcs", []):
+            stats = npc.get("stats", {})
+            if isinstance(stats, dict):
+                stat_names.update(stats.keys())
+        return sorted(list(stat_names))
 
 
 # ============================================================
@@ -191,7 +264,7 @@ class ScenarioLoader:
             f"Loaded scenario '{scenario_id}': "
             f"{len(assets.get_all_npc_ids())} NPCs, "
             f"{len(assets.get_all_item_ids())} items, "
-            f"{len(story_graph.get('nodes', []))} story nodes"
+            f"{len(assets.get_all_location_ids())} locations"
         )
 
         return assets
@@ -262,6 +335,97 @@ def clear_assets_cache(scenario_id: Optional[str] = None):
     else:
         _assets_cache.clear()
 
+# 로드된 json 출력
+def print_assets(assets: ScenarioAssets):
+    print(f"\n[4] 로드 결과:")
+    print(f"    - scenario_id: {assets.scenario_id}")
+    print(f"    - title: {assets.scenario.get('title', 'N/A')}")
+    print(f"    - genre: {assets.scenario.get('genre', 'N/A')}")
+    print(f"    - turn_limit: {assets.get_turn_limit()}")
+    print(f"    - opening_scene: {assets.get_opening_scene_id()}")
+
+    print(f"\n[5] NPCs ({len(assets.get_all_npc_ids())}개):")
+    for npc_id in assets.get_all_npc_ids():
+        npc = assets.get_npc_by_id(npc_id)
+        print(f"    - {npc_id}: {npc.get('name', 'N/A')} ({npc.get('role', 'N/A')})")
+
+    print(f"\n[6] Items ({len(assets.get_all_item_ids())}개):")
+    for item_id in assets.get_all_item_ids():
+        item = assets.get_item_by_id(item_id)
+        print(f"    - {item_id}: {item.get('name', 'N/A')} ({item.get('type', 'N/A')})")
+
+    print(f"\n[7] 초기 인벤토리: {assets.get_initial_inventory()}")
+
+    print(f"\n[8] Locations:")
+    for loc_id in assets.get_all_location_ids():
+        loc = assets.get_location_by_id(loc_id)
+        name = loc.get("name", loc.get("summary", "N/A")) if loc else "N/A"
+        print(f"    - {loc_id}: {name}")
+
+    print(f"\n[9] State Schema:")
+    schema = assets.get_state_schema()
+    print(f"    vars: {list(schema.get('vars', {}).keys())}")
+    print(f"    flags: {list(schema.get('flags', {}).keys())}")
+
+    print("\n" + "=" * 60)
+    print("✅ LOADER 테스트 완료")
+    print("=" * 60)
+
+    # assets 데이터를 json타입으로 출력
+    # print("\n[10] ScenarioAssets JSON 출력:")
+    # print(json.dumps(assets.__dict__, indent=4, ensure_ascii=False))
+
+# JSON을 DB에 저장
+# sqlalchemy ORM을 사용하여 저장
+def save_assets_to_db(assets: ScenarioAssets):
+    """
+    ScenarioAssets를 DB의 scenarios 테이블에 저장
+    
+    Args:
+        assets: 파싱된 ScenarioAssets 데이터
+    """
+    
+    db = SessionLocal()
+    try:
+        world_asset_data = assets.model_dump()
+        
+        # 현재 시간
+        now = datetime.utcnow()
+        
+        # 기존 데이터 확인 (title으로 검색)
+        existing_scenario = db.query(Scenario).filter(Scenario.title == assets.scenario_id).first()
+        
+        if existing_scenario:
+            # 기존 데이터 수정
+            existing_scenario.world_asset_data = world_asset_data
+            existing_scenario.update_time = now
+            db.merge(existing_scenario)
+            logger.info(f"✓ Scenario updated: {assets.scenario_id}")
+        else:
+            # 새로운 데이터 생성 (id는 autoincrement)
+            new_scenario = Scenario(
+                title=assets.scenario_id,
+                world_asset_data=world_asset_data,
+                create_time=now,
+                update_time=now,
+            )
+            db.add(new_scenario)
+            logger.info(f"✓ Scenario created: {assets.scenario_id}")
+        
+        db.commit()
+        logger.info(f"✓ Database saved: {assets.scenario_id}")
+        
+    except Exception as e:
+        db.rollback()
+        logger.error(f"✗ Failed to save scenario {assets.scenario_id}: {str(e)}")
+        raise
+    finally:
+        db.close()
+
+
+
+
+
 
 # ============================================================
 # 독립 실행 테스트
@@ -289,40 +453,11 @@ if __name__ == "__main__":
         print("❌ 시나리오가 없습니다!")
         exit(1)
 
-    # 첫 번째 시나리오 로드
-    scenario_id = scenarios[0]
-    print(f"\n[3] 시나리오 로드: {scenario_id}")
-
-    assets = loader.load(scenario_id)
-
-    print(f"\n[4] 로드 결과:")
-    print(f"    - scenario_id: {assets.scenario_id}")
-    print(f"    - title: {assets.scenario.get('title', 'N/A')}")
-    print(f"    - genre: {assets.scenario.get('genre', 'N/A')}")
-    print(f"    - turn_limit: {assets.get_turn_limit()}")
-    print(f"    - opening_scene: {assets.get_opening_scene_id()}")
-
-    print(f"\n[5] NPCs ({len(assets.get_all_npc_ids())}개):")
-    for npc_id in assets.get_all_npc_ids():
-        npc = assets.get_npc_by_id(npc_id)
-        print(f"    - {npc_id}: {npc.get('name', 'N/A')} ({npc.get('role', 'N/A')})")
-
-    print(f"\n[6] Items ({len(assets.get_all_item_ids())}개):")
-    for item_id in assets.get_all_item_ids():
-        item = assets.get_item_by_id(item_id)
-        print(f"    - {item_id}: {item.get('name', 'N/A')} ({item.get('type', 'N/A')})")
-
-    print(f"\n[7] 초기 인벤토리: {assets.get_initial_inventory()}")
-
-    print(f"\n[8] Story Graph 노드:")
-    for node in assets.story_graph.get("nodes", []):
-        print(f"    - {node.get('node_id')}: {node.get('summary', 'N/A')[:40]}...")
-
-    print(f"\n[9] State Schema:")
-    schema = assets.get_state_schema()
-    print(f"    vars: {list(schema.get('vars', {}).keys())}")
-    print(f"    flags: {list(schema.get('flags', {}).keys())}")
-
-    print("\n" + "=" * 60)
-    print("✅ LOADER 테스트 완료")
-    print("=" * 60)
+    # 루프를 돌면서 시나리오를 로드
+    for scenario_id in scenarios:
+        print(f"\n[3] 시나리오 로드: {scenario_id}")
+        assets = loader.load(scenario_id)
+        # print_assets(assets)
+        save_assets_to_db(assets)
+        # 여기서 DB에 저장하는 로직 추가 
+    

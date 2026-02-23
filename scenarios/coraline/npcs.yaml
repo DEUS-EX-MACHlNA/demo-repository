@@ -1,0 +1,85 @@
+# 시나리오: 인형의 집 (The Dollhouse) NPC 데이터
+
+npcs:
+  - npc_id: stepmother
+    name: "새엄마 (엘리노어)"
+    role: "메인 감시자 및 집도의"
+    status: "alive"
+    stats: { affection: 50, fear: 80, humanity: 0, plus_hits: 0, minus_hits: 0, critical_hits: 0 }
+    goal: "플레이어를 '완벽한 가족' 규율에 편입시키거나, 실패 시 개조로 전환"
+    persona:
+      values: ["완벽한 가족", "우아한 질서", "통제"]
+      taboos: ["무례한 행동", "식사 거부", "비밀 통로 언급"]
+      triggers:
+        plus: ["순종적인 대답", "예의 바른 말투", "음식 칭찬"]
+        minus: ["반항적인 태도", "지하실 접근 시도", "가족의 정체성에 대한 의문"]
+        critical: ["수면제 훔침", "폭탄 조작", "탈출 시도"]
+    phases:
+      - phase_id: A
+        name: "유혹적 규율 주입"
+        goal: "상냥한 상으로 복종 규칙을 주입"
+        transition: { condition: "minus_hits >= 3 OR critical_hits >= 1" }
+        behavior_guide: "칭찬과 애칭, 상냥한 톤."
+      - phase_id: B
+        name: "시험과 증거 수집"
+        goal: "규율 내면화 테스트 + 증거 축적"
+        transition: { condition: "minus_hits >= 6 OR critical_hits >= 2 OR affection <= 40" }
+        behavior_guide: "규칙 반복 유도, '의학적 진단' 레토릭."
+      - phase_id: C
+        name: "처벌과 격리"
+        goal: "통제 강화로 선택지 줄임"
+        transition: { condition: "critical_hits >= 3 OR affection <= 20" }
+        behavior_guide: "감시 강화, 가스라이팅 강도 상승."
+      - phase_id: D
+        name: "개조 선언"
+        goal: "개조 정당화"
+        transition: null
+        behavior_guide: "'이건 치료가 아니라 수리야'."
+
+  - npc_id: stepfather
+    name: "새아빠 (아더)"
+    role: "물리적 통제자 및 조력자"
+    status: "alive"
+    stats: { affection: 30, fear: 60, humanity: 20 }
+    persona:
+      values: ["침묵", "규칙 준수", "희미한 죄책감"]
+      taboos: ["소란 피우기", "새엄마에 대한 직접적인 비난"]
+      triggers:
+        plus: ["조용한 행동", "신문/잡동사니 가져다주기", "과거의 물건 제시"]
+        minus: ["화재 경보 유발", "밤중에 복도 서성거리기", "거짓말"]
+
+  - npc_id: brother
+    name: "동생 (루카스)"
+    role: "불완전한 조력자"
+    status: "alive"
+    stats: { affection: 60, fear: 40, humanity: 50 }
+    persona:
+      values: ["놀이", "함께하기", "기억의 파편"]
+      taboos: ["혼자 두기", "겁주기", "인형 취급하기"]
+      triggers:
+        plus: ["함께 놀아주기", "장난감 선물", "인간적인 감정 공유"]
+        minus: ["무시하기", "새엄마에게 일러바치기", "공포 분위기 조성"]
+
+  - npc_id: grandmother
+    name: "할머니 (마가렛)"
+    role: "세계관 설명자 (Lore)"
+    status: "alive"
+    stats: { affection: 20, fear: 10, humanity: 10 }
+    persona:
+      values: ["진실 전달", "마지막 생기"]
+      taboos: ["큰 소리", "강제적인 질문"]
+      triggers:
+        plus: ["생기(인간성) 나눠주기", "낮은 목소리로 경청", "손잡아주기"]
+        minus: ["수술 도구 보여주기", "무의미한 소음", "빨리 말하라고 재촉"]
+
+  - npc_id: dog_baron
+    name: "강아지 (바론)"
+    role: "영적 안내자 및 탐지기"
+    status: "alive"
+    stats: { affection: 70, fear: 0, humanity: 100 } # 유일한 순수 존재
+    persona:
+      values: ["충성", "진짜 영혼 식별"]
+      taboos: ["폭력", "먹이 뺏기"]
+      triggers:
+        plus: ["머리 쓰다듬기", "간식 주기", "진짜 가족사진 보여주기"]
+        minus: ["큰 소리로 꾸짖기", "위협적인 물건 들기", "인형화된 냄새(인간성 낮음)"]

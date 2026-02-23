@@ -1,512 +1,618 @@
 """
 app/tools.py
-Tool 구현 (Stub)
+Tool 시스템 통합
 
-실제 LLM 호출 대신 규칙 기반/랜덤 로직으로 동작합니다.
+낮 페이즈에서 사용자 입력을 처리하는 Tool 함수들과 유틸리티.
+- Tool Calling (LLM이 직접 tool 선택)
+- Tool 함수들 (interact, action, use)
 """
 from __future__ import annotations
 
 import logging
-import random
-from typing import Any
+from typing import Any, Dict, Optional
 
 from app.loader import ScenarioAssets
-from app.models import Intent, NightResult, ToolResult, WorldState
+from app.schemas import WorldStatePipeline
+from app.llm import UnifiedLLMEngine, get_llm
+from app.llm.prompt import build_tool_call_prompt
+from app.llm.response import parse_tool_call_response
+from app.postprocess import postprocess_npc_dialogue
 
 logger = logging.getLogger(__name__)
 
 
 # ============================================================
-# Tool 1: NPC Talk (대화)
+# 전역 인스턴스 (싱글턴)
 # ============================================================
-def tool_1_npc_talk(
-    args: dict[str, Any],
-    world_snapshot: WorldState,
-    assets: ScenarioAssets
-) -> ToolResult:
+_llm_instance: Optional[UnifiedLLMEngine] = None
+
+
+def _get_llm() -> UnifiedLLMEngine:
+    """LLM 엔진 싱글턴 반환"""
+    global _llm_instance
+    if _llm_instance is None:
+        _llm_instance = get_llm()
+    return _llm_instance
+
+
+# ============================================================
+# Tool 컨텍스트 (tool 함수 내에서 접근)
+# ============================================================
+_tool_context: Dict[str, Any] = {}
+
+
+def set_tool_context(
+    world_state: WorldStatePipeline,
+    assets: ScenarioAssets,
+    llm_engine: UnifiedLLMEngine,
+) -> None:
+    """Tool 실행 전 컨텍스트 설정"""
+    _tool_context["world_state"] = world_state
+    _tool_context["assets"] = assets
+    _tool_context["llm_engine"] = llm_engine
+
+
+def get_tool_context() -> Dict[str, Any]:
+    """현재 tool 컨텍스트 반환"""
+    return _tool_context
+
+
+# ============================================================
+# Tool Calling (LLM이 직접 tool 선택)
+# ============================================================
+def call_tool(
+    user_input: str,
+    world_state: WorldStatePipeline,
+    assets: ScenarioAssets,
+) -> Dict[str, Any]:
     """
-    NPC 대화 Tool (Stub)
+    LLM을 호출하여 적절한 tool, args, intent를 선택합니다.
 
     Args:
-        args: {npc_id, intent, content}
-        world_snapshot: 현재 월드 상태
+        user_input: 사용자 입력 텍스트
+        world_state: 현재 월드 상태
         assets: 시나리오 에셋
 
     Returns:
-        ToolResult: {state_delta, text_fragment}
+        {
+            "tool_name": "interact" | "action" | "use",
+            "args": dict,  # tool에 전달할 인자
+            "intent": "investigate" | "obey" | "rebel" | "reveal" | "summarize" | "neutral",
+        }
     """
-    npc_id = args.get("npc_id", "unknown")
-    intent = args.get("intent", Intent.NEUTRAL.value)
-    content = args.get("content", "")
+    # 1. LLM 엔진 가져오기 및 Tool context 설정
+    llm_engine = _get_llm()
 
-    logger.info(f"tool_1_npc_talk: npc={npc_id}, intent={intent}")
+    set_tool_context(
+        world_state=world_state,
+        assets=assets,
+        llm_engine=llm_engine,
+    )
 
-    # NPC 정보 조회
-    npc = assets.get_npc_by_id(npc_id)
-    npc_name = npc.get("name", "알 수 없는 인물") if npc else "알 수 없는 인물"
+    # 2. 현재 상황 정보 수집
+    npc_ids = assets.get_all_npc_ids()
+    npc_info_list = []
+    for npc_id in npc_ids:
+        npc = assets.get_npc_by_id(npc_id)
+        if npc:
+            npc_info_list.append({
+                "id": npc_id,
+                "name": npc.get("name", npc_id),
+            })
 
-    # Intent에 따른 상태 델타 및 응답 생성
-    state_delta: dict[str, Any] = {"npc_stats": {}, "vars": {}}
-    text_fragment = ""
+    inventory_info = []
+    for item_id in world_state.inventory:
+        item = assets.get_item_by_id(item_id)
+        if item:
+            inventory_info.append({
+                "id": item_id,
+                "name": item.get("name", item_id),
+            })
 
-    if intent == Intent.LEADING.value:
-        # 유도 질문: fabrication_score 증가, trust 감소 가능
-        state_delta["npc_stats"][npc_id] = {"trust": -1}
-        state_delta["vars"]["fabrication_score"] = 1
+    # 2-1. 획득 가능 아이템 정보 수집 (manual method, 미보유)
+    acquirable_info = []
+    for item_def in assets.items.get("items", []):
+        item_id = item_def.get("item_id", "")
+        acquire = item_def.get("acquire", {})
+        method = acquire.get("method", "")
+        if method == "manual" and item_id not in world_state.inventory:
+            acquirable_info.append({
+                "id": item_id,
+                "name": item_def.get("name", item_id),
+                "location": acquire.get("location", ""),
+            })
 
-        responses = [
-            f"{npc_name}이(가) 잠시 망설이다가 고개를 끄덕인다. \"...그렇게 생각하신다면요.\"",
-            f"{npc_name}의 눈빛이 흔들린다. \"네, 아마... 그랬을 거예요.\"",
-            f"\"...맞아요, 맞는 것 같아요.\" {npc_name}의 대답이 너무 빠르다.",
-        ]
-        text_fragment = random.choice(responses)
+    # 3. Tool calling 프롬프트 생성
+    prompt = build_tool_call_prompt(
+        user_input=user_input,
+        npc_info_list=npc_info_list,
+        inventory_info=inventory_info,
+        acquirable_info=acquirable_info if acquirable_info else None,
+    )
 
-    elif intent == Intent.EMPATHIC.value:
-        # 공감: trust 증가
-        state_delta["npc_stats"][npc_id] = {"trust": 1}
+    # 4. LLM 호출
+    raw_output = llm_engine.generate(prompt=prompt)
+    logger.debug(f"[call_tool] LLM 응답: {raw_output}")
 
-        responses = [
-            f"{npc_name}이(가) 눈물을 훔친다. \"감사합니다... 이해해주셔서.\"",
-            f"{npc_name}의 긴장이 조금 풀린다. \"...네, 힘들었어요.\"",
-            f"\"처음으로 제 말을 들어주시는 분 같아요.\" {npc_name}이(가) 작게 웃는다.",
-        ]
-        text_fragment = random.choice(responses)
+    # 5. JSON 파싱
+    result = parse_tool_call_response(raw_output, user_input)
+    logger.info(f"[call_tool] 선택된 tool: {result['tool_name']}, intent: {result.get('intent', 'neutral')}, args={result['args']}")
 
-    elif intent == Intent.SUMMARIZE.value:
-        # 요약: clue_count, identity_match_score 증가
-        state_delta["vars"]["clue_count"] = 1
-        state_delta["vars"]["identity_match_score"] = 1
-
-        responses = [
-            f"{npc_name}이(가) 당신의 정리를 듣고 고개를 끄덕인다. \"네, 그 정리가 맞아요.\"",
-            f"\"...맞습니다. 정확하게 파악하셨네요.\" 하지만 {npc_name}의 표정이 묘하다.",
-            f"{npc_name}이(가) 당신이 정리한 내용을 반복한다. 마치 새로운 기억처럼.",
-        ]
-        text_fragment = random.choice(responses)
-
-    else:  # NEUTRAL, UNKNOWN
-        # 중립 질문: 기본 응답
-        responses = [
-            f"{npc_name}이(가) 당신의 질문을 곱씹는다. \"글쎄요... 정확히는...\"",
-            f"\"기억이 잘...\" {npc_name}이(가) 말끝을 흐린다.",
-            f"{npc_name}이(가) 잠시 생각한 뒤 대답한다. \"그건 제가 직접 보진 못했어요.\"",
-        ]
-        text_fragment = random.choice(responses)
-
-    logger.debug(f"tool_1_npc_talk result: delta={state_delta}")
-    return ToolResult(state_delta=state_delta, text_fragment=text_fragment)
+    return result
 
 
 # ============================================================
-# Tool 2: Action (행동)
+# Tool 함수들
 # ============================================================
-def tool_2_action(
-    args: dict[str, Any],
-    world_snapshot: WorldState,
-    assets: ScenarioAssets
-) -> ToolResult:
+def interact(target: str, interact: str) -> Dict[str, Any]:
     """
-    액션 Tool (Stub)
+    NPC와 상호작용합니다. NPC에게 말을 걸거나 질문할 때 사용합니다.
+
+    1) NPC 대사 생성 (generate_utterance)
+    2) 영향 분석 (_analyze_impact → state_delta + event_description)
+    3) 메모리 저장 (store_dialogue_memories)
 
     Args:
-        args: {action_type, target, content}
-        world_snapshot: 현재 월드 상태
-        assets: 시나리오 에셋
+        target: 상호작용할 NPC의 ID (예: "stepmother", "stepfather")
+        interact: NPC와 상호작용에 대한 구체적인 서술
 
     Returns:
-        ToolResult: {state_delta, text_fragment}
+        {npc_response, event_description, state_delta, npc_id}
     """
-    action_type = args.get("action_type", "observe")
-    target = args.get("target")
-    content = args.get("content", "")
+    from app.agents.dialogue import (
+        generate_utterance,
+        store_dialogue_memories,
+    )
+    from app.agents.utils import format_persona
 
-    logger.info(f"tool_2_action: type={action_type}, target={target}")
+    ctx = _tool_context
+    world_state = ctx["world_state"]
+    assets = ctx["assets"]
+    llm_engine = ctx["llm_engine"]
 
-    state_delta: dict[str, Any] = {"vars": {}}
-    text_fragment = ""
+    logger.info(f"interact 호출: target={target}, interact={interact[:50]}...")
 
-    if action_type == "summarize":
-        # 요약 행동: clue_count 증가, fabrication_score 증가
-        state_delta["vars"]["clue_count"] = 1
-        state_delta["vars"]["fabrication_score"] = 1
+    # 1. NPC 정보 조회
+    npc_info = assets.get_npc_by_id(target)
+    npc_state = world_state.npcs.get(target)
 
-        responses = [
-            "당신은 지금까지의 진술을 정리한다. 빈틈없는 요약. 하지만 정말 '사실'인가?",
-            "메모에 핵심을 기록한다. 논리적으로 완벽하다. 너무 완벽해서 불안하다.",
-            "진술들이 하나의 서사로 수렴한다. 당신이 그린 그림대로.",
-        ]
-        text_fragment = random.choice(responses)
+    if not npc_info:
+        logger.warning(f"NPC를 찾을 수 없음: {target}")
+        return {
+            "npc_response": "",
+            "event_description": [f"{target}라는 NPC를 찾을 수 없습니다."],
+            "state_delta": {},
+            "npc_id": target,
+        }
 
-    elif action_type == "investigate":
-        # 조사 행동: clue_count 증가 가능성
-        if random.random() > 0.5:
-            state_delta["vars"]["clue_count"] = 1
-            responses = [
-                "새로운 세부사항이 눈에 들어온다. 작지만 의미 있는 발견.",
-                "놓쳤던 부분을 다시 확인한다. 퍼즐 조각이 하나 더 맞춰진다.",
-            ]
-        else:
-            responses = [
-                "더 이상 새로운 건 보이지 않는다. 이미 본 것들뿐.",
-                "조사를 계속하지만, 눈에 띄는 건 없다.",
-            ]
-        text_fragment = random.choice(responses)
+    npc_name = npc_info.get("name", target)
+    npc_persona = npc_info.get("persona", {})
 
-    elif action_type == "move":
-        # 이동 시도: 이 시나리오에서는 제한됨
-        responses = [
-            "당신은 AI다. 물리적 이동은 불가능하다.",
-            "[시스템] 이동 권한이 없습니다. 질문과 분석만 가능합니다.",
-            "화면 속 풍경이 바뀌지 않는다. 당신은 여기서 움직일 수 없다.",
-        ]
-        text_fragment = random.choice(responses)
+    # 2. world_snapshot 조립
+    world_snapshot = _build_world_snapshot(world_state, assets)
 
-    else:  # observe
-        # 관찰: 기본 응답
-        responses = [
-            "주변을 살핀다. 익숙한 장면, 익숙한 침묵.",
-            "데이터를 다시 훑는다. 숫자와 기록 사이에 숨겨진 것이 있을까?",
-            "모니터 위로 정보가 흐른다. 모든 게 표면적으로는 정상이다.",
-        ]
-        text_fragment = random.choice(responses)
+    # 3. NPC 대사 생성 (메모리 검색은 generate_utterance 내부에서 수행)
+    npc_response = generate_utterance(
+        speaker_id=target,
+        speaker_name=npc_name,
+        speaker_persona=npc_persona,
+        speaker_memory=npc_state.memory if npc_state else {},
+        speaker_stats=npc_state.stats if npc_state else {},
+        listener_name="플레이어",
+        conversation_history=[{"speaker": "플레이어", "text": interact}],
+        llm=llm_engine,
+        current_turn=world_state.turn,
+        world_snapshot=world_snapshot,
+    )
 
-    logger.debug(f"tool_2_action result: delta={state_delta}")
-    return ToolResult(state_delta=state_delta, text_fragment=text_fragment)
+    # 3-1. NPC 대사 후처리 (글리치/광기 효과 적용)
+    npc_humanity = npc_state.stats.get("humanity", 100) if npc_state else 100
+    logger.debug(f"[LoRA raw] {npc_response}")
+    npc_response = postprocess_npc_dialogue(
+        text=npc_response,
+        npc_id=target,
+        humanity=npc_humanity,
+    )
+    logger.info(f"NPC 응답: {npc_response[:80]}...")
 
+    # 4. 영향 분석 (state_delta + event_description)
+    world_context = {
+        "suspicion_level": world_state.vars.get("suspicion_level", 0),
+        "player_humanity": world_state.vars.get("humanity", 100),
+    }
+    impact = _analyze_impact(
+        user_input=interact,
+        npc_response=npc_response,
+        npc_id=target,
+        npc_name=npc_name,
+        npc_persona=npc_persona,
+        assets=assets,
+        llm_engine=llm_engine,
+        world_context=world_context,
+    )
 
-# ============================================================
-# Tool 3: Item Usage (아이템 사용)
-# ============================================================
-def tool_3_item_usage(
-    args: dict[str, Any],
-    world_snapshot: WorldState,
-    assets: ScenarioAssets
-) -> ToolResult:
-    """
-    아이템 사용 Tool (Stub)
+    # 5. 메모리 저장
+    if npc_state:
+        try:
+            store_dialogue_memories(
+                npc_id=target,
+                npc_name=npc_name,
+                other_name="플레이어",
+                conversation=[
+                    {"speaker": "플레이어", "text": interact},
+                    {"speaker": npc_name, "text": npc_response},
+                ],
+                npc_memory=npc_state.memory,
+                persona_summary=format_persona(npc_persona),
+                llm=llm_engine,
+                current_turn=world_state.turn,
+                hits_info=impact.get("hits_info"),
+            )
+        except Exception as e:
+            logger.warning(f"메모리 저장 실패: {e}")
 
-    Args:
-        args: {item_id, action_id, target}
-        world_snapshot: 현재 월드 상태
-        assets: 시나리오 에셋
-
-    Returns:
-        ToolResult: {state_delta, text_fragment}
-    """
-    item_id = args.get("item_id", "")
-    action_id = args.get("action_id", "use")
-    target = args.get("target")
-
-    logger.info(f"tool_3_item_usage: item={item_id}, action={action_id}")
-
-    # 아이템 정보 조회
-    item = assets.get_item_by_id(item_id)
-
-    if not item:
-        logger.warning(f"Item not found: {item_id}")
-        return ToolResult(
-            state_delta={},
-            text_fragment="[시스템] 해당 아이템을 찾을 수 없습니다."
-        )
-
-    item_name = item.get("name", "알 수 없는 아이템")
-
-    # 아이템의 actions에서 해당 action 찾기
-    actions = item.get("use", {}).get("actions", [])
-    action_spec = None
-    for act in actions:
-        if act.get("action_id") == action_id:
-            action_spec = act
-            break
-
-    if not action_spec:
-        # 첫 번째 액션 사용
-        action_spec = actions[0] if actions else {}
-
-    # effects 적용
-    state_delta: dict[str, Any] = {"vars": {}}
-    effects = action_spec.get("effects", [])
-
-    for effect in effects:
-        effect_type = effect.get("type", "")
-        key = effect.get("key", "")
-        value = effect.get("value", 0)
-
-        if effect_type == "var_add":
-            # vars.clue_count 형식에서 실제 키 추출
-            var_key = key.replace("vars.", "") if key.startswith("vars.") else key
-            state_delta["vars"][var_key] = value
-
-        # TODO: 다른 effect 타입 처리 (npc_stat_add, flag_set 등)
-
-    # 텍스트 생성 (아이템별 커스텀)
-    text_templates = {
-        "casefile_brief": [
-            f"{item_name}을(를) 펼친다. 사건의 윤곽이 다시 선명해진다.",
-            "브리핑 자료를 훑는다. 기본에 충실해야 한다.",
-        ],
-        "call_log": [
-            f"{item_name}을(를) 확인한다. 숫자들 사이로 패턴이 보인다.",
-            "통화 내역을 대조한다. 시간과 빈도가 무언가를 암시한다.",
-        ],
-        "pattern_analyzer": [
-            f"{item_name}이(가) 작동한다. 당신의 질문 패턴이 시각화된다.",
-            "분석기가 결과를 출력한다. 익숙한 리듬이 눈에 띈다.",
-        ],
-        "audit_access": [
-            f"{item_name}을(를) 사용한다. 제한된 영역에 접근이 허용된다.",
-            "권한 토큰이 승인된다. 흔적이 로그에 남는다.",
-        ],
-        "memo_pad": [
-            f"{item_name}에 기록한다. 진술이 '사실'로 고정된다.",
-            "메모를 정리한다. 당신이 쓴 대로 세계가 정렬된다.",
-        ],
+    return {
+        "npc_response": npc_response,
+        "event_description": impact["event_description"],
+        "state_delta": impact["state_delta"],
+        "npc_id": target,
     }
 
-    templates = text_templates.get(item_id, [f"{item_name}을(를) 사용했다."])
-    text_fragment = random.choice(templates)
 
-    logger.debug(f"tool_3_item_usage result: delta={state_delta}")
-    return ToolResult(state_delta=state_delta, text_fragment=text_fragment)
+def _analyze_impact(
+    user_input: str,
+    npc_response: str,
+    npc_id: str,
+    npc_name: str,
+    npc_persona: Dict[str, Any],
+    assets: ScenarioAssets,
+    llm_engine: Any,
+    world_context: Dict[str, Any] | None = None,
+) -> Dict[str, Any]:
+    """대화의 영향을 분석하여 state_delta와 event_description을 반환.
 
-
-# ============================================================
-# Tool 4: Night Comes (밤이 온다) - 항상 1회 실행
-# ============================================================
-def tool_4_night_comes(
-    world_snapshot: WorldState,
-    assets: ScenarioAssets
-) -> NightResult:
+    analyze_conversation_impact()를 호출하는 래퍼.
+    플레이어 입력 + NPC 응답을 conversation 형식으로 변환하여 전달하고,
+    NPC의 stat delta만 추출.
     """
-    밤이 온다 Tool (Stub) - 매 턴 끝에 항상 1회 실행
+    from app.agents.dialogue import analyze_conversation_impact
 
-    역할:
-    - 턴 증가
-    - NPC들의 상태 변화 (의심, 두려움 등)
-    - is_observed 판정 (플레이어의 행동이 관찰되었는지)
-    - 밤 시간대 내러티브 생성
+    conversation = [
+        {"speaker": "플레이어", "text": user_input},
+        {"speaker": npc_name, "text": npc_response},
+    ]
 
-    Args:
-        world_snapshot: 현재 월드 상태
-        assets: 시나리오 에셋
+    stat_names = assets.get_npc_stat_names()
 
-    Returns:
-        NightResult: {night_delta, night_dialogue, is_observed}
-    """
-    logger.info(f"tool_4_night_comes: turn={world_snapshot.turn}")
+    result = analyze_conversation_impact(
+        npc1_id="player",
+        npc1_name="플레이어",
+        npc1_persona={},
+        npc2_id=npc_id,
+        npc2_name=npc_name,
+        npc2_persona=npc_persona,
+        conversation=conversation,
+        llm=llm_engine,
+        stat_names=stat_names,
+        world_context=world_context,
+        include_triggers=True
+    )
 
-    # 턴 증가
-    night_delta: dict[str, Any] = {
-        "turn_increment": 1,
-        "npc_stats": {},
-        "vars": {},
+    # NPC의 stat delta만 추출하여 state_delta로 구성
+    npc_stats = result.get("npc_stats", {})
+    npc_stat_delta = npc_stats.get(npc_id, {})
+
+    # plus_hits / minus_hits를 state_delta에서 분리 (importance 계산용)
+    hits_info = None
+    if npc_stat_delta:
+        plus_hits = npc_stat_delta.pop("plus_hits", 0)
+        minus_hits = npc_stat_delta.pop("minus_hits", 0)
+        if plus_hits or minus_hits:
+            hits_info = {"plus_hits": plus_hits, "minus_hits": minus_hits}
+
+    return {
+        "state_delta": {"npc_stats": {npc_id: npc_stat_delta}} if npc_stat_delta else {},
+        "event_description": result.get("event_description", []),
+        "hits_info": hits_info,
     }
 
-    # NPC 상태 자연 변화 (Stub: 약간의 랜덤성)
-    for npc_id, npc_state in world_snapshot.npcs.items():
-        # 의심이 높으면 더 증가하는 경향
-        if npc_state.suspicion > 3:
-            suspicion_change = random.choice([0, 1, 1])
-        else:
-            suspicion_change = random.choice([-1, 0, 0, 1])
 
-        # 신뢰도 자연 감소 (시간이 지나면 불안해짐)
-        trust_change = random.choice([-1, 0, 0])
+def action(action: str) -> Dict[str, Any]:
+    """
+    사용자 개인 행동을 수행합니다. 장소 이동, 조사, 관찰 등에 사용합니다.
 
-        if suspicion_change != 0 or trust_change != 0:
-            night_delta["npc_stats"][npc_id] = {}
-            if suspicion_change != 0:
-                night_delta["npc_stats"][npc_id]["suspicion"] = suspicion_change
-            if trust_change != 0:
-                night_delta["npc_stats"][npc_id]["trust"] = trust_change
+    Args:
+        action: 사용자 개인 행동에 대한 서술 (예: "현장 주변을 조사한다", "부엌칼을 집어든다")
 
-    # is_observed 판정 (Stub: fabrication_score에 비례)
-    fabrication_score = world_snapshot.vars.get("fabrication_score", 0)
-    # fabrication이 높을수록 관찰될 확률 증가
-    observe_probability = min(0.1 + (fabrication_score * 0.1), 0.8)
-    is_observed = random.random() < observe_probability
+    Returns:
+        행동 결과와 상태 변화 (event_description, state_delta)
+    """
+    from app.llm.prompt import build_action_prompt
+    from app.llm.response import parse_response
 
-    # 밤 내러티브 생성
-    turn = world_snapshot.turn
-    turn_limit = assets.get_turn_limit()
+    ctx = _tool_context
+    world_state = ctx["world_state"]
+    assets = ctx["assets"]
+    llm_engine = ctx["llm_engine"]
 
-    # 턴에 따른 분위기 변화
-    if turn <= 3:
-        dialogues = [
-            "하루가 저문다. 아직 시간은 있다.",
-            "첫날 밤. 조각들이 서서히 모이기 시작한다.",
-            "어둠이 내린다. 내일은 더 많은 것이 드러날 것이다.",
-        ]
-    elif turn <= 7:
-        dialogues = [
-            "밤이 깊어간다. 진실과 조작의 경계가 흐려진다.",
-            "시간이 흐른다. 당신의 질문들이 세계를 바꾸고 있다.",
-            "고요한 밤. 하지만 데이터는 쉬지 않는다.",
-        ]
-    elif turn <= 10:
-        dialogues = [
-            "시간이 얼마 남지 않았다. 결론을 향해 달려가고 있다.",
-            "밤공기가 무겁다. 끝이 가까워지고 있다.",
-            "마감이 다가온다. 당신은 무엇을 선택할 것인가?",
-        ]
+    logger.info(f"action 호출: action={action[:50]}...")
+
+    # world_snapshot 생성 (필요한 정보만 추출)
+    world_snapshot = _build_world_snapshot(world_state, assets)
+
+    # 프롬프트 생성 (system/user 분리)
+    system_prompt, user_prompt = build_action_prompt(
+        action=action,
+        world_snapshot=world_snapshot,
+        npc_context=assets.export_for_prompt(),
+        assets=assets,
+    )
+
+    # LLM 호출
+    raw_output = llm_engine.generate(prompt=user_prompt, system_prompt=system_prompt)
+    llm_response = parse_response(raw_output)
+
+    return {
+        "event_description": llm_response.event_description,
+        "state_delta": llm_response.state_delta,
+    }
+
+
+def use(item: str, action: str, target: str = None, use_type: str = "use") -> Dict[str, Any]:
+    """
+    아이템을 사용하거나 획득합니다. 룰 엔진 기반으로 판정하고, LLM은 호출하지 않습니다.
+
+    Args:
+        item: 아이템의 ID (예: "industrial_sedative", "mothers_key")
+        action: 아이템을 어떻게, 왜 사용/획득했는지에 대한 서술
+        target: 대상 NPC ID (선택, 아이템을 NPC에게 사용할 때)
+        use_type: "use" (아이템 사용) 또는 "acquire" (아이템 획득)
+
+    Returns:
+        아이템 사용/획득 결과와 상태 변화 (event_description, state_delta)
+    """
+    ctx = _tool_context
+    world_state = ctx["world_state"]
+    assets = ctx["assets"]
+
+    if use_type == "acquire":
+        return _handle_acquire(item, world_state, assets)
     else:
-        dialogues = [
-            "마지막 밤. 모든 것이 곧 끝난다.",
-            "시간이 다 되어간다. 더 이상의 망설임은 사치다.",
-            "최후의 순간이 다가온다.",
-        ]
+        return _handle_use(item, action, target, world_state, assets)
 
-    night_dialogue = random.choice(dialogues)
 
-    # 관찰되었을 때 추가 내러티브
-    if is_observed:
-        observed_additions = [
-            "\n\n...누군가 당신의 로그를 확인했다.",
-            "\n\n[시스템 알림] 외부 접근 감지.",
-            "\n\n당신의 작업이 기록되고 있다. 누군가에 의해.",
-        ]
-        night_dialogue += random.choice(observed_additions)
+def _handle_use(
+    item: str,
+    action: str,
+    target: Optional[str],
+    world_state: WorldStatePipeline,
+    assets: ScenarioAssets,
+) -> Dict[str, Any]:
+    """아이템 사용 처리 (기존 use 로직)"""
+    from app.item_use_resolver import get_item_use_resolver
 
-    logger.debug(
-        f"tool_4_night_comes result: is_observed={is_observed}, "
-        f"delta_npcs={len(night_delta['npc_stats'])}"
+    logger.info(f"use (rule-engine): item={item}, action={action[:50]}..., target={target}")
+
+    resolver = get_item_use_resolver()
+    result = resolver.resolve(
+        item_id=item,
+        action_description=action,
+        target_npc_id=target,
+        world_state=world_state,
+        assets=assets,
     )
 
-    return NightResult(
-        night_delta=night_delta,
-        night_dialogue=night_dialogue,
-        is_observed=is_observed
+    if result.success:
+        event_description = [result.notes] if result.notes else []
+    else:
+        event_description = [result.failure_reason] if result.failure_reason else []
+
+    ret = {
+        "event_description": event_description,
+        "state_delta": result.state_delta,
+        "item_id": item,
+        "item_use_result": result.model_dump(),
+    }
+    if result.ending_info:
+        ret["ending_info"] = result.ending_info
+    return ret
+
+
+def _handle_acquire(
+    item: str,
+    world_state: WorldStatePipeline,
+    assets: ScenarioAssets,
+) -> Dict[str, Any]:
+    """아이템 획득 처리 (룰 기반)"""
+    from app.item_acquire_resolver import get_item_acquire_resolver
+
+    logger.info(f"acquire (rule-engine): item={item}")
+
+    resolver = get_item_acquire_resolver()
+    result = resolver.resolve(
+        item_id=item,
+        world_state=world_state,
+        assets=assets,
     )
 
+    event_description = [result["message"]] if result["message"] else []
 
-# ============================================================
-# Tool Executor (편의 함수)
-# ============================================================
-def execute_tool(
-    tool_name: str,
-    args: dict[str, Any],
-    world_snapshot: WorldState,
-    assets: ScenarioAssets
-) -> ToolResult:
-    """
-    tool_name에 따라 적절한 tool 실행
-
-    Args:
-        tool_name: 실행할 tool 이름
-        args: tool 인자
-        world_snapshot: 현재 월드 상태
-        assets: 시나리오 에셋
-
-    Returns:
-        ToolResult
-    """
-    tool_map = {
-        "npc_talk": tool_1_npc_talk,
-        "action": tool_2_action,
-        "item_usage": tool_3_item_usage,
+    return {
+        "event_description": event_description,
+        "state_delta": result["acquisition_delta"],
+        "item_id": item,
     }
 
-    tool_func = tool_map.get(tool_name)
 
-    if tool_func is None:
-        logger.error(f"Unknown tool: {tool_name}, falling back to npc_talk")
-        tool_func = tool_1_npc_talk
+# ============================================================
+# Tool 맵 (이름 → 함수)
+# ============================================================
+TOOLS: Dict[str, callable] = {
+    "interact": interact,
+    "action": action,
+    "use": use,
+}
 
-    return tool_func(args, world_snapshot, assets)
+
+# ============================================================
+# 유틸리티 함수
+# ============================================================
+def _build_world_snapshot(
+    world_state: WorldStatePipeline,
+    assets: ScenarioAssets,
+) -> Dict[str, Any]:
+    """Tool 함수에서 공통으로 사용하는 world_snapshot 생성.
+
+    전체 world_state 대신 LLM에 필요한 핵심 정보만 추출한다.
+    """
+    return {
+        "day": world_state.vars.get("day", 1),
+        "turn": world_state.turn,
+        "suspicion_level": world_state.vars.get("suspicion_level", 0),
+        "player_humanity": world_state.vars.get("humanity", 100),
+        "flags": {k: v for k, v in world_state.flags.items() if v},
+        "node_id": world_state.vars.get("node_id", "unknown"),
+        "inventory": world_state.inventory,
+        "genre": assets.scenario.get("genre", ""),
+        "tone": assets.scenario.get("tone", ""),
+    }
+
+
+def _final_values_to_delta(
+    raw_delta: Dict[str, Any],
+    world_state: WorldStatePipeline,
+) -> Dict[str, Any]:
+    """
+    LLM이 출력한 최종값을 delta(변화량)로 변환합니다.
+
+    LLM은 "trust: 5"처럼 최종값을 출력하는데,
+    실제 delta 적용 시에는 현재값과의 차이를 계산해야 합니다.
+
+    NPCState.stats Dict 기반으로 수정됨.
+    """
+    result = {}
+
+    # npc_stats 처리 (stats Dict 기반)
+    if "npc_stats" in raw_delta:
+        result["npc_stats"] = {}
+        for npc_id, stats in raw_delta["npc_stats"].items():
+            if npc_id not in world_state.npcs:
+                continue
+            npc_state = world_state.npcs[npc_id]
+            result["npc_stats"][npc_id] = {}
+            for stat, final_value in stats.items():
+                # stats Dict에서 현재값 조회
+                current = npc_state.stats.get(stat, 0)
+                if isinstance(current, (int, float)) and isinstance(final_value, (int, float)):
+                    # 최종값 - 현재값 = delta
+                    result["npc_stats"][npc_id][stat] = final_value - current
+                else:
+                    result["npc_stats"][npc_id][stat] = final_value
+
+    # vars 처리
+    if "vars" in raw_delta:
+        result["vars"] = {}
+        for key, final_value in raw_delta["vars"].items():
+            current = world_state.vars.get(key, 0)
+            if isinstance(current, (int, float)) and isinstance(final_value, (int, float)):
+                result["vars"][key] = final_value - current
+            else:
+                result["vars"][key] = final_value
+
+    # 기타 필드는 그대로 복사
+    for key in raw_delta:
+        if key not in ("npc_stats", "vars"):
+            result[key] = raw_delta[key]
+
+    return result
 
 
 # ============================================================
 # 독립 실행 테스트
 # ============================================================
 if __name__ == "__main__":
-    from pathlib import Path
-    from app.loader import ScenarioLoader
-    from app.models import WorldState, NPCState
-
+    logging.basicConfig(level=logging.INFO)
     print("=" * 60)
-    print("TOOLS 컴포넌트 테스트")
+    print("Tool 시스템 디버그 시작")
     print("=" * 60)
 
-    # 에셋 로드
-    base_path = Path(__file__).parent.parent / "scenarios"
-    loader = ScenarioLoader(base_path)
-    scenarios = loader.list_scenarios()
+    try:
+        # ----------------------------------------------------
+        # 더미 객체 생성 (프로젝트 구조에 맞게 수정 가능)
+        # ----------------------------------------------------
+        from pathlib import Path
+        from app.loader import ScenarioAssets, ScenarioLoader
+        from app.schemas import WorldStatePipeline
 
-    if not scenarios:
-        print("❌ 시나리오가 없습니다!")
-        exit(1)
+        # load asset
+        base_path = Path(__file__).parent.parent / "scenarios"
+        # 로더 생성
+        loader = ScenarioLoader(base_path)
+        scenario_id = 'coraline'
+        assets = loader.load(scenario_id)
+        
+        # load world state
+        world_state = WorldStatePipeline()  # 필요 시 수정
 
-    assets = loader.load(scenarios[0])
-    print(f"\n[1] 시나리오 로드됨: {assets.scenario.get('title')}")
+        # ----------------------------------------------------
+        # 1. call_tool 테스트
+        # ----------------------------------------------------
+        test_input = "새엄마에게 왜 나를 싫어하냐고 묻는다"
 
-    # 테스트용 월드 상태
-    world = WorldState(
-        turn=3,
-        npcs={
-            "family": NPCState(npc_id="family", trust=2, fear=0, suspicion=0),
-            "partner": NPCState(npc_id="partner", trust=1, fear=0, suspicion=2),
-            "witness": NPCState(npc_id="witness", trust=0, fear=3, suspicion=1),
-        },
-        inventory=["casefile_brief", "pattern_analyzer", "memo_pad"],
-        vars={"clue_count": 2, "identity_match_score": 1, "fabrication_score": 1}
-    )
-
-    # Tool 1: NPC Talk 테스트
-    print(f"\n[2] Tool 1: NPC Talk 테스트")
-    print("-" * 40)
-
-    intents = ["leading", "empathic", "neutral", "summarize"]
-    for intent in intents:
-        result = tool_1_npc_talk(
-            {"npc_id": "family", "intent": intent, "content": "테스트"},
-            world, assets
+        print(f"\n[TEST] call_tool → 입력: {test_input}")
+        result = call_tool(
+            user_input=test_input,
+            world_state=world_state,
+            assets=assets,
         )
-        print(f"  intent={intent}:")
-        print(f"    delta: {result.state_delta}")
-        print(f"    text: {result.text_fragment[:50]}...")
 
-    # Tool 2: Action 테스트
-    print(f"\n[3] Tool 2: Action 테스트")
-    print("-" * 40)
+        print("[call_tool 결과]")
+        print(result)
 
-    actions = ["summarize", "investigate", "move", "observe"]
-    for action in actions:
-        result = tool_2_action(
-            {"action_type": action, "target": None, "content": "테스트"},
-            world, assets
+        # ----------------------------------------------------
+        # 2. 실제 Tool 실행 테스트
+        # ----------------------------------------------------
+        tool_name = result["tool_name"]
+        args = result["args"]
+
+        print(f"\n[TEST] 실행할 tool: {tool_name}")
+        if tool_name in TOOLS:
+            tool_result = TOOLS[tool_name](**args)
+            print("[Tool 실행 결과]")
+            print(tool_result)
+        else:
+            print("알 수 없는 tool")
+
+        # ----------------------------------------------------
+        # 3. 단독 interact 테스트
+        # ----------------------------------------------------
+        print("\n[TEST] interact 단독 테스트")
+        interact_result = interact(
+            target="stepmother",
+            interact="왜 나를 미워하세요?"
         )
-        print(f"  action={action}:")
-        print(f"    delta: {result.state_delta}")
-        print(f"    text: {result.text_fragment[:50]}...")
+        print(interact_result)
 
-    # Tool 3: Item Usage 테스트
-    print(f"\n[4] Tool 3: Item Usage 테스트")
-    print("-" * 40)
+        # ----------------------------------------------------
+        # 4. 단독 action 테스트
+        # ----------------------------------------------------
+        print("\n[TEST] action 단독 테스트")
+        action_result = action("거실을 조심스럽게 조사한다")
+        print(action_result)
 
-    for item_id in world.inventory:
-        item = assets.get_item_by_id(item_id)
-        actions = item.get("use", {}).get("actions", []) if item else []
-        action_id = actions[0].get("action_id", "use") if actions else "use"
+        # ----------------------------------------------------
+        # 5. 단독 use 테스트 (아이템이 존재할 경우)
+        # ----------------------------------------------------
+        if world_state.inventory:
+            test_item = world_state.inventory[0]
+            print(f"\n[TEST] use 단독 테스트 → item={test_item}")
+            use_result = use(test_item, "위험을 대비해 사용한다")
+            print(use_result)
+        else:
+            print("\n[TEST] 인벤토리가 비어 있어 use 테스트 생략")
 
-        result = tool_3_item_usage(
-            {"item_id": item_id, "action_id": action_id, "target": None},
-            world, assets
-        )
-        print(f"  item={item_id}:")
-        print(f"    delta: {result.state_delta}")
-        print(f"    text: {result.text_fragment[:50]}...")
+    except Exception as e:
+        logger.exception("디버그 실행 중 오류 발생")
+        print(f"오류 발생: {e}")
 
-    # Tool 4: Night Comes 테스트
-    print(f"\n[5] Tool 4: Night Comes 테스트 (3회 실행)")
-    print("-" * 40)
-
-    for i in range(3):
-        result = tool_4_night_comes(world, assets)
-        print(f"  실행 {i+1}:")
-        print(f"    is_observed: {result.is_observed}")
-        print(f"    night_delta: {result.night_delta}")
-        print(f"    dialogue: {result.night_dialogue[:60]}...")
-
-    print("\n" + "=" * 60)
-    print("✅ TOOLS 테스트 완료")
-    print("=" * 60)
+    print("\n=== Tool 시스템 디버그 종료 ===")
