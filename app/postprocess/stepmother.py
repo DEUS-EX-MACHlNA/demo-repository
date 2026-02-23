@@ -10,9 +10,9 @@
 
 2단계 - 광기 후처리 (Madness Post-Processing)
    monstrosity 단계:
-     1 — 변형 없음
-     2 — 중간 광기 (극적 멈춤, 부호 강화, 늘려쓰기, 문장 축약)
-     3 — 완전 광기 (에코, 문법 붕괴, 반복 등 모든 기법)
+     1 — 변형 없음 (품질 검증만)
+     2 — 중간 광기 (부호 강화 항상 + 극적 멈춤·늘려쓰기·문장 축약 확률)
+     3 — 완전 광기 (부호 강화 + 에코 반복 항상 + 문법 붕괴·반복 등 확률)
 
    기법:
      1. 극적 멈춤      — 단어 사이에 … 삽입
@@ -169,7 +169,7 @@ MONSTROSITY_CONFIG = {
     2: {
         "dramatic_pause":       0.15,
         "echo_phrase":          0.00,
-        "intensify_punctuation": 0.30,
+        "intensify_punctuation": 0.00,  # lv2는 mild_intensify_punctuation(필수)로만 처리 — 연속 부호 금지
         "collapse_grammar":     0.10,
         "elongate_word":        0.15,
         "insert_whisper":       0.00,
@@ -307,6 +307,33 @@ def intensify_punctuation(text: str) -> str:
     return join_sentences(result)
 
 
+def mild_intensify_punctuation(text: str) -> str:
+    """lv2용 부드러운 부호 강화 — 마침표만 느낌표 하나로, 연속 부호 없음
+
+    '엄마 곁에 있어야 해.' → '엄마 곁에 있어야 해!'
+    ('?' / '!' 는 그대로 유지)
+    """
+    sentences = split_sentences(text)
+    if not sentences:
+        return text
+
+    result = []
+    for sent in sentences:
+        stripped = sent.rstrip(".!? ")
+        ending = sent[len(stripped):]
+
+        if "?" in ending:
+            new_ending = "?"   # 의문부호 유지
+        elif "!" in ending:
+            new_ending = "!"   # 이미 느낌표 — 유지
+        else:
+            new_ending = "!"   # 마침표 → 느낌표 하나
+
+        result.append(stripped + new_ending)
+
+    return join_sentences(result)
+
+
 def elongate_word(text: str) -> str:
     """감정 단어의 모음을 늘려서 광기 표현
 
@@ -354,6 +381,15 @@ def repeat_keyword(text: str) -> str:
     return text
 
 
+# 필수 기법: lv2/3에서 항상 적용 (확률 파이프라인과 독립)
+# lv2: mild_intensify_punctuation — 마침표→! 하나만 (연속 부호 없음, 절제된 광기 시작)
+# lv3: intensify_punctuation + echo_phrase — 연속 부호 + 절규 반복으로 완전 광기 보장
+_GUARANTEED_TRANSFORMS: dict[int, list] = {
+    2: [mild_intensify_punctuation],
+    3: [intensify_punctuation, echo_phrase],
+}
+
+
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #  통합 후처리 함수
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -383,8 +419,13 @@ def postprocess(
     # 1단계: 품질 검증/보정
     result, _issues = quality_gate(text)
 
-    # 2단계: 광기 후처리
     monstrosity = max(1, min(3, monstrosity))
+
+    # 2단계: 필수 기법 (lv2+: 항상 적용, 변형 보장)
+    for fn in _GUARANTEED_TRANSFORMS.get(monstrosity, []):
+        result = fn(result)
+
+    # 3단계: 확률 기법
     config = MONSTROSITY_CONFIG[monstrosity]
 
     pipeline = [
