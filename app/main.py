@@ -21,14 +21,12 @@ from app.loader import ScenarioAssets, get_loader, load_scenario_assets
 from app.schemas import (
     NightResult,
     ToolResult,
-    StepRequest,
-    StepResponse,
+    WorldStatePipeline,
     NightRequestBody,
     NightResponseResult,
     ScenarioInfoResponse,
     StateResponse,
     EndingCheckResult,
-    WorldStatePipeline,
 )
 from app.narrative import get_narrative_layer
 from app.state import get_world_state_manager
@@ -60,11 +58,17 @@ logger = logging.getLogger(__name__)
 
 
 
+from app.workers.sync_worker import start_scheduler, shutdown_scheduler, sync_game_state_to_db
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """애플리케이션 라이프사이클 관리"""
     logger.info(f"Starting scenario server...")
     logger.info(f"Scenarios path: {SCENARIOS_BASE_PATH}")
+    
+    # Background Scheduler Start
+    start_scheduler()
+    logger.info("Background sync scheduler started.")
 
     loader = get_loader(SCENARIOS_BASE_PATH)
     available = loader.list_scenarios()
@@ -73,6 +77,13 @@ async def lifespan(app: FastAPI):
     yield
 
     logger.info("Shutting down scenario server...")
+    
+    # Final Sync & Shutdown
+    logger.info("Performing final DB sync...")
+    await sync_game_state_to_db()
+    
+    shutdown_scheduler()
+    logger.info("Background sync scheduler shutdown.")
 
 
 app = FastAPI(
@@ -100,7 +111,7 @@ async def execute_day_pipeline(
 
     파이프라인:
     1) Assets 로드
-    2) WorldState 조회
+    2) WorldStatePipeline 조회
     3) LockManager.check_unlocks() - 정보 해금
     4) DayController.process() - 낮 턴 실행 (turn += 1)
     5) Delta 적용 & 저장
@@ -149,23 +160,6 @@ async def execute_day_pipeline(
             "newly_unlocked": [info.info_id for info in lock_result.newly_unlocked],
         })
 
-        # Step 3.5: StatusEffectManager - 만료 효과 해제
-        step_start = time.time()
-        from app.status_effect_manager import get_status_effect_manager
-        sem = get_status_effect_manager()
-        expiry_delta = sem.tick(world_before.turn)
-        expired_effects = bool(expiry_delta.get("npc_stats"))
-        if expired_effects:
-            world_before = wsm.apply_delta(
-                user_id, scenario_id, expiry_delta, assets
-            )
-            wsm.persist(user_id, scenario_id, world_before)
-        debug["steps"].append({
-            "step": "effect_tick",
-            "duration_ms": (time.time() - step_start) * 1000,
-            "expired": expired_effects,
-        })
-
         # Step 4: DayController - 낮 턴 실행
         step_start = time.time()
         day_controller = get_day_controller()
@@ -195,33 +189,20 @@ async def execute_day_pipeline(
             "turn_after": world_after.turn,
         })
 
-        # Step 5.5: ItemAcquirer - 자동 아이템 획득 스캔
-        step_start = time.time()
-        from app.item_acquirer import get_item_acquirer
-        acquirer = get_item_acquirer()
-        acq_result = acquirer.scan(world_after, assets)
-        if acq_result.newly_acquired:
-            world_after = wsm.apply_delta(
-                user_id, scenario_id, acq_result.acquisition_delta, assets
-            )
-            wsm.persist(user_id, scenario_id, world_after)
-            for acq_item_id in acq_result.newly_acquired:
-                acq_item_def = assets.get_item_by_id(acq_item_id)
-                acq_item_name = acq_item_def.get("name", acq_item_id) if acq_item_def else acq_item_id
-                tool_result.event_description.append(f"'{acq_item_name}'을(를) 발견했다!")
-        debug["steps"].append({
-            "step": "item_acquire",
-            "duration_ms": (time.time() - step_start) * 1000,
-            "newly_acquired": acq_result.newly_acquired,
-        })
-
         # Step 6: EndingChecker - 엔딩 체크
         step_start = time.time()
         ending_result: EndingCheckResult = check_ending(world_after, assets)
-        ending_info = ending_result.to_ending_info_dict()
+        ending_info = None
         if ending_result.reached:
-            wsm.apply_delta(user_id, scenario_id, ending_result.triggered_delta.to_dict(), assets)
-            wsm.persist(user_id, scenario_id, world_after)
+            ending_info = {
+                "ending_id": ending_result.ending.ending_id,
+                "name": ending_result.ending.name,
+                "epilogue_prompt": ending_result.ending.epilogue_prompt,
+            }
+            # 엔딩 delta 적용 (flag_set 등)
+            if ending_result.triggered_delta:
+                wsm.apply_delta(user_id, scenario_id, ending_result.triggered_delta, assets)
+                wsm.persist(user_id, scenario_id, world_after)
 
         debug["steps"].append({
             "step": "ending_check",
@@ -280,7 +261,7 @@ async def execute_night_pipeline(
 
     파이프라인:
     1) Assets 로드
-    2) WorldState 조회
+    2) WorldStatePipeline 조회
     3) NightController.process() - 밤 페이즈 (turn 증가 없음)
     4) Delta 적용 & 저장
     5) EndingChecker.check() - 엔딩 체크
@@ -343,10 +324,16 @@ async def execute_night_pipeline(
         # Step 5: EndingChecker - 엔딩 체크
         step_start = time.time()
         ending_result: EndingCheckResult = check_ending(world_after, assets)
-        ending_info = ending_result.to_ending_info_dict()
+        ending_info = None
         if ending_result.reached:
-            wsm.apply_delta(user_id, scenario_id, ending_result.triggered_delta.to_dict(), assets)
-            wsm.persist(user_id, scenario_id, world_after)
+            ending_info = {
+                "ending_id": ending_result.ending.ending_id,
+                "name": ending_result.ending.name,
+                "epilogue_prompt": ending_result.ending.epilogue_prompt,
+            }
+            if ending_result.triggered_delta:
+                wsm.apply_delta(user_id, scenario_id, ending_result.triggered_delta, assets)
+                wsm.persist(user_id, scenario_id, world_after)
 
         debug["steps"].append({
             "step": "ending_check",
@@ -392,148 +379,6 @@ async def execute_night_pipeline(
         debug["error"] = str(e)
         debug["success"] = False
         raise
-
-
-# ============================================================
-# API 엔드포인트
-# ============================================================
-@app.post(
-    "/v1/scenario/{scenario_id}/day",
-    response_model=StepResponse,
-    summary="낮 턴 실행",
-    description="유저 입력을 받아 낮 턴을 진행합니다. (LockManager → DayController → EndingChecker)"
-)
-async def day_turn(
-    scenario_id: str,
-    body: StepRequest
-) -> StepResponse:
-    """낮 턴 실행"""
-    logger.info(f"Day request: scenario={scenario_id}, user={body.user_id}")
-
-    loader = get_loader(SCENARIOS_BASE_PATH)
-    if not loader.exists(scenario_id):
-        raise HTTPException(status_code=404, detail=f"Scenario not found: {scenario_id}")
-
-    try:
-        dialogue, ending, debug = await execute_day_pipeline(
-            body.user_id,
-            scenario_id,
-            body.text
-        )
-
-        return StepResponse(
-            dialogue=dialogue,
-            ending=ending,
-            debug=debug
-        )
-
-    except FileNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
-        logger.error(f"Error processing day turn: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
-
-
-@app.post(
-    "/v1/scenario/{scenario_id}/night",
-    response_model=NightResponseResult,
-    summary="밤 페이즈 실행",
-    description="밤 페이즈를 진행합니다. (NightController → EndingChecker)"
-)
-async def night_phase(
-    scenario_id: str,
-    body: NightRequestBody
-) -> NightResponseResult:
-    """밤 페이즈 실행"""
-    logger.info(f"Night request: scenario={scenario_id}, user={body.user_id}")
-
-    loader = get_loader(SCENARIOS_BASE_PATH)
-    if not loader.exists(scenario_id):
-        raise HTTPException(status_code=404, detail=f"Scenario not found: {scenario_id}")
-
-    try:
-        dialogue, conversation, ending, debug = await execute_night_pipeline(
-            body.user_id,
-            scenario_id,
-        )
-
-        return NightResponseResult(
-            dialogue=dialogue,
-            night_conversation=conversation,
-            ending=ending,
-            debug=debug
-        )
-
-    except FileNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
-        logger.error(f"Error processing night phase: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
-
-
-@app.get(
-    "/v1/scenario/view/{scenario_id}",
-    response_model=ScenarioInfoResponse,
-    summary="시나리오 정보 조회"
-)
-async def get_scenario_info(scenario_id: str) -> ScenarioInfoResponse:
-    """시나리오 기본 정보 조회"""
-    loader = get_loader(SCENARIOS_BASE_PATH)
-    if not loader.exists(scenario_id):
-        raise HTTPException(status_code=404, detail=f"Scenario not found: {scenario_id}")
-
-    assets = load_scenario_assets(scenario_id)
-
-    return ScenarioInfoResponse(
-        scenario_id=scenario_id,
-        title=assets.scenario.get("title", ""),
-        genre=assets.scenario.get("genre", ""),
-        turn_limit=assets.get_turn_limit(),
-        npcs=assets.get_all_npc_ids(),
-        items=assets.get_all_item_ids(),
-    )
-
-
-@app.get(
-    "/v1/scenario/{scenario_id}/state/{user_id}",
-    response_model=StateResponse,
-    summary="유저 상태 조회"
-)
-async def get_user_state(scenario_id: str, user_id: str) -> StateResponse:
-    """특정 유저의 시나리오 상태 조회"""
-    loader = get_loader(SCENARIOS_BASE_PATH)
-    if not loader.exists(scenario_id):
-        raise HTTPException(status_code=404, detail=f"Scenario not found: {scenario_id}")
-
-    assets = load_scenario_assets(scenario_id)
-    wsm = get_world_state_manager()
-    state = wsm.get_state(user_id, scenario_id, assets)
-
-    return StateResponse(
-        user_id=user_id,
-        scenario_id=scenario_id,
-        state=state.to_dict()
-    )
-
-
-@app.delete(
-    "/v1/scenario/{scenario_id}/state/{user_id}",
-    summary="유저 상태 리셋"
-)
-async def reset_user_state(scenario_id: str, user_id: str) -> dict:
-    """특정 유저의 시나리오 상태 리셋"""
-    wsm = get_world_state_manager()
-    wsm.reset_state(user_id, scenario_id)
-    # LockManager도 리셋
-    lock_manager = get_lock_manager()
-    lock_manager.reset()
-    return {"status": "ok", "message": f"State reset for user={user_id}, scenario={scenario_id}"}
-
-@app.get("/health", summary="헬스 체크")
-async def health_check() -> dict:
-    """서버 상태 확인"""
-    return {"status": "healthy"}
-
 
 # ============================================================
 # 개발 서버 실행

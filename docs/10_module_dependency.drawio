@@ -1,0 +1,252 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net" modified="2026-02-20" agent="Claude" version="24.0" type="device">
+  <diagram id="module-dep" name="모듈 의존성 다이어그램">
+    <mxGraphModel dx="1400" dy="1000" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1200" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <mxCell id="title" value="&lt;b&gt;모듈 의존성 다이어그램&lt;/b&gt;&lt;br&gt;app/ 내 모듈 간 import 관계 (계층별 정리)" style="text;html=1;align=center;fontSize=16;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="500" y="15" width="450" height="45" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== Layer 0: API ===== -->
+        <mxCell id="l0-label" value="&lt;b&gt;Layer 0: API Routes&lt;/b&gt;" style="text;html=1;align=left;fontSize=12;fontStyle=1;fillColor=none;strokeColor=none;fontColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="40" y="70" width="200" height="25" as="geometry"/>
+        </mxCell>
+        <mxCell id="l0-game" value="&lt;b&gt;api/routes/v1/&lt;br&gt;game.py&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="240" y="70" width="140" height="45" as="geometry"/>
+        </mxCell>
+        <mxCell id="l0-scenario" value="&lt;b&gt;api/routes/v1/&lt;br&gt;scenario.py&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="420" y="70" width="140" height="45" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== Layer 1: Services ===== -->
+        <mxCell id="l1-label" value="&lt;b&gt;Layer 1: Services&lt;/b&gt;" style="text;html=1;align=left;fontSize=12;fontStyle=1;fillColor=none;strokeColor=none;fontColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="40" y="160" width="200" height="25" as="geometry"/>
+        </mxCell>
+        <mxCell id="l1-gamesvc" value="&lt;b&gt;services/&lt;br&gt;game.py&lt;/b&gt;&lt;br&gt;&lt;i&gt;GameService&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="240" y="155" width="140" height="55" as="geometry"/>
+        </mxCell>
+        <mxCell id="l1-scenariosvc" value="&lt;b&gt;services/&lt;br&gt;scenario.py&lt;/b&gt;&lt;br&gt;&lt;i&gt;ScenarioService&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="420" y="155" width="140" height="55" as="geometry"/>
+        </mxCell>
+
+        <!-- Arrows L0 -> L1 -->
+        <mxCell id="a01a" style="html=1;endArrow=block;endFill=1;strokeWidth=1.5;" edge="1" parent="1" source="l0-game" target="l1-gamesvc"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="a01b" style="html=1;endArrow=block;endFill=1;strokeWidth=1.5;" edge="1" parent="1" source="l0-scenario" target="l1-scenariosvc"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- ===== Layer 2: Controllers ===== -->
+        <mxCell id="l2-label" value="&lt;b&gt;Layer 2: Controllers&lt;/b&gt;" style="text;html=1;align=left;fontSize=12;fontStyle=1;fillColor=none;strokeColor=none;fontColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="40" y="260" width="200" height="25" as="geometry"/>
+        </mxCell>
+        <mxCell id="l2-day" value="&lt;b&gt;day_controller.py&lt;/b&gt;&lt;br&gt;&lt;i&gt;DayController&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="160" y="260" width="160" height="45" as="geometry"/>
+        </mxCell>
+        <mxCell id="l2-night" value="&lt;b&gt;night_controller.py&lt;/b&gt;&lt;br&gt;&lt;i&gt;NightController&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="370" y="260" width="160" height="45" as="geometry"/>
+        </mxCell>
+
+        <!-- Arrows L1 -> L2 -->
+        <mxCell id="a12a" style="html=1;endArrow=block;endFill=1;strokeWidth=1.5;" edge="1" parent="1" source="l1-gamesvc" target="l2-day"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="a12b" style="html=1;endArrow=block;endFill=1;strokeWidth=1.5;" edge="1" parent="1" source="l1-gamesvc" target="l2-night"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- ===== Layer 2.5: Rule/Tool/Check ===== -->
+        <mxCell id="l25-label" value="&lt;b&gt;Layer 2.5: Engine Components&lt;/b&gt;" style="text;html=1;align=left;fontSize=12;fontStyle=1;fillColor=none;strokeColor=none;fontColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="40" y="350" width="300" height="25" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="l25-tools" value="&lt;b&gt;tools.py&lt;/b&gt;&lt;br&gt;interact/action/use" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="80" y="385" width="130" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="l25-rule" value="&lt;b&gt;rule_engine.py&lt;/b&gt;&lt;br&gt;memory_rules 적용" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="230" y="385" width="140" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="l25-lock" value="&lt;b&gt;lock_manager.py&lt;/b&gt;&lt;br&gt;LockManager" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="390" y="385" width="130" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="l25-ending" value="&lt;b&gt;ending_checker.py&lt;/b&gt;&lt;br&gt;EndingChecker" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="540" y="385" width="140" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="l25-cond" value="&lt;b&gt;condition_eval.py&lt;/b&gt;&lt;br&gt;ConditionEvaluator" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="700" y="385" width="150" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="l25-itemacq" value="&lt;b&gt;item_acquirer.py&lt;/b&gt;&lt;br&gt;ItemAcquirer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="870" y="385" width="130" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="l25-itemuse" value="&lt;b&gt;item_use_resolver.py&lt;/b&gt;&lt;br&gt;ItemUseResolver" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1020" y="385" width="150" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="l25-status" value="&lt;b&gt;status_effect_manager.py&lt;/b&gt;&lt;br&gt;StatusEffectManager" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1190" y="385" width="170" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="l25-narrative" value="&lt;b&gt;narrative.py&lt;/b&gt;&lt;br&gt;NarrativeLayer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="80" y="445" width="130" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="l25-effect" value="&lt;b&gt;effect_applicator.py&lt;/b&gt;&lt;br&gt;EffectApplicator" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="230" y="445" width="150" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="l25-post" value="&lt;b&gt;postprocess/&lt;/b&gt;&lt;br&gt;sibling/stepmother" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="400" y="445" width="140" height="40" as="geometry"/>
+        </mxCell>
+
+        <!-- Dependencies within Layer 2.5 -->
+        <mxCell id="d-lock-cond" style="html=1;endArrow=open;endFill=0;dashed=1;strokeWidth=1;strokeColor=#999;" edge="1" parent="1" source="l25-lock" target="l25-cond"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="d-end-cond" style="html=1;endArrow=open;endFill=0;dashed=1;strokeWidth=1;strokeColor=#999;" edge="1" parent="1" source="l25-ending" target="l25-cond"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="d-iacq-cond" style="html=1;endArrow=open;endFill=0;dashed=1;strokeWidth=1;strokeColor=#999;" edge="1" parent="1" source="l25-itemacq" target="l25-cond"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="d-iuse-cond" style="html=1;endArrow=open;endFill=0;dashed=1;strokeWidth=1;strokeColor=#999;" edge="1" parent="1" source="l25-itemuse" target="l25-cond"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="d-iuse-effect" style="html=1;endArrow=open;endFill=0;dashed=1;strokeWidth=1;strokeColor=#999;" edge="1" parent="1" source="l25-itemuse" target="l25-effect"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="d-iuse-status" style="html=1;endArrow=open;endFill=0;dashed=1;strokeWidth=1;strokeColor=#999;" edge="1" parent="1" source="l25-itemuse" target="l25-status"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="d-tools-post" style="html=1;endArrow=open;endFill=0;dashed=1;strokeWidth=1;strokeColor=#999;" edge="1" parent="1" source="l25-tools" target="l25-post"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- Arrows L2 -> L2.5 -->
+        <mxCell id="a2-tools" style="html=1;endArrow=block;endFill=1;strokeWidth=1.5;" edge="1" parent="1" source="l2-day" target="l25-tools"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="a2-rule" style="html=1;endArrow=block;endFill=1;strokeWidth=1.5;" edge="1" parent="1" source="l2-day" target="l25-rule"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- ===== Layer 3: Agents ===== -->
+        <mxCell id="l3-label" value="&lt;b&gt;Layer 3: Generative Agents&lt;/b&gt;" style="text;html=1;align=left;fontSize=12;fontStyle=1;fillColor=none;strokeColor=none;fontColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="40" y="530" width="300" height="25" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="l3-memory" value="&lt;b&gt;agents/&lt;br&gt;memory.py&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="160" y="560" width="110" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="l3-retrieval" value="&lt;b&gt;agents/&lt;br&gt;retrieval.py&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="300" y="560" width="110" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="l3-reflect" value="&lt;b&gt;agents/&lt;br&gt;reflection.py&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="440" y="560" width="110" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="l3-plan" value="&lt;b&gt;agents/&lt;br&gt;planning.py&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="580" y="560" width="110" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="l3-dialogue" value="&lt;b&gt;agents/&lt;br&gt;dialogue.py&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="720" y="560" width="110" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="l3-utils" value="&lt;b&gt;agents/&lt;br&gt;utils.py&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="860" y="560" width="110" height="40" as="geometry"/>
+        </mxCell>
+
+        <!-- Arrows L2 -> L3 -->
+        <mxCell id="a2-night-agents" style="html=1;endArrow=block;endFill=1;strokeWidth=1.5;" edge="1" parent="1" source="l2-night" target="l3-reflect"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- Agent internal deps -->
+        <mxCell id="d-ret-mem" style="html=1;endArrow=open;endFill=0;dashed=1;strokeWidth=1;strokeColor=#9673a6;" edge="1" parent="1" source="l3-retrieval" target="l3-memory"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="d-plan-ret" style="html=1;endArrow=open;endFill=0;dashed=1;strokeWidth=1;strokeColor=#9673a6;" edge="1" parent="1" source="l3-plan" target="l3-retrieval"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="d-dia-ret" style="html=1;endArrow=open;endFill=0;dashed=1;strokeWidth=1;strokeColor=#9673a6;" edge="1" parent="1" source="l3-dialogue" target="l3-retrieval"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="d-dia-utils" style="html=1;endArrow=open;endFill=0;dashed=1;strokeWidth=1;strokeColor=#9673a6;" edge="1" parent="1" source="l3-dialogue" target="l3-utils"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- ===== Layer 4: LLM ===== -->
+        <mxCell id="l4-label" value="&lt;b&gt;Layer 4: LLM&lt;/b&gt;" style="text;html=1;align=left;fontSize=12;fontStyle=1;fillColor=none;strokeColor=none;fontColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="40" y="650" width="200" height="25" as="geometry"/>
+        </mxCell>
+        <mxCell id="l4-engine" value="&lt;b&gt;llm/engine.py&lt;/b&gt;&lt;br&gt;UnifiedLLMEngine" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="160" y="680" width="140" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="l4-prompt" value="&lt;b&gt;llm/prompt.py&lt;/b&gt;&lt;br&gt;PromptBuilder" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="340" y="680" width="140" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="l4-response" value="&lt;b&gt;llm/response.py&lt;/b&gt;&lt;br&gt;ResponseParser" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="520" y="680" width="140" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="l4-config" value="&lt;b&gt;llm/config.py&lt;/b&gt;&lt;br&gt;ModelConfig" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="700" y="680" width="130" height="40" as="geometry"/>
+        </mxCell>
+
+        <!-- Agents -> LLM -->
+        <mxCell id="a3-llm" style="html=1;endArrow=block;endFill=1;strokeWidth=1.5;" edge="1" parent="1" source="l3-retrieval" target="l4-engine"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="a3-llm2" style="html=1;endArrow=block;endFill=1;strokeWidth=1;strokeColor=#999;" edge="1" parent="1" source="l25-tools" target="l4-prompt"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- LLM internal -->
+        <mxCell id="d-eng-cfg" style="html=1;endArrow=open;endFill=0;dashed=1;strokeWidth=1;strokeColor=#666;" edge="1" parent="1" source="l4-engine" target="l4-config"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- ===== Layer 5: Schemas ===== -->
+        <mxCell id="l5-label" value="&lt;b&gt;Layer 5: Schemas (Pydantic)&lt;/b&gt;" style="text;html=1;align=left;fontSize=12;fontStyle=1;fillColor=none;strokeColor=none;fontColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="40" y="770" width="300" height="25" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="l5-gs" value="game_state" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="100" y="800" width="90" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="l5-mem" value="memory" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="210" y="800" width="80" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="l5-tool" value="tool" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="310" y="800" width="70" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="l5-night" value="night" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="400" y="800" width="70" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="l5-rr" value="request_response" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="490" y="800" width="120" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="l5-status" value="status" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="630" y="800" width="70" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="l5-ending" value="ending" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="720" y="800" width="70" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="l5-lock" value="lock" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="810" y="800" width="60" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="l5-cond" value="condition" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="890" y="800" width="80" height="30" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== Layer 6: Data ===== -->
+        <mxCell id="l6-label" value="&lt;b&gt;Layer 6: Data Access&lt;/b&gt;" style="text;html=1;align=left;fontSize=12;fontStyle=1;fillColor=none;strokeColor=none;fontColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="40" y="870" width="200" height="25" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="l6-loader" value="&lt;b&gt;loader.py&lt;/b&gt;&lt;br&gt;ScenarioLoader" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="160" y="900" width="130" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="l6-crud" value="&lt;b&gt;crud/&lt;/b&gt;&lt;br&gt;game / scenario / chat_log" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="330" y="900" width="180" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="l6-dbmodels" value="&lt;b&gt;db_models/&lt;/b&gt;&lt;br&gt;Games / Scenario" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="550" y="900" width="150" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="l6-db" value="&lt;b&gt;database.py&lt;/b&gt;&lt;br&gt;SQLAlchemy Session" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="740" y="900" width="150" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="l6-redis" value="&lt;b&gt;redis_client.py&lt;/b&gt;&lt;br&gt;Redis Cache" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="930" y="900" width="130" height="40" as="geometry"/>
+        </mxCell>
+
+        <!-- Data internal deps -->
+        <mxCell id="d-crud-dbm" style="html=1;endArrow=open;endFill=0;dashed=1;strokeWidth=1;strokeColor=#d79b00;" edge="1" parent="1" source="l6-crud" target="l6-dbmodels"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="d-dbm-db" style="html=1;endArrow=open;endFill=0;dashed=1;strokeWidth=1;strokeColor=#d79b00;" edge="1" parent="1" source="l6-dbmodels" target="l6-db"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- ===== External Dependencies ===== -->
+        <mxCell id="ext-label" value="&lt;b&gt;External&lt;/b&gt;" style="text;html=1;align=left;fontSize=12;fontStyle=1;fillColor=none;strokeColor=none;fontColor=#333;" vertex="1" parent="1">
+          <mxGeometry x="40" y="990" width="200" height="25" as="geometry"/>
+        </mxCell>
+        <mxCell id="ext-pg" value="&lt;b&gt;PostgreSQL&lt;/b&gt;" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=8;fillColor=#ECEFF1;strokeColor=#546E7A;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="250" y="1020" width="110" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="ext-redis" value="&lt;b&gt;Redis&lt;/b&gt;" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=8;fillColor=#ECEFF1;strokeColor=#546E7A;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="420" y="1020" width="100" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="ext-vllm" value="&lt;b&gt;vLLM Server&lt;/b&gt;" style="shape=hexagon;perimeter=hexagonPerimeter2;whiteSpace=wrap;html=1;fixedSize=1;fillColor=#ECEFF1;strokeColor=#546E7A;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="580" y="1020" width="130" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="ext-yaml" value="&lt;b&gt;YAML Files&lt;/b&gt;&lt;br&gt;scenarios/" style="shape=document;whiteSpace=wrap;html=1;boundedLbl=1;size=12;fillColor=#ECEFF1;strokeColor=#546E7A;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="770" y="1020" width="120" height="50" as="geometry"/>
+        </mxCell>
+
+        <!-- External connections -->
+        <mxCell id="ext-a1" style="html=1;endArrow=block;endFill=1;strokeWidth=1.5;strokeColor=#546E7A;" edge="1" parent="1" source="l6-db" target="ext-pg"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="ext-a2" style="html=1;endArrow=block;endFill=1;strokeWidth=1.5;strokeColor=#546E7A;" edge="1" parent="1" source="l6-redis" target="ext-redis"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="ext-a3" style="html=1;endArrow=block;endFill=1;strokeWidth=1.5;strokeColor=#546E7A;" edge="1" parent="1" source="l4-engine" target="ext-vllm"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="ext-a4" style="html=1;endArrow=block;endFill=1;strokeWidth=1.5;strokeColor=#546E7A;" edge="1" parent="1" source="l6-loader" target="ext-yaml"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- Legend -->
+        <mxCell id="legend" value="&lt;div style='text-align:left;'&gt;&lt;b&gt;범례&lt;/b&gt;&lt;br&gt;━━ 직접 의존 (import)&lt;br&gt;┈┈ 내부 의존 (같은 레이어)&lt;br&gt;&lt;br&gt;의존 방향: 위 → 아래&lt;br&gt;(상위 레이어가 하위를 import)&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#CCCCCC;fontSize=10;align=left;spacingLeft=10;" vertex="1" parent="1">
+          <mxGeometry x="1200" y="70" width="220" height="110" as="geometry"/>
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

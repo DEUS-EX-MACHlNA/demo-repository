@@ -1,0 +1,232 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net" modified="2026-02-20" agent="Claude" version="24.0" type="device">
+  <diagram id="system-arch" name="시스템 아키텍처">
+    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1000" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <!-- Title -->
+        <mxCell id="title" value="&lt;b&gt;DeusExMachina - 시스템 아키텍처&lt;/b&gt;&lt;br&gt;AI 기반 인터랙티브 내러티브 게임 서버" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;fontSize=18;" vertex="1" parent="1">
+          <mxGeometry x="500" y="20" width="460" height="50" as="geometry"/>
+        </mxCell>
+
+        <!-- Client Layer -->
+        <mxCell id="client-group" value="Client Layer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=14;fontStyle=1;verticalAlign=top;spacingTop=5;arcSize=10;" vertex="1" parent="1">
+          <mxGeometry x="560" y="90" width="280" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="client" value="&lt;b&gt;Web Client&lt;/b&gt;&lt;br&gt;(Frontend App)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#6c8ebf;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="620" y="115" width="160" height="35" as="geometry"/>
+        </mxCell>
+
+        <!-- Arrow Client to API -->
+        <mxCell id="arrow1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jetSize=auto;html=1;strokeWidth=2;strokeColor=#333333;" edge="1" parent="1" source="client" target="api-group">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="arrow1-label" value="HTTP REST" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#666666;" vertex="1" connectable="0" parent="arrow1">
+          <mxGeometry x="-0.2" relative="1" as="geometry"><mxPoint as="offset"/></mxGeometry>
+        </mxCell>
+
+        <!-- API Layer -->
+        <mxCell id="api-group" value="API Layer (FastAPI)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=14;fontStyle=1;verticalAlign=top;spacingTop=5;arcSize=10;" vertex="1" parent="1">
+          <mxGeometry x="440" y="200" width="520" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="api-game" value="&lt;b&gt;/v1/game&lt;/b&gt;&lt;br&gt;step / night / start" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="470" y="230" width="200" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="api-scenario" value="&lt;b&gt;/v1/scenario&lt;/b&gt;&lt;br&gt;list / start" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="700" y="230" width="200" height="40" as="geometry"/>
+        </mxCell>
+
+        <!-- Arrow API to Service -->
+        <mxCell id="arrow2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jetSize=auto;html=1;strokeWidth=2;strokeColor=#333333;" edge="1" parent="1" source="api-group" target="service-group">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- Service Layer -->
+        <mxCell id="service-group" value="Service Layer (비즈니스 로직)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=14;fontStyle=1;verticalAlign=top;spacingTop=5;arcSize=10;" vertex="1" parent="1">
+          <mxGeometry x="440" y="320" width="520" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="svc-game" value="&lt;b&gt;GameService&lt;/b&gt;&lt;br&gt;process_turn / process_night" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="470" y="350" width="220" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="svc-scenario" value="&lt;b&gt;ScenarioService&lt;/b&gt;&lt;br&gt;create_game / get_json" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="710" y="350" width="220" height="40" as="geometry"/>
+        </mxCell>
+
+        <!-- Arrow Service to Engine -->
+        <mxCell id="arrow3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jetSize=auto;html=1;strokeWidth=2;strokeColor=#333333;" edge="1" parent="1" source="service-group" target="engine-group">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- Game Engine Layer -->
+        <mxCell id="engine-group" value="Game Engine Layer (게임 엔진)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=14;fontStyle=1;verticalAlign=top;spacingTop=5;arcSize=10;" vertex="1" parent="1">
+          <mxGeometry x="200" y="440" width="1000" height="160" as="geometry"/>
+        </mxCell>
+
+        <!-- Day Pipeline -->
+        <mxCell id="day-ctrl" value="&lt;b&gt;DayController&lt;/b&gt;&lt;br&gt;낮 파이프라인" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="220" y="475" width="140" height="45" as="geometry"/>
+        </mxCell>
+        <mxCell id="night-ctrl" value="&lt;b&gt;NightController&lt;/b&gt;&lt;br&gt;밤 파이프라인" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="380" y="475" width="140" height="45" as="geometry"/>
+        </mxCell>
+        <mxCell id="lock-mgr" value="&lt;b&gt;LockManager&lt;/b&gt;&lt;br&gt;정보 잠금/해제" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="540" y="475" width="130" height="45" as="geometry"/>
+        </mxCell>
+        <mxCell id="ending-chk" value="&lt;b&gt;EndingChecker&lt;/b&gt;&lt;br&gt;엔딩 조건 평가" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="690" y="475" width="130" height="45" as="geometry"/>
+        </mxCell>
+        <mxCell id="cond-eval" value="&lt;b&gt;ConditionEvaluator&lt;/b&gt;&lt;br&gt;조건 DSL 파서" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="840" y="475" width="140" height="45" as="geometry"/>
+        </mxCell>
+        <mxCell id="item-acq" value="&lt;b&gt;ItemAcquirer&lt;/b&gt;&lt;br&gt;자동 아이템 획득" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1000" y="475" width="140" height="45" as="geometry"/>
+        </mxCell>
+        <mxCell id="status-mgr" value="&lt;b&gt;StatusEffectManager&lt;/b&gt;&lt;br&gt;시간제 상태 효과" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="220" y="540" width="160" height="45" as="geometry"/>
+        </mxCell>
+        <mxCell id="narrative" value="&lt;b&gt;NarrativeLayer&lt;/b&gt;&lt;br&gt;내러티브 생성" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="400" y="540" width="140" height="45" as="geometry"/>
+        </mxCell>
+        <mxCell id="rule-engine" value="&lt;b&gt;RuleEngine&lt;/b&gt;&lt;br&gt;memory_rules 적용" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="560" y="540" width="140" height="45" as="geometry"/>
+        </mxCell>
+        <mxCell id="tools" value="&lt;b&gt;Tools&lt;/b&gt;&lt;br&gt;interact / action / use" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="720" y="540" width="140" height="45" as="geometry"/>
+        </mxCell>
+        <mxCell id="postprocess" value="&lt;b&gt;Postprocess&lt;/b&gt;&lt;br&gt;NPC 대사 글리치" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="880" y="540" width="140" height="45" as="geometry"/>
+        </mxCell>
+
+        <!-- Generative Agents Layer -->
+        <mxCell id="agents-group" value="Generative Agents Layer (Park et al. 2023)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=14;fontStyle=1;verticalAlign=top;spacingTop=5;arcSize=10;" vertex="1" parent="1">
+          <mxGeometry x="200" y="640" width="560" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="ag-memory" value="&lt;b&gt;Memory&lt;/b&gt;&lt;br&gt;Stream" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="220" y="670" width="100" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="ag-retrieval" value="&lt;b&gt;Retrieval&lt;/b&gt;&lt;br&gt;가중 검색" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="335" y="670" width="100" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="ag-reflect" value="&lt;b&gt;Reflection&lt;/b&gt;&lt;br&gt;Phase 전이" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="450" y="670" width="100" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="ag-plan" value="&lt;b&gt;Planning&lt;/b&gt;&lt;br&gt;LT/ST Plan" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="565" y="670" width="100" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="ag-dialogue" value="&lt;b&gt;Dialogue&lt;/b&gt;&lt;br&gt;NPC 대화 생성" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="680" y="670" width="100" height="40" as="geometry"/>
+        </mxCell>
+
+        <!-- Arrow Engine to Agents -->
+        <mxCell id="arrow-eng-ag" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jetSize=auto;html=1;strokeWidth=2;strokeColor=#333333;" edge="1" parent="1" source="night-ctrl" target="agents-group">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- LLM Layer -->
+        <mxCell id="llm-group" value="LLM Layer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=14;fontStyle=1;verticalAlign=top;spacingTop=5;arcSize=10;" vertex="1" parent="1">
+          <mxGeometry x="820" y="640" width="380" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="llm-engine" value="&lt;b&gt;UnifiedLLMEngine&lt;/b&gt;&lt;br&gt;vLLM / Transformers" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#666666;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="840" y="670" width="160" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="llm-prompt" value="&lt;b&gt;PromptBuilder&lt;/b&gt;&lt;br&gt;동적 프롬프트" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#666666;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1020" y="670" width="140" height="40" as="geometry"/>
+        </mxCell>
+
+        <!-- Arrow Engine to LLM -->
+        <mxCell id="arrow-eng-llm" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jetSize=auto;html=1;strokeWidth=2;strokeColor=#333333;" edge="1" parent="1" source="tools" target="llm-group">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- Data Layer -->
+        <mxCell id="data-group" value="Data Layer (데이터 저장)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=14;fontStyle=1;verticalAlign=top;spacingTop=5;arcSize=10;" vertex="1" parent="1">
+          <mxGeometry x="200" y="770" width="1000" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="loader" value="&lt;b&gt;ScenarioLoader&lt;/b&gt;&lt;br&gt;YAML 파싱" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#d79b00;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="220" y="800" width="140" height="45" as="geometry"/>
+        </mxCell>
+        <mxCell id="crud" value="&lt;b&gt;CRUD Layer&lt;/b&gt;&lt;br&gt;game / scenario / chat_log" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#d79b00;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="400" y="800" width="180" height="45" as="geometry"/>
+        </mxCell>
+
+        <!-- External: PostgreSQL -->
+        <mxCell id="postgres" value="&lt;b&gt;PostgreSQL&lt;/b&gt;&lt;br&gt;games / scenarios / chat_logs&lt;br&gt;(JSONB)" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="640" y="790" width="160" height="65" as="geometry"/>
+        </mxCell>
+        <!-- External: Redis -->
+        <mxCell id="redis" value="&lt;b&gt;Redis&lt;/b&gt;&lt;br&gt;Game State Cache&lt;br&gt;(TTL=3600s)" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="850" y="790" width="150" height="65" as="geometry"/>
+        </mxCell>
+        <!-- External: YAML -->
+        <mxCell id="yaml" value="&lt;b&gt;YAML Files&lt;/b&gt;&lt;br&gt;scenarios/coraline_v3/&lt;br&gt;(6 files)" style="shape=document;whiteSpace=wrap;html=1;boundedLbl=1;size=14;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1050" y="790" width="140" height="65" as="geometry"/>
+        </mxCell>
+
+        <!-- External: vLLM -->
+        <mxCell id="vllm" value="&lt;b&gt;vLLM Server&lt;/b&gt;&lt;br&gt;OpenAI-compatible API&lt;br&gt;(GPU Inference)" style="shape=hexagon;perimeter=hexagonPerimeter2;whiteSpace=wrap;html=1;fixedSize=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1250" y="640" width="170" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="arrow-llm-vllm" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jetSize=auto;html=1;strokeWidth=2;strokeColor=#9673a6;dashed=1;" edge="1" parent="1" source="llm-engine" target="vllm">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="arrow-llm-vllm-label" value="HTTP (httpx)" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#666666;" vertex="1" connectable="0" parent="arrow-llm-vllm">
+          <mxGeometry x="-0.2" relative="1" as="geometry"><mxPoint as="offset"/></mxGeometry>
+        </mxCell>
+
+        <!-- Arrows to data stores -->
+        <mxCell id="arrow-crud-pg" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;strokeWidth=1.5;strokeColor=#d79b00;" edge="1" parent="1" source="crud" target="postgres">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="arrow-crud-pg-label" value="SQLAlchemy" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=9;fontColor=#999999;" vertex="1" connectable="0" parent="arrow-crud-pg">
+          <mxGeometry x="-0.2" relative="1" as="geometry"><mxPoint as="offset"/></mxGeometry>
+        </mxCell>
+        <mxCell id="arrow-loader-yaml" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;html=1;strokeWidth=1.5;strokeColor=#d79b00;" edge="1" parent="1" source="loader" target="yaml">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- Legend -->
+        <mxCell id="legend" value="&lt;b&gt;범례&lt;/b&gt;" style="text;html=1;align=left;verticalAlign=top;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="30" y="90" width="60" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="leg1" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="30" y="120" width="20" height="15" as="geometry"/>
+        </mxCell>
+        <mxCell id="leg1t" value="Client" style="text;html=1;align=left;fontSize=10;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="55" y="117" width="60" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="leg2" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="30" y="145" width="20" height="15" as="geometry"/>
+        </mxCell>
+        <mxCell id="leg2t" value="API" style="text;html=1;align=left;fontSize=10;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="55" y="142" width="60" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="leg3" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="30" y="170" width="20" height="15" as="geometry"/>
+        </mxCell>
+        <mxCell id="leg3t" value="Service" style="text;html=1;align=left;fontSize=10;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="55" y="167" width="60" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="leg4" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="30" y="195" width="20" height="15" as="geometry"/>
+        </mxCell>
+        <mxCell id="leg4t" value="Engine" style="text;html=1;align=left;fontSize=10;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="55" y="192" width="60" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="leg5" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="30" y="220" width="20" height="15" as="geometry"/>
+        </mxCell>
+        <mxCell id="leg5t" value="Agents" style="text;html=1;align=left;fontSize=10;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="55" y="217" width="60" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="leg6" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="30" y="245" width="20" height="15" as="geometry"/>
+        </mxCell>
+        <mxCell id="leg6t" value="Data" style="text;html=1;align=left;fontSize=10;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="55" y="242" width="60" height="20" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

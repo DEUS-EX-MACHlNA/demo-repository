@@ -2,9 +2,13 @@
 app/schemas/player.py
 플레이어 관련 스키마
 """
-from typing import List, Dict, Any
+import re
+from typing import List, Dict, Any, Optional
 
 from pydantic import BaseModel, Field
+
+_INTENT_COND_RE = re.compile(r"intent\s*(==|!=)\s*['\"]([^'\"]+)['\"]")
+_SYSTEM_TIME_COND_RE = re.compile(r"system\.time\s*(==|!=)\s*['\"]([^'\"]+)['\"]")
 
 
 class PlayerMemoSchema(BaseModel):
@@ -16,10 +20,7 @@ class PlayerMemoSchema(BaseModel):
 
 class PlayerSchema(BaseModel):
     """플레이어 정보"""
-    current_node: str = Field(..., description="현재 위치하고 있는 스토리 노드 ID (예: act1_open)")
-
-    # TODO 현재 맵기준과 connected_nodes조건과 비교를 하여 avaliable_nodes를 계산해야함
-    avaliable_nodes: List[str] = Field(default_factory=list, description="현재 접근 가능한 노드 ID 리스트")
+    current_node: str = Field(..., default_factory="player_room", description="현재 위치하고 있는 스토리 노드 ID (예: act1_open)")
 
     inventory: List[str] = Field(
         default_factory=list,

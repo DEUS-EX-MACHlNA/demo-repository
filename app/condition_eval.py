@@ -24,8 +24,9 @@ class ConditionEvaluator:
     - npc.{npc_id}.{stat} {op} {value}     (예: npc.brother.affection >= 70)
     - npc.{npc_id}.{stat} == '{string}'    (예: npc.stepmother.status == 'sleeping')
     - vars.{var_name} {op} {value}         (예: vars.humanity <= 60)
-    - vars.{var_name} == true/false        (예: vars.house_on_fire == true)
+    - vars.{var_name} == true/false        (예: vars.discovered == true)
     - flags.{flag_name} == true/false/null (예: flags.ending == null)
+    - locks.{lock_id} == true/false       (예: locks.quest_escape_route == true)
     - has_item({item_id})                  (예: has_item(real_family_photo))
     - system.turn {op} {value}             (예: system.turn >= 40)
     - system.turn == turn_limit            (예: system.turn == turn_limit)
@@ -263,7 +264,18 @@ class ConditionEvaluator:
             current = world_state.flags.get(flag_name, False)
             return current == expected
 
-        # 8. system.turn == turn_limit 패턴 (특수 케이스)
+        # 8. locks.{lock_id} == true/false 패턴
+        locks_bool_match = re.match(
+            r'locks\.(\w+)\s*==\s*(true|false)',
+            condition
+        )
+        if locks_bool_match:
+            lock_id = locks_bool_match.group(1)
+            expected = locks_bool_match.group(2) == "true"
+            current = world_state.locks.get(lock_id, False)
+            return current == expected
+
+        # 9. system.turn == turn_limit 패턴 (특수 케이스)
         if condition.strip() == "system.turn == turn_limit":
             return world_state.turn == context.turn_limit
 

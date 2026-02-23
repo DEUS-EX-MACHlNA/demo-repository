@@ -1,0 +1,84 @@
+version: "3.8"
+
+services:
+  init_db:
+    build: .
+    environment:
+      - DB_USER=${POSTGRES_USER:-postgres}
+      - DB_PASSWORD=${POSTGRES_PASSWORD:-password}
+      - DB_NAME=${POSTGRES_DB:-maratang_db}
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-password}@db:5432/${POSTGRES_DB:-maratang_db}
+      - TZ=Asia/Seoul
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - maratang_net
+    command: >
+      sh -c "python init_db.py &&
+      alembic upgrade head &&
+      python -m app.loader"
+
+  app:
+    build: .
+    restart: always
+    environment:
+      - DB_USER=${POSTGRES_USER:-postgres}
+      - DB_PASSWORD=${POSTGRES_PASSWORD:-password}
+      - DB_NAME=${POSTGRES_DB:-maratang_db}
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-password}@db:5432/${POSTGRES_DB:-maratang_db}
+      - REDIS_URL=redis://redis:6379/0
+      - TZ=Asia/Seoul
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      init_db:
+        condition: service_completed_successfully
+    networks:
+      - maratang_net
+
+  db:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_DB: ${POSTGRES_DB:-maratang_db}
+      TZ: Asia/Seoul
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - maratang_net
+
+  redis:
+    image: redis:7-alpine
+    restart: always
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - maratang_net
+    command: redis-server --appendonly yes
+
+networks:
+  maratang_net:
+
+volumes:
+  postgres_data:
+  redis_data:

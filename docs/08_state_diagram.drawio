@@ -1,0 +1,202 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net" modified="2026-02-20" agent="Claude" version="24.0" type="device">
+  <diagram id="state-diagram" name="게임 상태 다이어그램">
+    <mxGraphModel dx="1400" dy="1000" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1400" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <mxCell id="title" value="&lt;b&gt;게임 상태 다이어그램&lt;/b&gt;&lt;br&gt;GameStatus, NPC Phase, NPCStatus 전이" style="text;html=1;align=center;fontSize=18;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="500" y="15" width="450" height="45" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== 1. GameStatus State Machine ===== -->
+        <mxCell id="gs-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E3F2FD;strokeColor=#1565C0;arcSize=5;" vertex="1" parent="1">
+          <mxGeometry x="40" y="80" width="700" height="220" as="geometry"/>
+        </mxCell>
+        <mxCell id="gs-title" value="&lt;b&gt;1. GameStatus 전이&lt;/b&gt;" style="text;html=1;align=left;fontSize=14;fontStyle=0;fillColor=none;strokeColor=none;fontColor=#1565C0;" vertex="1" parent="1">
+          <mxGeometry x="60" y="85" width="250" height="25" as="geometry"/>
+        </mxCell>
+
+        <!-- Initial -->
+        <mxCell id="gs-init" value="" style="ellipse;whiteSpace=wrap;html=1;fillColor=#333333;strokeColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="80" y="155" width="25" height="25" as="geometry"/>
+        </mxCell>
+
+        <!-- LIVE -->
+        <mxCell id="gs-live" value="&lt;b&gt;LIVE&lt;/b&gt;&lt;br&gt;게임 진행 중" style="ellipse;whiteSpace=wrap;html=1;fillColor=#BBDEFB;strokeColor=#1565C0;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="180" y="130" width="150" height="75" as="geometry"/>
+        </mxCell>
+        <mxCell id="gs-a1" value="start_game()" style="html=1;endArrow=block;endFill=1;strokeWidth=2;fontSize=9;" edge="1" parent="1" source="gs-init" target="gs-live">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- Day/Night cycle -->
+        <mxCell id="gs-day" value="&lt;b&gt;DAY&lt;/b&gt;&lt;br&gt;process_turn()" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF9C4;strokeColor=#F9A825;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="400" y="115" width="120" height="45" as="geometry"/>
+        </mxCell>
+        <mxCell id="gs-night" value="&lt;b&gt;NIGHT&lt;/b&gt;&lt;br&gt;process_night()" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#CE93D8;strokeColor=#7B1FA2;fontSize=10;fontColor=#FFFFFF;" vertex="1" parent="1">
+          <mxGeometry x="400" y="180" width="120" height="45" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="gs-dn" value="" style="html=1;endArrow=block;endFill=1;strokeWidth=1.5;curved=1;" edge="1" parent="1" source="gs-day" target="gs-night">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="gs-nd" value="" style="html=1;endArrow=block;endFill=1;strokeWidth=1.5;curved=1;" edge="1" parent="1" source="gs-night" target="gs-day">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="550" y="170"/></Array></mxGeometry>
+        </mxCell>
+
+        <mxCell id="gs-ld" style="html=1;endArrow=block;endFill=1;strokeWidth=1.5;" edge="1" parent="1" source="gs-live" target="gs-day">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- ENDING -->
+        <mxCell id="gs-ending" value="&lt;b&gt;ENDING&lt;/b&gt;&lt;br&gt;엔딩 도달" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EF9A9A;strokeColor=#C62828;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="590" y="130" width="130" height="75" as="geometry"/>
+        </mxCell>
+        <mxCell id="gs-de" value="EndingChecker&lt;br&gt;.check() = true" style="html=1;endArrow=block;endFill=1;strokeWidth=2;fontSize=9;" edge="1" parent="1" source="gs-day" target="gs-ending">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="gs-ne" value="EndingChecker&lt;br&gt;.check() = true" style="html=1;endArrow=block;endFill=1;strokeWidth=2;fontSize=9;" edge="1" parent="1" source="gs-night" target="gs-ending">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== 2. NPC Phase State Machine (새엄마 예시) ===== -->
+        <mxCell id="np-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF3E0;strokeColor=#E65100;arcSize=5;" vertex="1" parent="1">
+          <mxGeometry x="40" y="330" width="1500" height="400" as="geometry"/>
+        </mxCell>
+        <mxCell id="np-title" value="&lt;b&gt;2. NPC Phase 전이 (새엄마 stepmother 예시)&lt;/b&gt;&lt;br&gt;&lt;i&gt;각 NPC는 3개 Phase를 가지며, stats 조건에 따라 전이. Night Reflection에서 평가됨&lt;/i&gt;" style="text;html=1;align=left;fontSize=13;fillColor=none;strokeColor=none;fontColor=#E65100;" vertex="1" parent="1">
+          <mxGeometry x="60" y="335" width="600" height="40" as="geometry"/>
+        </mxCell>
+
+        <!-- Phase A -->
+        <mxCell id="ph-a" value="&lt;b&gt;Phase A&lt;/b&gt;&lt;br&gt;&lt;b&gt;Pleasant (다정한 인형)&lt;/b&gt;&lt;hr&gt;&lt;div style='text-align:left;font-size:10px;'&gt;행동: 따뜻하게 대하며 &quot;가족&quot;을 강조&lt;br&gt;목표: 플레이어를 가족으로 만들기&lt;br&gt;톤: 부드럽고 상냥한 말투&lt;br&gt;&lt;br&gt;초기 stats:&lt;br&gt;affection=50, fear=80, humanity=0&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#C8E6C9;strokeColor=#2E7D32;fontSize=11;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="80" y="400" width="260" height="180" as="geometry"/>
+        </mxCell>
+
+        <!-- Phase B -->
+        <mxCell id="ph-b" value="&lt;b&gt;Phase B&lt;/b&gt;&lt;br&gt;&lt;b&gt;Testing (시험하는 인형)&lt;/b&gt;&lt;hr&gt;&lt;div style='text-align:left;font-size:10px;'&gt;행동: 미묘한 위협과 시험&lt;br&gt;목표: 순종 여부 확인&lt;br&gt;톤: 차가워지고 의심 표현&lt;br&gt;&lt;br&gt;전이 조건:&lt;br&gt;affection &lt;= 40 OR fear &gt;= 70&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF9C4;strokeColor=#F9A825;fontSize=11;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="480" y="400" width="260" height="180" as="geometry"/>
+        </mxCell>
+
+        <!-- Phase C -->
+        <mxCell id="ph-c" value="&lt;b&gt;Phase C&lt;/b&gt;&lt;br&gt;&lt;b&gt;Punishment (처벌하는 인형)&lt;/b&gt;&lt;hr&gt;&lt;div style='text-align:left;font-size:10px;'&gt;행동: 적극적 위협과 감금&lt;br&gt;목표: 플레이어 완전 제압&lt;br&gt;톤: 무섭고 공격적&lt;br&gt;&lt;br&gt;전이 조건:&lt;br&gt;affection &lt;= 20 OR fear &gt;= 90&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFCDD2;strokeColor=#C62828;fontSize=11;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="880" y="400" width="260" height="180" as="geometry"/>
+        </mxCell>
+
+        <!-- Phase arrows -->
+        <mxCell id="pa-ab" value="&lt;b&gt;affection ≤ 40&lt;br&gt;OR fear ≥ 70&lt;/b&gt;" style="html=1;endArrow=block;endFill=1;strokeWidth=2.5;fontSize=10;fontColor=#E65100;" edge="1" parent="1" source="ph-a" target="ph-b">
+          <mxGeometry x="0.1" relative="1" as="geometry"><mxPoint as="offset"/></mxGeometry>
+        </mxCell>
+        <mxCell id="pa-bc" value="&lt;b&gt;affection ≤ 20&lt;br&gt;OR fear ≥ 90&lt;/b&gt;" style="html=1;endArrow=block;endFill=1;strokeWidth=2.5;fontSize=10;fontColor=#E65100;" edge="1" parent="1" source="ph-b" target="ph-c">
+          <mxGeometry x="0.1" relative="1" as="geometry"><mxPoint as="offset"/></mxGeometry>
+        </mxCell>
+
+        <!-- Reflection note -->
+        <mxCell id="np-reflect" value="&lt;div style='text-align:left;'&gt;&lt;b&gt;Phase 전이 평가 시점&lt;/b&gt;&lt;br&gt;&lt;br&gt;Night Phase 1: _run_reflections()&lt;br&gt;├ determine_current_phase()&lt;br&gt;├ should_reflect()?&lt;br&gt;└ perform_reflection() → Memory&lt;br&gt;&lt;br&gt;Phase 변경 시 NPC의 행동/말투가&lt;br&gt;완전히 바뀜 (persona 재해석)&lt;/div&gt;" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;size=18;fillColor=#FFF8E1;strokeColor=#d6b656;fontSize=10;align=left;spacingLeft=8;" vertex="1" parent="1">
+          <mxGeometry x="1200" y="400" width="280" height="170" as="geometry"/>
+        </mxCell>
+
+        <!-- Other NPCs -->
+        <mxCell id="np-others" value="&lt;div style='text-align:left;'&gt;&lt;b&gt;다른 NPC Phase 구조&lt;/b&gt;&lt;br&gt;&lt;br&gt;👨 새아빠: A(Silent) → B(Conflicted) → C(Aggressive)&lt;br&gt;👦 오빠: A(Awkward) → B(Curious) → C(Ally / Broken)&lt;br&gt;👵 할머니: A(Watchful) → B(Warning) → C(Intervening)&lt;br&gt;🐕 바론: A(Neutral) → B(Alert) → C(Guardian)&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF3E0;strokeColor=#E65100;fontSize=10;align=left;spacingLeft=10;" vertex="1" parent="1">
+          <mxGeometry x="80" y="620" width="500" height="90" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== 3. NPCStatus State Machine ===== -->
+        <mxCell id="ns-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E5F5;strokeColor=#7B1FA2;arcSize=5;" vertex="1" parent="1">
+          <mxGeometry x="40" y="770" width="1500" height="300" as="geometry"/>
+        </mxCell>
+        <mxCell id="ns-title" value="&lt;b&gt;3. NPCStatus 전이 (NPC 생존 상태)&lt;/b&gt;&lt;br&gt;&lt;i&gt;StatusEffectManager가 관리하는 시간제 상태 포함&lt;/i&gt;" style="text;html=1;align=left;fontSize=13;fillColor=none;strokeColor=none;fontColor=#7B1FA2;" vertex="1" parent="1">
+          <mxGeometry x="60" y="775" width="500" height="40" as="geometry"/>
+        </mxCell>
+
+        <!-- ALIVE -->
+        <mxCell id="ns-alive" value="&lt;b&gt;ALIVE&lt;/b&gt;&lt;br&gt;(활성)" style="ellipse;whiteSpace=wrap;html=1;fillColor=#C8E6C9;strokeColor=#2E7D32;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="120" y="860" width="140" height="70" as="geometry"/>
+        </mxCell>
+
+        <!-- SLEEPING -->
+        <mxCell id="ns-sleeping" value="&lt;b&gt;SLEEPING&lt;/b&gt;&lt;br&gt;(수면 - 시간제)" style="ellipse;whiteSpace=wrap;html=1;fillColor=#BBDEFB;strokeColor=#1565C0;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="380" y="830" width="160" height="70" as="geometry"/>
+        </mxCell>
+
+        <!-- MISSING -->
+        <mxCell id="ns-missing" value="&lt;b&gt;MISSING&lt;/b&gt;&lt;br&gt;(실종)" style="ellipse;whiteSpace=wrap;html=1;fillColor=#FFF9C4;strokeColor=#F9A825;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="380" y="930" width="160" height="70" as="geometry"/>
+        </mxCell>
+
+        <!-- DECEASED -->
+        <mxCell id="ns-deceased" value="&lt;b&gt;DECEASED&lt;/b&gt;&lt;br&gt;(사망 - 최종)" style="ellipse;whiteSpace=wrap;html=1;fillColor=#FFCDD2;strokeColor=#C62828;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="660" y="860" width="160" height="70" as="geometry"/>
+        </mxCell>
+
+        <!-- UNKNOWN -->
+        <mxCell id="ns-unknown" value="&lt;b&gt;UNKNOWN&lt;/b&gt;&lt;br&gt;(불명)" style="ellipse;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#999999;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="660" y="960" width="140" height="60" as="geometry"/>
+        </mxCell>
+
+        <!-- Transitions -->
+        <mxCell id="ns-a-sl" value="use(sedative_herb)&lt;br&gt;→ StatusEffect(3턴)" style="html=1;endArrow=block;endFill=1;strokeWidth=2;fontSize=9;" edge="1" parent="1" source="ns-alive" target="ns-sleeping">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="ns-sl-a" value="tick(): duration 만료" style="html=1;endArrow=block;endFill=1;strokeWidth=2;fontSize=9;dashed=1;dashPattern=5 3;" edge="1" parent="1" source="ns-sleeping" target="ns-alive">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="300" y="850"/></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="ns-a-mi" value="특정 이벤트" style="html=1;endArrow=block;endFill=1;strokeWidth=2;fontSize=9;" edge="1" parent="1" source="ns-alive" target="ns-missing">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="ns-a-de" value="치명적 이벤트" style="html=1;endArrow=block;endFill=1;strokeWidth=2;fontSize=9;strokeColor=#C62828;" edge="1" parent="1" source="ns-alive" target="ns-deceased">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="ns-mi-de" value="" style="html=1;endArrow=block;endFill=1;strokeWidth=1.5;fontSize=9;strokeColor=#C62828;" edge="1" parent="1" source="ns-missing" target="ns-deceased">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="ns-mi-a" value="복귀" style="html=1;endArrow=block;endFill=1;strokeWidth=1.5;fontSize=9;dashed=1;" edge="1" parent="1" source="ns-missing" target="ns-alive">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="190" y="970"/></Array></mxGeometry>
+        </mxCell>
+
+        <!-- StatusEffect note -->
+        <mxCell id="ns-se-note" value="&lt;div style='text-align:left;'&gt;&lt;b&gt;StatusEffectManager&lt;/b&gt;&lt;br&gt;&lt;br&gt;apply_effect(effect, ws):&lt;br&gt;• NPC status 변경 (→ SLEEPING)&lt;br&gt;• vars[&quot;status_effects&quot;]에 저장&lt;br&gt;• { npc_id, status, expires_at_turn,&lt;br&gt;&amp;nbsp;&amp;nbsp;original_status }&lt;br&gt;&lt;br&gt;tick(current_turn, ws):&lt;br&gt;• 매 턴 시작 시 호출&lt;br&gt;• expires_at_turn &lt;= current_turn&lt;br&gt;&amp;nbsp;&amp;nbsp;→ original_status로 복원&lt;/div&gt;" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;size=18;fillColor=#FFF8E1;strokeColor=#d6b656;fontSize=10;align=left;spacingLeft=8;" vertex="1" parent="1">
+          <mxGeometry x="920" y="830" width="290" height="200" as="geometry"/>
+        </mxCell>
+
+        <!-- Final state marker for DECEASED -->
+        <mxCell id="ns-final" value="" style="ellipse;whiteSpace=wrap;html=1;fillColor=#333333;strokeColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="840" y="882" width="20" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="ns-de-f" style="html=1;endArrow=block;endFill=1;strokeWidth=1.5;" edge="1" parent="1" source="ns-deceased" target="ns-final">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== 4. Turn Lifecycle ===== -->
+        <mxCell id="tl-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECEFF1;strokeColor=#546E7A;arcSize=5;" vertex="1" parent="1">
+          <mxGeometry x="40" y="1100" width="700" height="250" as="geometry"/>
+        </mxCell>
+        <mxCell id="tl-title" value="&lt;b&gt;4. 턴 라이프사이클&lt;/b&gt;" style="text;html=1;align=left;fontSize=14;fillColor=none;strokeColor=none;fontColor=#546E7A;" vertex="1" parent="1">
+          <mxGeometry x="60" y="1105" width="250" height="25" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="tl-1" value="&lt;b&gt;Turn N (Day)&lt;/b&gt;&lt;br&gt;Lock → StatusTick&lt;br&gt;→ DayCtrl → Delta&lt;br&gt;→ ItemScan → Ending" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF9C4;strokeColor=#F9A825;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="80" y="1160" width="150" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="tl-2" value="&lt;b&gt;Turn N (Night)&lt;/b&gt;&lt;br&gt;Reflect → Plan&lt;br&gt;→ Dialogue → Impact&lt;br&gt;→ Delta → Ending" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#CE93D8;strokeColor=#7B1FA2;fontSize=10;fontColor=#FFFFFF;" vertex="1" parent="1">
+          <mxGeometry x="290" y="1160" width="150" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="tl-3" value="&lt;b&gt;Turn N+1 (Day)&lt;/b&gt;&lt;br&gt;turn++ (day_action_log&lt;br&gt;초기화됨)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF9C4;strokeColor=#F9A825;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="500" y="1160" width="150" height="70" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="tl-a1" style="html=1;endArrow=block;endFill=1;strokeWidth=2;" edge="1" parent="1" source="tl-1" target="tl-2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="tl-a2" style="html=1;endArrow=block;endFill=1;strokeWidth=2;" edge="1" parent="1" source="tl-2" target="tl-3"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <mxCell id="tl-limit" value="&lt;b&gt;Turn 50&lt;/b&gt;&lt;br&gt;= turn_limit&lt;br&gt;→ 강제 엔딩" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFCDD2;strokeColor=#C62828;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="500" y="1265" width="150" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="tl-a3" value="system.turn == turn_limit" style="html=1;endArrow=block;endFill=1;strokeWidth=1.5;dashed=1;fontSize=9;strokeColor=#C62828;" edge="1" parent="1" source="tl-3" target="tl-limit">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

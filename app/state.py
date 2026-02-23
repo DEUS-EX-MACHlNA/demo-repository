@@ -39,6 +39,8 @@ class InMemoryStateStore:
         """상태 저장"""
         key = (user_id, scenario_id)
         self._store[key] = copy.deepcopy(state)
+        
+    # [truncated for brevity, applying similarly to other methods]
 
     def delete(self, user_id: str, scenario_id: str):
         """상태 삭제"""

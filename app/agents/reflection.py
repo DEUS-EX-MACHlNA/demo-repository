@@ -60,7 +60,7 @@ def determine_current_phase(
 def _evaluate_phase_condition(condition: str, stats: dict[str, int]) -> bool:
     """Phase 전환 조건 파싱 및 평가.
 
-    지원 형식: 'minus_hits >= 3 OR critical_hits >= 1 OR affection <= 40'
+    지원 형식: 'minus_hits >= 3 OR affection <= 40' 또는 'minus_hits - plus_hits >= 3'
     stats dict에서 key를 직접 조회 (hits도 stats에 포함).
     """
     if not condition:
@@ -76,12 +76,21 @@ def _evaluate_phase_condition(condition: str, stats: dict[str, int]) -> bool:
 
 
 def _evaluate_single_condition(clause: str, stats: dict[str, int]) -> bool:
-    """단일 비교 조건 평가. 'key >= value' 또는 'key <= value' 형식."""
+    """단일 비교 조건 평가. 'key >= value', 'key1 - key2 >= value' 형식."""
     # AND 지원
     and_parts = [p.strip() for p in re.split(r'\bAND\b', clause, flags=re.IGNORECASE)]
     if len(and_parts) > 1:
         return all(_evaluate_single_condition(p, stats) for p in and_parts)
 
+    # 차이 패턴: 'key1 - key2 op value'
+    diff_match = re.match(r'(\w+)\s*-\s*(\w+)\s*(>=|<=|>|<|==|!=)\s*(\d+)', clause.strip())
+    if diff_match:
+        key1, key2, op, val_str = diff_match.group(1), diff_match.group(2), diff_match.group(3), diff_match.group(4)
+        current = stats.get(key1, 0) - stats.get(key2, 0)
+        target = int(val_str)
+        return _compare(current, op, target)
+
+    # 단일 키 패턴: 'key op value'
     match = re.match(r'(\w+)\s*(>=|<=|>|<|==|!=)\s*(\d+)', clause.strip())
     if not match:
         return False
@@ -90,6 +99,11 @@ def _evaluate_single_condition(clause: str, stats: dict[str, int]) -> bool:
     current = stats.get(key, 0)
     target = int(val_str)
 
+    return _compare(current, op, target)
+
+
+def _compare(current: int, op: str, target: int) -> bool:
+    """비교 연산 수행."""
     if op == ">=":
         return current >= target
     elif op == "<=":

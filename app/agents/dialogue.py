@@ -80,7 +80,7 @@ def generate_utterance(
 
     Args:
         speaker_memory: NPCState.memory dict
-        speaker_stats: NPC 스탯 Dict (예: {"affection": 50, "fear": 80})
+        speaker_stats: NPC 스탯 Dict (예: {"affection": 50, "humanity": 0})
         world_snapshot: 월드 상태 요약 dict (None이면 간단 프롬프트 사용)
     """
     persona_str = format_persona(speaker_persona)
@@ -203,7 +203,16 @@ def _build_rich_utterance_prompt(
     triggers = speaker_persona.get("triggers", {})
     triggers_plus = ", ".join(triggers.get("plus", [])) or "(없음)"
     triggers_minus = ", ".join(triggers.get("minus", [])) or "(없음)"
-    taboos = ", ".join(speaker_persona.get("taboos", [])) or "(없음)"
+    raw_taboos = speaker_persona.get("taboos", "")
+    taboos = raw_taboos if isinstance(raw_taboos, str) else ", ".join(raw_taboos) if raw_taboos else "(없음)"
+    if not taboos:
+        taboos = "(없음)"
+
+    # 관계 정보
+    relationships = speaker_persona.get("relationships", "")
+    relationships_str = relationships if isinstance(relationships, str) else ", ".join(relationships) if relationships else "(없음)"
+    if not relationships_str:
+        relationships_str = "(없음)"
 
     # flags 요약 (true인 것만)
     flags = ws.get("flags", {})
@@ -224,6 +233,7 @@ def _build_rich_utterance_prompt(
         f"- 결과/판정/서술은 하지 말고 \"대사\"만 말해라.\n\n"
         f"[NPC PROFILE]\n"
         f"페르소나: {persona_str}\n"
+        f"관계: {relationships_str}\n"
         f"금기(taboos): {taboos}\n"
         f"트리거(+): {triggers_plus}\n"
         f"트리거(-): {triggers_minus}\n"
@@ -311,11 +321,13 @@ def store_dialogue_memories(
     persona_summary: str,
     llm: GenerativeAgentsLLM,
     current_turn: int = 1,
+    hits_info: dict[str, int] | None = None,
 ) -> None:
     """대화 내용을 해당 NPC의 Memory Stream에 dialogue 기억으로 저장.
 
     Args:
         npc_memory: NPCState.memory dict (이전의 npc_extras)
+        hits_info: 낮 대화 영향 분석의 plus/minus hits (밤에는 None)
     """
     # 상대 발화를 요약하여 저장
     other_utterances = [c["text"] for c in conversation if c["speaker"] == other_name]
@@ -323,7 +335,7 @@ def store_dialogue_memories(
     if len(summary) > 200:
         summary = summary[:197] + "..."
 
-    imp = score_importance(summary, npc_name, persona_summary, llm)
+    imp = score_importance(summary, npc_name, persona_summary, llm, hits_info=hits_info)
     entry = MemoryEntry.create(
         npc_id=npc_id,
         description=summary,
@@ -351,7 +363,7 @@ def analyze_conversation_impact(
     """대화가 양측 감정에 미친 영향 분석.
 
     Args:
-        stat_names: 분석할 스탯 이름 리스트 (예: ["affection", "fear", "humanity"])
+        stat_names: 분석할 스탯 이름 리스트 (예: ["affection", "humanity"])
                     None이면 자동 감지
         world_context: 분석에 참고할 월드 컨텍스트 (suspicion_level, player_humanity 등)
         include_triggers: True이면 플레이어 트리거 판별 + hits 반환 (낮 페이즈용)
@@ -361,7 +373,7 @@ def analyze_conversation_impact(
             "npc_stats": {npc_id: {stat: delta(-2~+2), ...}},
             "event_description": ["핵심 사건 묘사"]
         }
-        include_triggers=True일 때 npc_stats에 plus_hits, minus_hits, critical_hits 포함.
+        include_triggers=True일 때 npc_stats에 plus_hits, minus_hits 포함.
     """
     conv_text = "\n".join(f"{c['speaker']}: {c['text']}" for c in conversation)
     p1 = format_persona(npc1_persona)
@@ -379,36 +391,31 @@ def analyze_conversation_impact(
     t1 = npc1_persona.get("triggers", {})
     triggers_plus_1 = ", ".join(t1.get("plus", [])) or "(없음)"
     triggers_minus_1 = ", ".join(t1.get("minus", [])) or "(없음)"
-    triggers_critical_1 = ", ".join(t1.get("critical", [])) or "(없음)"
 
     t2 = npc2_persona.get("triggers", {})
     triggers_plus_2 = ", ".join(t2.get("plus", [])) or "(없음)"
     triggers_minus_2 = ", ".join(t2.get("minus", [])) or "(없음)"
-    triggers_critical_2 = ", ".join(t2.get("critical", [])) or "(없음)"
 
     npc1_section = (
         f"[NPC1: {npc1_name}]\n"
         f"페르소나: {p1}\n"
         f"트리거(+): {triggers_plus_1}  (이 행동이 있으면 스탯 상승)\n"
         f"트리거(-): {triggers_minus_1}  (이 행동이 있으면 스탯 하락)\n"
-        f"트리거(critical): {triggers_critical_1}  (이 행동이 있으면 치명적 위반)\n"
     )
     npc2_section = (
         f"[NPC2: {npc2_name}]\n"
         f"페르소나: {p2}\n"
         f"트리거(+): {triggers_plus_2}  (이 행동이 있으면 스탯 상승)\n"
         f"트리거(-): {triggers_minus_2}  (이 행동이 있으면 스탯 하락)\n"
-        f"트리거(critical): {triggers_critical_2}  (이 행동이 있으면 치명적 위반)\n"
     )
 
     # hits 카운팅은 낮(플레이어 행동)에서만 적용
     if include_triggers:
-        hits_example = ', "plus_hits": 0, "minus_hits": 0, "critical_hits": 0'
+        hits_example = ', "plus_hits": 0, "minus_hits": 0'
         triggers_rules = (
             f"- 플레이어 발화/행동이 트리거에 해당하는지 판별:\n"
             f"  - plus 트리거 해당 → plus_hits: 1\n"
             f"  - minus 트리거 해당 → minus_hits: 1\n"
-            f"  - critical 트리거 해당 → critical_hits: 1\n"
             f"  - 해당 없으면 각각 0\n"
         )
     else:
@@ -445,7 +452,7 @@ def analyze_conversation_impact(
         "}\n"
         "```"
     )
-    resp = llm.generate(prompt, max_tokens=200, temperature=0.3)
+    resp = llm.generate(prompt=prompt, max_tokens=200, temperature=0.3)
 
     result = _parse_impact_response(resp, npc1_id, npc1_name, npc2_id, npc2_name, stat_names, include_triggers)
     logger.debug(f"conversation_impact: {result}")
@@ -488,7 +495,7 @@ def _parse_impact_response(
         npc_stats = data.get("npc_stats", {})
         event_description = data.get("event_description", [])
 
-        hits_keys = {"plus_hits", "minus_hits", "critical_hits"}
+        hits_keys = {"plus_hits", "minus_hits"}
         for npc_id in [npc1_id, npc2_id]:
             if npc_id in npc_stats:
                 clamped = {}

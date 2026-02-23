@@ -3,7 +3,7 @@ app/schemas/game_state.py
 런타임 게임 상태 스키마
 
 - NPCState: NPC 런타임 상태 (npc_id, stats, memory)
-- WorldState: 월드 런타임 전체 상태
+- WorldStatePipeline: 월드 런타임 전체 상태
 - StateDelta: 상태 변경 델타 명세
 - merge_deltas: 여러 델타를 하나로 병합
 """
@@ -37,11 +37,14 @@ class NPCState(BaseModel):
         stats = data.get("stats", {})
         if not stats:
             stats = {}
-            for key in ["trust", "fear", "suspicion", "humanity"]:
+            for key in ["trust", "suspicion", "humanity"]:
                 if key in data:
                     stats[key] = data[key]
 
-        memory = data.get("memory", {})
+        memory = data.get("memory", [])
+        if isinstance(memory, list):
+            memory = {}
+
         if not memory:
             extras = data.get("extras", {})
             if extras:
@@ -61,16 +64,17 @@ class NPCState(BaseModel):
         self.stats[key] = new_value
         return new_value
 
+
 class WorldStatePipeline(BaseModel):
     """월드 런타임 전체 상태"""
     turn: int = 1
     npcs: Dict[str, NPCState] = Field(default_factory=dict)
     flags: Dict[str, Any] = Field(default_factory=dict)
     inventory: List[str] = Field(default_factory=list)
-    # item_state_changes
 
     locks: Dict[str, bool] = Field(default_factory=dict)
     vars: Dict[str, Any] = Field(default_factory=dict)
+    day_action_log: List[Dict[str, Any]] = Field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return self.model_dump()
@@ -90,13 +94,8 @@ class WorldStatePipeline(BaseModel):
             inventory=data.get("inventory", []),
             locks=data.get("locks", {}),
             vars=data.get("vars", {}),
+            day_action_log=data.get("day_action_log", []),
         )
-
-class WorldState(WorldStatePipeline):
-    world_state_pipeline: Dict[str, Any]
-    npc_location: Optional[str] = None
-    item_state_changes: Optional[str] = None
-    npc_disables_states: Optional[str] = None
 
 class StateDelta(BaseModel):
     """상태 변경을 위한 델타 명세

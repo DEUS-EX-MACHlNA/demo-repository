@@ -5,7 +5,6 @@ from sqlalchemy.orm import relationship
 from app.database import Base
 from app.schemas.status import GameStatus
 
-from dataclasses import dataclass, field
 from typing import Any, Optional
 from enum import Enum
 from datetime import datetime

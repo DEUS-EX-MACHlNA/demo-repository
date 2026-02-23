@@ -2,11 +2,11 @@
 app/status_effect_manager.py
 지속시간 기반 NPC status 관리자
 
-set_state(duration=N) 효과로 생성된 StatusEffect를 world_state.flags["status_effects"]에 저장하고,
+set_state(duration=N) 효과로 생성된 StatusEffect를 world_state.vars["status_effects"]에 저장하고,
 매 턴 시작 시 tick()으로 만료된 효과를 해제하여 NPC의 status를 원래대로 복구합니다.
 
 주의: stats(숫자 스탯)는 건드리지 않음. status(sleeping, stunned 등)만 관리.
-저장소: world_state.flags["status_effects"] (DB에 영속됨)
+저장소: world_state.vars["status_effects"] (DB에 영속됨)
 """
 from __future__ import annotations
 
@@ -19,12 +19,12 @@ from app.schemas.status import NPCStatus
 
 logger = logging.getLogger(__name__)
 
-FLAGS_KEY = "status_effects"
+VARS_KEY = "status_effects"
 
 
 def _load_effects(world_state: WorldStatePipeline) -> List[StatusEffect]:
-    """flags에서 StatusEffect 리스트 로드"""
-    raw = world_state.flags.get(FLAGS_KEY, [])
+    """vars에서 StatusEffect 리스트 로드"""
+    raw = world_state.vars.get(VARS_KEY, [])
     effects = []
     for item in raw:
         if isinstance(item, dict):
@@ -35,14 +35,14 @@ def _load_effects(world_state: WorldStatePipeline) -> List[StatusEffect]:
 
 
 def _save_effects(world_state: WorldStatePipeline, effects: List[StatusEffect]) -> None:
-    """StatusEffect 리스트를 flags에 저장"""
-    world_state.flags[FLAGS_KEY] = [e.model_dump() for e in effects]
+    """StatusEffect 리스트를 vars에 저장"""
+    world_state.vars[VARS_KEY] = [e.model_dump() for e in effects]
 
 
 class StatusEffectManager:
     """지속시간 기반 NPC status 효과 관리자 (stateless)
 
-    모든 상태는 world_state.flags["status_effects"]에 저장됩니다.
+    모든 상태는 world_state.vars["status_effects"]에 저장됩니다.
     NPC의 status 필드만 변경/복구합니다. stats(숫자)는 건드리지 않습니다.
     예: 공업용 수면제 → npc.status = SLEEPING (3턴) → 만료 시 ALIVE 복구
     """
@@ -53,7 +53,7 @@ class StatusEffectManager:
         world_state: WorldStatePipeline,
     ) -> None:
         """
-        효과를 flags에 추가하고 NPC의 status를 즉시 변경.
+        효과를 vars에 추가하고 NPC의 status를 즉시 변경.
         동일 NPC에 기존 효과가 있으면 priority 비교 후 교체.
         """
         effects = _load_effects(world_state)

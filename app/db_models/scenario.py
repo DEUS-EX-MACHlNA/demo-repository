@@ -3,7 +3,6 @@ from sqlalchemy import Column, String, DateTime, Integer, func
 from sqlalchemy.dialects.postgresql import JSONB
 from app.database import Base
 
-from dataclasses import dataclass, field
 from typing import Any, Optional
 from enum import Enum
 from datetime import datetime

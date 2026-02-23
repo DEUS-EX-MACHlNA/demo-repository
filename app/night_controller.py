@@ -136,6 +136,9 @@ class NightController:
             current_phase = determine_current_phase(npc_phases, npc_state.stats)
             current_phase_id = current_phase.get("phase_id", "")
 
+            # phase를 flags로 노출 (프론트엔드 / condition_eval 접근용)
+            world_snapshot.flags[f"phase_{npc_id}"] = current_phase_id
+
             if should_reflect(npc_state.memory, current_phase_id):
                 npc_name = npc_data.get("name", npc_id)
                 persona = npc_data.get("persona", {})
@@ -163,7 +166,7 @@ class NightController:
         turn: int,
         llm: GenerativeAgentsLLM,
     ) -> None:
-        day_action_log = world_snapshot.vars.get("day_action_log", [])
+        day_action_log = world_snapshot.day_action_log
 
         for npc_id in npc_ids:
             npc_state = world_snapshot.npcs[npc_id]
@@ -358,15 +361,15 @@ if __name__ == "__main__":
         npcs={
             "stepmother": NPCState(
                 npc_id="stepmother",
-                stats={"affection": 50, "fear": 80, "humanity": 0}
+                stats={"affection": 50, "humanity": 0, "plus_hits": 0, "minus_hits": 0}
             ),
             "stepfather": NPCState(
                 npc_id="stepfather",
-                stats={"affection": 30, "fear": 60, "humanity": 20}
+                stats={"affection": 30, "humanity": 20, "plus_hits": 0, "minus_hits": 0}
             ),
             "brother": NPCState(
                 npc_id="brother",
-                stats={"affection": 60, "fear": 40, "humanity": 50}
+                stats={"affection": 60, "humanity": 50, "plus_hits": 0, "minus_hits": 0}
             ),
         },
         inventory=[],

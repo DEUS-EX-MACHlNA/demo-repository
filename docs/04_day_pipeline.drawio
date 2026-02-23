@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net" modified="2026-02-20" agent="Claude" version="24.0" type="device">
+  <diagram id="day-pipeline" name="Day 파이프라인 플로우차트">
+    <mxGraphModel dx="1400" dy="1200" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="1800" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <mxCell id="title" value="&lt;b&gt;Day Pipeline — GameService.process_turn()&lt;/b&gt;" style="text;html=1;align=center;verticalAlign=middle;fontSize=18;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="350" y="20" width="500" height="40" as="geometry"/>
+        </mxCell>
+
+        <!-- Start -->
+        <mxCell id="start" value="POST /v1/game/{id}/step&lt;br&gt;&lt;i&gt;StepRequestSchema&lt;/i&gt;" style="shape=mxgraph.flowchart.terminator;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="470" y="80" width="260" height="50" as="geometry"/>
+        </mxCell>
+
+        <!-- Step 1 -->
+        <mxCell id="s1" value="&lt;b&gt;1. WorldState 로드&lt;/b&gt;&lt;br&gt;_create_world_state(game)&lt;br&gt;&lt;i&gt;DB JSONB → WorldStatePipeline&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="450" y="170" width="300" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="a01" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeWidth=2;" edge="1" parent="1" source="start" target="s1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- Step 2 -->
+        <mxCell id="s2" value="&lt;b&gt;2. ScenarioAssets 로드&lt;/b&gt;&lt;br&gt;ScenarioLoader.load() or DB fallback&lt;br&gt;&lt;i&gt;YAML → ScenarioAssets (캐시)&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="450" y="270" width="300" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="a02" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeWidth=2;" edge="1" parent="1" source="s1" target="s2"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- Step 3 -->
+        <mxCell id="s3" value="&lt;b&gt;3. LockManager.check_unlocks()&lt;/b&gt;&lt;br&gt;locks.yaml 조건 평가 → 새 정보 해제&lt;br&gt;&lt;i&gt;ConditionEvaluator → NPC memory inject&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="450" y="370" width="300" height="65" as="geometry"/>
+        </mxCell>
+        <mxCell id="a03" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeWidth=2;" edge="1" parent="1" source="s2" target="s3"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- Step 3.5 -->
+        <mxCell id="s35" value="&lt;b&gt;3.5 StatusEffectManager.tick()&lt;/b&gt;&lt;br&gt;시간제 효과 만료 체크&lt;br&gt;&lt;i&gt;SLEEPING/MISSING 상태 복구&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="450" y="475" width="300" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="a035" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeWidth=2;" edge="1" parent="1" source="s3" target="s35"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- Step 4: DayController (complex sub-flow) -->
+        <mxCell id="s4-group" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF5F5;strokeColor=#b85450;fontSize=11;dashed=1;dashPattern=5 5;" vertex="1" parent="1">
+          <mxGeometry x="310" y="580" width="580" height="380" as="geometry"/>
+        </mxCell>
+        <mxCell id="s4-title" value="&lt;b&gt;4. DayController.process()&lt;/b&gt;" style="text;html=1;align=center;fontSize=14;fontStyle=1;fillColor=none;strokeColor=none;fontColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="470" y="585" width="260" height="25" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="s4a" value="&lt;b&gt;4a. Tool Selection (LLM)&lt;/b&gt;&lt;br&gt;call_tool(user_text, ws, assets)&lt;br&gt;&lt;i&gt;→ {tool_name, args, intent}&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="440" y="615" width="320" height="55" as="geometry"/>
+        </mxCell>
+
+        <!-- Tool decision diamond -->
+        <mxCell id="s4b" value="tool_name?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="540" y="695" width="120" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="a4ab" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeWidth=1.5;" edge="1" parent="1" source="s4a" target="s4b"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <mxCell id="s4-interact" value="&lt;b&gt;interact&lt;/b&gt;&lt;br&gt;NPC 대화&lt;br&gt;&lt;i&gt;retrieve_memories()&lt;br&gt;→ LLM → NPC 응답&lt;br&gt;→ postprocess()&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#9673a6;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="330" y="775" width="150" height="85" as="geometry"/>
+        </mxCell>
+        <mxCell id="s4-action" value="&lt;b&gt;action&lt;/b&gt;&lt;br&gt;자유 행동&lt;br&gt;&lt;i&gt;LLM → 환경 변화&lt;br&gt;→ StateDelta&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#9673a6;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="510" y="775" width="150" height="85" as="geometry"/>
+        </mxCell>
+        <mxCell id="s4-use" value="&lt;b&gt;use&lt;/b&gt;&lt;br&gt;아이템 사용&lt;br&gt;&lt;i&gt;ItemUseResolver&lt;br&gt;→ 효과 적용&lt;br&gt;→ StatusEffect?&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#9673a6;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="690" y="775" width="150" height="85" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="a4b1" value="interact" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeWidth=1;fontSize=9;" edge="1" parent="1" source="s4b" target="s4-interact"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="a4b2" value="action" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeWidth=1;fontSize=9;" edge="1" parent="1" source="s4b" target="s4-action"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="a4b3" value="use" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeWidth=1;fontSize=9;" edge="1" parent="1" source="s4b" target="s4-use"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <mxCell id="s4c" value="&lt;b&gt;4c. RuleEngine&lt;/b&gt;&lt;br&gt;apply_memory_rules(intent)&lt;br&gt;merge_rule_delta()" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="440" y="885" width="320" height="50" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="a035b" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeWidth=2;" edge="1" parent="1" source="s35" target="s4a"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- ToolResult output -->
+        <mxCell id="s4out" value="&lt;b&gt;→ ToolResult&lt;/b&gt;&lt;br&gt;{state_delta, event_description, intent, npc_response}" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="390" y="975" width="420" height="45" as="geometry"/>
+        </mxCell>
+        <mxCell id="a4c" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeWidth=2;" edge="1" parent="1" source="s4c" target="s4out"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- Step 5 -->
+        <mxCell id="s5" value="&lt;b&gt;5. _apply_delta()&lt;/b&gt;&lt;br&gt;NPC stats clamp(0,100), flags 갱신,&lt;br&gt;inventory add/remove, vars 적용, turn++" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="450" y="1060" width="300" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="a05" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeWidth=2;" edge="1" parent="1" source="s4out" target="s5"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- Step 5.5 -->
+        <mxCell id="s55" value="&lt;b&gt;5.5 ItemAcquirer.scan()&lt;/b&gt;&lt;br&gt;method='auto' 아이템 조건 확인&lt;br&gt;&lt;i&gt;조건 충족 시 자동 획득 + delta 적용&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="450" y="1160" width="300" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="a055" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeWidth=2;" edge="1" parent="1" source="s5" target="s55"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- Step 5.6 -->
+        <mxCell id="s56" value="&lt;b&gt;5.6 day_action_log 누적&lt;/b&gt;&lt;br&gt;{ turn, input, intent, events }&lt;br&gt;&lt;i&gt;→ 밤 파이프라인에서 사용&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="450" y="1260" width="300" height="55" as="geometry"/>
+        </mxCell>
+        <mxCell id="a056" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeWidth=2;" edge="1" parent="1" source="s55" target="s56"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- Step 6 -->
+        <mxCell id="s6" value="&lt;b&gt;6. EndingChecker.check()&lt;/b&gt;&lt;br&gt;scenario.yaml endings 조건 평가&lt;br&gt;&lt;i&gt;skip_has_item=True (passive check)&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="450" y="1355" width="300" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="a06" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeWidth=2;" edge="1" parent="1" source="s56" target="s6"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- Decision: ending reached? -->
+        <mxCell id="d6" value="ending&lt;br&gt;reached?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="540" y="1450" width="120" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="a06d" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeWidth=2;" edge="1" parent="1" source="s6" target="d6"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <mxCell id="s7a" value="&lt;b&gt;NarrativeLayer.render()&lt;/b&gt;&lt;br&gt;일반 턴 내러티브 생성 (LLM)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="340" y="1540" width="230" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="s7b" value="&lt;b&gt;NarrativeLayer.render_ending()&lt;/b&gt;&lt;br&gt;엔딩 내러티브 생성 (LLM)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="620" y="1540" width="240" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="a7a" value="No" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeWidth=1.5;fontSize=10;" edge="1" parent="1" source="d6" target="s7a"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="a7b" value="Yes" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeWidth=1.5;fontSize=10;" edge="1" parent="1" source="d6" target="s7b"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- Step 8 -->
+        <mxCell id="s8" value="&lt;b&gt;8. _world_state_to_games()&lt;/b&gt;&lt;br&gt;WorldStatePipeline → DB JSONB 직렬화&lt;br&gt;+ crud_game.update_game()" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="450" y="1630" width="300" height="55" as="geometry"/>
+        </mxCell>
+        <mxCell id="a8a" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeWidth=1.5;" edge="1" parent="1" source="s7a" target="s8"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="a8b" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeWidth=1.5;" edge="1" parent="1" source="s7b" target="s8"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- End -->
+        <mxCell id="end" value="&lt;b&gt;Return StepResponseSchema&lt;/b&gt;&lt;br&gt;{ narrative, ending_info, state_result, debug }" style="shape=mxgraph.flowchart.terminator;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="420" y="1720" width="360" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="aend" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeWidth=2;" edge="1" parent="1" source="s8" target="end"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- Side annotations -->
+        <mxCell id="note1" value="&lt;div style='text-align:left;'&gt;&lt;b&gt;StateDelta 패턴&lt;/b&gt;&lt;br&gt;모든 상태 변화는 StateDelta 객체로&lt;br&gt;표현되며, _apply_delta()에서&lt;br&gt;한번에 원자적으로 적용됨&lt;/div&gt;" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;size=15;fillColor=#FFF8E1;strokeColor=#d6b656;fontSize=10;align=left;spacingLeft=8;" vertex="1" parent="1">
+          <mxGeometry x="50" y="1060" width="230" height="80" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="note2" value="&lt;div style='text-align:left;'&gt;&lt;b&gt;ConditionEvaluator&lt;/b&gt;&lt;br&gt;LockManager, EndingChecker,&lt;br&gt;ItemAcquirer 모두 동일한&lt;br&gt;조건 평가 엔진 사용&lt;/div&gt;" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;size=15;fillColor=#FFF8E1;strokeColor=#d6b656;fontSize=10;align=left;spacingLeft=8;" vertex="1" parent="1">
+          <mxGeometry x="50" y="370" width="210" height="75" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

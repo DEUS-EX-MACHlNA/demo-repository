@@ -11,7 +11,7 @@ from app.schemas.status import GameStatus
 from app.db_models.scenario import Scenario
 from app.schemas.client_sync import GameClientSyncSchema
 from app.crud import game as crud_game
-from app.schemas.request_response import StepRequestSchema, NightResponseResult
+from app.schemas.request_response import StepRequestSchema, StepResponseSchema, NightResponseResult
 from app.schemas.night import (
     NightLogResponse,
     NightExposedLog,
@@ -33,39 +33,25 @@ def get_games(db: Session = Depends(get_db)):
     return [
         {
             "game_id": g.id,
-            "summary": g.summary if g.summary else {}
+            "summary": g.summary if g.summary else {},
+            "status": g.status,
         }
         for g in games
     ]
-
-# 일단 LLM과 상호작용 하는 것을 먼저 구현
-
-# 메모 조회
-#@router.get("/{game_id}/memos", summary="게임 메모 조회", response_model=list[dict])
-
-
-# 메모 생성
-#@router.post("/{game_id}/memos", summary="게임 메모 생성", response_model=dict)
-
-# 메모 수정
-#@router.post("/{game_id}/memos/{memo_id}", summary="게임 메모 수정", response_model=dict)
-# 메모 삭제
-#@router.delete("/{game_id}/memos/{memo_id}", summary="게임 메모 삭제")
-
-# 대화 요청
-@router.post("/{game_id}/step", summary="게임 대화 요청")
-def step_game(game_id: int, request: StepRequestSchema, db: Session = Depends(get_db)) -> dict:
+# 대화 요청(낮)
+@router.post("/{game_id}/step", summary="게임 대화 요청", response_model=StepResponseSchema)
+def step_game(game_id: int, request: StepRequestSchema, db: Session = Depends(get_db)) -> StepResponseSchema:
     # 1. 게임 정보 조회
     game = db.query(Games).filter(Games.id == game_id).first()
     if not game:
         raise HTTPException(status_code=404, detail="게임을 찾을 수 없습니다.")
 
-    result = GameService.process_turn(db, game_id, request.dict(), game)
+    result = GameService.process_turn(db, game_id, request, game)
 
     return result
 
 # 게임 id를 받아서 진행된 게임을 불러오기
-@router.get("start/{game_id}", summary="진행중인 게임 시작", response_model=dict)
+@router.get("/start/{game_id}", summary="진행중인 게임 시작", response_model=GameClientSyncSchema)
 def get_game(game_id: int, db: Session = Depends(get_db)) -> GameClientSyncSchema:
     try:
         game = GameService.start_game(db, game_id)
@@ -75,7 +61,7 @@ def get_game(game_id: int, db: Session = Depends(get_db)) -> GameClientSyncSchem
     return game
 
 # 밤 파이프라인 실행
-@router.post("/{game_id}/night", summary="밤 파이프라인 실행", response_model=NightResponseResult)
+@router.post("/{game_id}/night_dialogue", summary="밤 파이프라인 실행", response_model=NightResponseResult)
 def night_game(game_id: int, db: Session = Depends(get_db)) -> NightResponseResult:
     game = db.query(Games).filter(Games.id == game_id).first()
     if not game:
@@ -86,10 +72,8 @@ def night_game(game_id: int, db: Session = Depends(get_db)) -> NightResponseResu
 
 
 # 밤의 대화 결과 조회(재접속/히스토리)
-@router.get("/{game_id}/nights}", summary="밤의 대화 요청", response_model=NightLogResponse)
+@router.get("/{game_id}/show_night_dialogue", summary="밤의 대화 요청", response_model=NightLogResponse)
 def get_night_log(game_id: int, db: Session = Depends(get_db)):
-    # 일단 요청받은 예시 데이터를 그대로 Mock으로 반환합니다.
-    # 추후 DB 조회 로직이 필요하면 구현합니다.
 
     mock_response = NightLogResponse(
         gameId=game_id,
@@ -124,3 +108,18 @@ def get_night_log(game_id: int, db: Session = Depends(get_db)):
         serverTime=datetime.utcnow()
     )
     return mock_response
+
+
+# 맵 이동 요청
+@router.post("/{game_id}/move", summary="맵 이동 요청")
+def move_game(game_id: int, location: str, db: Session = Depends(get_db)) -> int:
+
+    result = GameService.change_location(game_id, location)
+    return result
+
+
+# 스토리 만들기 요청
+@router.get("/{game_id}/make_novel", summary="스토리 만들기 요청")
+def make_novel(game_id: int, db: Session = Depends(get_db)) -> str:
+    result = GameService.make_novel(game_id)
+    return result

@@ -1,0 +1,207 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net" modified="2026-02-20" agent="Claude" version="24.0" type="device">
+  <diagram id="class-diagram" name="클래스 다이어그램">
+    <mxGraphModel dx="2000" dy="1400" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2400" pageHeight="1800" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <!-- Title -->
+        <mxCell id="title" value="&lt;b&gt;DeusExMachina - 클래스 다이어그램&lt;/b&gt;" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;fontSize=18;" vertex="1" parent="1">
+          <mxGeometry x="900" y="20" width="350" height="40" as="geometry"/>
+        </mxCell>
+
+        <!-- ==================== DB Models (SQLAlchemy) ==================== -->
+        <mxCell id="db-section" value="DB Models (SQLAlchemy)" style="text;html=1;align=left;fontSize=14;fontStyle=5;fillColor=none;strokeColor=none;fontColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="40" y="70" width="250" height="30" as="geometry"/>
+        </mxCell>
+
+        <!-- Scenario DB Model -->
+        <mxCell id="db-scenario" value="&lt;b&gt;Scenario&lt;/b&gt;&lt;hr&gt;&lt;div style='text-align:left;padding:4px;'&gt;+ id: Integer (PK)&lt;br&gt;+ title: String&lt;br&gt;+ world_asset_data: JSONB&lt;br&gt;+ create_time: DateTime&lt;br&gt;+ update_time: DateTime&lt;/div&gt;" style="shape=mxgraph.uml25.class;whiteSpace=wrap;html=1;align=center;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="40" y="110" width="220" height="140" as="geometry"/>
+        </mxCell>
+
+        <!-- Games DB Model -->
+        <mxCell id="db-games" value="&lt;b&gt;Games&lt;/b&gt;&lt;hr&gt;&lt;div style='text-align:left;padding:4px;'&gt;+ id: Integer (PK)&lt;br&gt;+ scenarios_id: Integer (FK)&lt;br&gt;+ user_id: Integer&lt;br&gt;+ world_meta_data: JSONB&lt;br&gt;+ player_data: JSONB&lt;br&gt;+ npc_data: JSONB&lt;br&gt;+ summary: JSONB&lt;br&gt;+ status: GameStatus&lt;br&gt;+ create_time: DateTime&lt;br&gt;+ update_time: DateTime&lt;/div&gt;" style="shape=mxgraph.uml25.class;whiteSpace=wrap;html=1;align=center;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="310" y="110" width="230" height="210" as="geometry"/>
+        </mxCell>
+
+        <!-- ChatLogs DB Model -->
+        <mxCell id="db-chatlog" value="&lt;b&gt;ChatLogs&lt;/b&gt;&lt;hr&gt;&lt;div style='text-align:left;padding:4px;'&gt;+ id: Integer (PK)&lt;br&gt;+ game_id: Integer (FK)&lt;br&gt;+ turn_number: Integer&lt;br&gt;+ chat_at: ChatAt&lt;br&gt;+ user_input: Text&lt;br&gt;+ ai_output: Text&lt;br&gt;+ prev_state_snapshot: JSONB&lt;br&gt;+ create_time: DateTime&lt;/div&gt;" style="shape=mxgraph.uml25.class;whiteSpace=wrap;html=1;align=center;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="590" y="110" width="230" height="180" as="geometry"/>
+        </mxCell>
+
+        <!-- DB Relationships -->
+        <mxCell id="rel-sc-game" value="1" style="endArrow=ERmandOne;startArrow=ERmandOne;endFill=0;startFill=0;html=1;strokeWidth=2;strokeColor=#d6b656;" edge="1" parent="1" source="db-scenario" target="db-games">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="rel-sc-game-label" value="1:N" style="edgeLabel;html=1;align=center;fontSize=10;" vertex="1" connectable="0" parent="rel-sc-game">
+          <mxGeometry x="-0.2" relative="1" as="geometry"><mxPoint as="offset"/></mxGeometry>
+        </mxCell>
+        <mxCell id="rel-game-chat" value="" style="endArrow=ERmandOne;startArrow=ERmandOne;endFill=0;startFill=0;html=1;strokeWidth=2;strokeColor=#d6b656;" edge="1" parent="1" source="db-games" target="db-chatlog">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="rel-game-chat-label" value="1:N" style="edgeLabel;html=1;align=center;fontSize=10;" vertex="1" connectable="0" parent="rel-game-chat">
+          <mxGeometry x="-0.2" relative="1" as="geometry"><mxPoint as="offset"/></mxGeometry>
+        </mxCell>
+
+        <!-- ==================== Pydantic Schemas ==================== -->
+        <mxCell id="schema-section" value="Pydantic Schemas (Runtime State)" style="text;html=1;align=left;fontSize=14;fontStyle=5;fillColor=none;strokeColor=none;fontColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="40" y="370" width="300" height="30" as="geometry"/>
+        </mxCell>
+
+        <!-- WorldStatePipeline -->
+        <mxCell id="wsp" value="&lt;b&gt;WorldStatePipeline&lt;/b&gt;&lt;hr&gt;&lt;div style='text-align:left;padding:4px;'&gt;+ turn: int = 1&lt;br&gt;+ npcs: Dict[str, NPCState]&lt;br&gt;+ flags: Dict[str, Any]&lt;br&gt;+ inventory: List[str]&lt;br&gt;+ locks: Dict[str, bool]&lt;br&gt;+ vars: Dict[str, Any]&lt;/div&gt;&lt;hr&gt;&lt;div style='text-align:left;padding:4px;'&gt;+ to_dict() → dict&lt;br&gt;+ from_dict(data) → Self&lt;/div&gt;" style="shape=mxgraph.uml25.class;whiteSpace=wrap;html=1;align=center;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="40" y="410" width="240" height="200" as="geometry"/>
+        </mxCell>
+
+        <!-- NPCState -->
+        <mxCell id="npc-state" value="&lt;b&gt;NPCState&lt;/b&gt;&lt;hr&gt;&lt;div style='text-align:left;padding:4px;'&gt;+ npc_id: str&lt;br&gt;+ status: NPCStatus&lt;br&gt;+ stats: Dict[str, Any]&lt;br&gt;+ memory: Dict[str, Any]&lt;/div&gt;&lt;hr&gt;&lt;div style='text-align:left;padding:4px;'&gt;+ get_stat(key) → int&lt;br&gt;+ set_stat(key, value)&lt;br&gt;+ add_stat(key, delta) → int&lt;/div&gt;" style="shape=mxgraph.uml25.class;whiteSpace=wrap;html=1;align=center;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="340" y="410" width="220" height="190" as="geometry"/>
+        </mxCell>
+
+        <!-- StateDelta -->
+        <mxCell id="state-delta" value="&lt;b&gt;StateDelta&lt;/b&gt;&lt;hr&gt;&lt;div style='text-align:left;padding:4px;'&gt;+ npc_stats: Dict[str, Dict[str, int]]&lt;br&gt;+ flags: Dict[str, Any]&lt;br&gt;+ inventory_add: List[str]&lt;br&gt;+ inventory_remove: List[str]&lt;br&gt;+ locks: Dict[str, bool]&lt;br&gt;+ vars: Dict[str, Any]&lt;br&gt;+ turn_increment: int = 1&lt;br&gt;+ memory_updates: Dict&lt;br&gt;+ next_node: Optional[str]&lt;/div&gt;&lt;hr&gt;&lt;div style='text-align:left;padding:4px;'&gt;+ from_llm_response(resp) → Self&lt;/div&gt;" style="shape=mxgraph.uml25.class;whiteSpace=wrap;html=1;align=center;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="620" y="410" width="270" height="240" as="geometry"/>
+        </mxCell>
+
+        <!-- ToolResult -->
+        <mxCell id="tool-result" value="&lt;b&gt;ToolResult&lt;/b&gt;&lt;hr&gt;&lt;div style='text-align:left;padding:4px;'&gt;+ state_delta: Dict[str, Any]&lt;br&gt;+ event_description: List[str]&lt;br&gt;+ intent: str&lt;br&gt;+ npc_response: Optional[str]&lt;br&gt;+ npc_id: Optional[str]&lt;br&gt;+ item_id: Optional[str]&lt;br&gt;+ ending_info: Optional[Dict]&lt;/div&gt;" style="shape=mxgraph.uml25.class;whiteSpace=wrap;html=1;align=center;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="950" y="410" width="240" height="180" as="geometry"/>
+        </mxCell>
+
+        <!-- MemoryEntrySchema -->
+        <mxCell id="mem-entry" value="&lt;b&gt;MemoryEntrySchema&lt;/b&gt;&lt;hr&gt;&lt;div style='text-align:left;padding:4px;'&gt;+ memory_id: str (uuid)&lt;br&gt;+ npc_id: str&lt;br&gt;+ description: str&lt;br&gt;+ creation_turn: int&lt;br&gt;+ last_access_turn: int&lt;br&gt;+ importance_score: float&lt;br&gt;+ memory_type: str&lt;br&gt;+ metadata: Dict&lt;/div&gt;" style="shape=mxgraph.uml25.class;whiteSpace=wrap;html=1;align=center;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="1250" y="410" width="220" height="190" as="geometry"/>
+        </mxCell>
+
+        <!-- NightResult -->
+        <mxCell id="night-result" value="&lt;b&gt;NightResult&lt;/b&gt;&lt;hr&gt;&lt;div style='text-align:left;padding:4px;'&gt;+ night_delta: Dict&lt;br&gt;+ night_conversation: List[Dict]&lt;br&gt;+ night_description: List[str]&lt;/div&gt;" style="shape=mxgraph.uml25.class;whiteSpace=wrap;html=1;align=center;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="1530" y="410" width="250" height="120" as="geometry"/>
+        </mxCell>
+
+        <!-- Composition: WSP contains NPCState -->
+        <mxCell id="comp-wsp-npc" value="" style="endArrow=diamondThin;endFill=1;html=1;strokeWidth=2;strokeColor=#6c8ebf;" edge="1" parent="1" source="npc-state" target="wsp">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="comp-wsp-npc-label" value="npcs: Dict[str, *]" style="edgeLabel;html=1;align=center;fontSize=9;fontColor=#666666;" vertex="1" connectable="0" parent="comp-wsp-npc">
+          <mxGeometry x="-0.2" relative="1" as="geometry"><mxPoint as="offset"/></mxGeometry>
+        </mxCell>
+
+        <!-- ==================== Enums ==================== -->
+        <mxCell id="enum-section" value="Enums" style="text;html=1;align=left;fontSize=14;fontStyle=5;fillColor=none;strokeColor=none;fontColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="40" y="660" width="80" height="30" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="enum-gamestatus" value="&lt;b&gt;«enum» GameStatus&lt;/b&gt;&lt;hr&gt;&lt;div style='text-align:left;padding:4px;'&gt;LIVE&lt;br&gt;ENDING&lt;/div&gt;" style="shape=mxgraph.uml25.class;whiteSpace=wrap;html=1;align=center;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="40" y="700" width="140" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="enum-npcstatus" value="&lt;b&gt;«enum» NPCStatus&lt;/b&gt;&lt;hr&gt;&lt;div style='text-align:left;padding:4px;'&gt;ALIVE | DECEASED&lt;br&gt;MISSING | SLEEPING&lt;br&gt;UNKNOWN&lt;/div&gt;" style="shape=mxgraph.uml25.class;whiteSpace=wrap;html=1;align=center;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="210" y="700" width="160" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="enum-intent" value="&lt;b&gt;«enum» Intent&lt;/b&gt;&lt;hr&gt;&lt;div style='text-align:left;padding:4px;'&gt;LEADING | NEUTRAL&lt;br&gt;EMPATHIC | SUMMARIZE&lt;br&gt;UNKNOWN&lt;/div&gt;" style="shape=mxgraph.uml25.class;whiteSpace=wrap;html=1;align=center;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="400" y="700" width="160" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="enum-toolname" value="&lt;b&gt;«enum» ToolName&lt;/b&gt;&lt;hr&gt;&lt;div style='text-align:left;padding:4px;'&gt;NPC_TALK&lt;br&gt;ACTION&lt;br&gt;ITEM_USAGE&lt;/div&gt;" style="shape=mxgraph.uml25.class;whiteSpace=wrap;html=1;align=center;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="590" y="700" width="140" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="enum-chatat" value="&lt;b&gt;«enum» ChatAt&lt;/b&gt;&lt;hr&gt;&lt;div style='text-align:left;padding:4px;'&gt;DAY | NIGHT&lt;/div&gt;" style="shape=mxgraph.uml25.class;whiteSpace=wrap;html=1;align=center;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="760" y="700" width="130" height="70" as="geometry"/>
+        </mxCell>
+
+        <!-- ==================== Core Components ==================== -->
+        <mxCell id="core-section" value="Core Components (Singleton)" style="text;html=1;align=left;fontSize=14;fontStyle=5;fillColor=none;strokeColor=none;fontColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="40" y="840" width="300" height="30" as="geometry"/>
+        </mxCell>
+
+        <!-- ScenarioAssets -->
+        <mxCell id="sc-assets" value="&lt;b&gt;ScenarioAssets&lt;/b&gt;&lt;hr&gt;&lt;div style='text-align:left;padding:4px;'&gt;+ scenario_id: str&lt;br&gt;+ scenario: Dict&lt;br&gt;+ story_graph: Dict&lt;br&gt;+ npcs: Dict&lt;br&gt;+ items: Dict&lt;br&gt;+ memory_rules: Dict&lt;br&gt;+ extras: Dict (locks)&lt;/div&gt;&lt;hr&gt;&lt;div style='text-align:left;padding:4px;'&gt;+ get_npc_by_id()&lt;br&gt;+ get_item_by_id()&lt;br&gt;+ get_npc_stat_names()&lt;br&gt;+ get_turn_limit()&lt;br&gt;+ get_initial_inventory()&lt;br&gt;+ export_for_prompt()&lt;/div&gt;" style="shape=mxgraph.uml25.class;whiteSpace=wrap;html=1;align=center;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="40" y="880" width="220" height="280" as="geometry"/>
+        </mxCell>
+
+        <!-- DayController -->
+        <mxCell id="day-ctrl-cls" value="&lt;b&gt;DayController&lt;/b&gt;&lt;hr&gt;&lt;div style='text-align:left;padding:4px;'&gt;- _decision_log: list&lt;/div&gt;&lt;hr&gt;&lt;div style='text-align:left;padding:4px;'&gt;+ process(user_input, world_state, assets) → ToolResult&lt;br&gt;+ decision_log (property)&lt;/div&gt;" style="shape=mxgraph.uml25.class;whiteSpace=wrap;html=1;align=center;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="310" y="880" width="300" height="130" as="geometry"/>
+        </mxCell>
+
+        <!-- NightController -->
+        <mxCell id="night-ctrl-cls" value="&lt;b&gt;NightController&lt;/b&gt;&lt;hr&gt;&lt;div style='text-align:left;padding:4px;'&gt;- _llm: GenerativeAgentsLLM&lt;/div&gt;&lt;hr&gt;&lt;div style='text-align:left;padding:4px;'&gt;+ process(world_snapshot, assets) → NightResult&lt;br&gt;- _run_reflections()&lt;br&gt;- _run_planning()&lt;br&gt;- _run_dialogues()&lt;br&gt;- _analyze_impacts()&lt;/div&gt;" style="shape=mxgraph.uml25.class;whiteSpace=wrap;html=1;align=center;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="310" y="1030" width="300" height="170" as="geometry"/>
+        </mxCell>
+
+        <!-- ConditionEvaluator -->
+        <mxCell id="cond-eval-cls" value="&lt;b&gt;ConditionEvaluator&lt;/b&gt;&lt;hr&gt;&lt;div style='text-align:left;padding:4px;'&gt;+ evaluate(condition, context) → bool&lt;br&gt;- _evaluate_single(condition, context) → bool&lt;br&gt;- _compare(current, op, value) → bool&lt;/div&gt;&lt;hr&gt;&lt;div style='text-align:left;padding:2px;font-size:9px;color:#999;'&gt;Supports: npc.*.stat, vars.*, flags.*,&lt;br&gt;locks.*, has_item(), system.turn,&lt;br&gt;and / or operators&lt;/div&gt;" style="shape=mxgraph.uml25.class;whiteSpace=wrap;html=1;align=center;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="660" y="880" width="280" height="160" as="geometry"/>
+        </mxCell>
+
+        <!-- LockManager -->
+        <mxCell id="lock-mgr-cls" value="&lt;b&gt;LockManager&lt;/b&gt;&lt;hr&gt;&lt;div style='text-align:left;padding:4px;'&gt;- _unlocked_ids: Set[str]&lt;/div&gt;&lt;hr&gt;&lt;div style='text-align:left;padding:4px;'&gt;+ check_unlocks(ws, locks) → LockCheckResult&lt;br&gt;+ is_unlocked(info_id) → bool&lt;br&gt;+ reset()&lt;/div&gt;" style="shape=mxgraph.uml25.class;whiteSpace=wrap;html=1;align=center;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="990" y="880" width="270" height="130" as="geometry"/>
+        </mxCell>
+
+        <!-- EndingChecker -->
+        <mxCell id="ending-chk-cls" value="&lt;b&gt;EndingChecker&lt;/b&gt;&lt;hr&gt;&lt;div style='text-align:left;padding:4px;'&gt;+ check(ws, assets, skip_has_item) → EndingCheckResult&lt;br&gt;- _events_to_delta(events) → StateDelta&lt;/div&gt;" style="shape=mxgraph.uml25.class;whiteSpace=wrap;html=1;align=center;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="990" y="1030" width="300" height="100" as="geometry"/>
+        </mxCell>
+
+        <!-- ItemAcquirer -->
+        <mxCell id="item-acq-cls" value="&lt;b&gt;ItemAcquirer&lt;/b&gt;&lt;hr&gt;&lt;div style='text-align:left;padding:4px;'&gt;- _acquired_once: Set[str]&lt;/div&gt;&lt;hr&gt;&lt;div style='text-align:left;padding:4px;'&gt;+ scan(ws, assets) → AcquisitionResult&lt;br&gt;+ reset()&lt;/div&gt;" style="shape=mxgraph.uml25.class;whiteSpace=wrap;html=1;align=center;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="1310" y="880" width="260" height="120" as="geometry"/>
+        </mxCell>
+
+        <!-- StatusEffectManager -->
+        <mxCell id="status-mgr-cls" value="&lt;b&gt;StatusEffectManager&lt;/b&gt;&lt;hr&gt;&lt;div style='text-align:left;padding:4px;'&gt;+ apply_effect(effect, ws)&lt;br&gt;+ tick(turn, ws)&lt;br&gt;+ get_active_effects(ws, npc_id) → List&lt;br&gt;+ is_status_active(ws, npc_id, status) → bool&lt;/div&gt;" style="shape=mxgraph.uml25.class;whiteSpace=wrap;html=1;align=center;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="1310" y="1030" width="290" height="120" as="geometry"/>
+        </mxCell>
+
+        <!-- NarrativeLayer -->
+        <mxCell id="narrative-cls" value="&lt;b&gt;NarrativeLayer&lt;/b&gt;&lt;hr&gt;&lt;div style='text-align:left;padding:4px;'&gt;+ render(ws, assets, ...) → str&lt;br&gt;+ render_ending(ending_info, ws, assets) → str&lt;/div&gt;" style="shape=mxgraph.uml25.class;whiteSpace=wrap;html=1;align=center;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="660" y="1060" width="280" height="90" as="geometry"/>
+        </mxCell>
+
+        <!-- UnifiedLLMEngine -->
+        <mxCell id="llm-cls" value="&lt;b&gt;UnifiedLLMEngine&lt;/b&gt;&lt;hr&gt;&lt;div style='text-align:left;padding:4px;'&gt;- _model: Any&lt;br&gt;- _backend: str (vllm | transformers)&lt;/div&gt;&lt;hr&gt;&lt;div style='text-align:left;padding:4px;'&gt;+ generate(prompt, max_tokens, temperature) → str&lt;br&gt;+ available (property) → bool&lt;/div&gt;" style="shape=mxgraph.uml25.class;whiteSpace=wrap;html=1;align=center;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="660" y="1170" width="300" height="140" as="geometry"/>
+        </mxCell>
+
+        <!-- ==================== Services ==================== -->
+        <mxCell id="svc-section" value="Services" style="text;html=1;align=left;fontSize=14;fontStyle=5;fillColor=none;strokeColor=none;fontColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="40" y="1200" width="100" height="30" as="geometry"/>
+        </mxCell>
+
+        <!-- GameService -->
+        <mxCell id="game-svc-cls" value="&lt;b&gt;GameService&lt;/b&gt;&lt;hr&gt;&lt;div style='text-align:left;padding:4px;'&gt;+ process_turn(db, game_id, input, game) → StepResponseSchema&lt;br&gt;+ process_night(db, game_id, game) → NightResponseResult&lt;br&gt;+ start_game(db, game_id) → GameClientSyncSchema&lt;br&gt;+ apply_chat_result(game, result)&lt;br&gt;- _create_world_state(game) → WorldStatePipeline&lt;br&gt;- _initialize_npc_plans(db, game)&lt;/div&gt;" style="shape=mxgraph.uml25.class;whiteSpace=wrap;html=1;align=center;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="40" y="1240" width="380" height="160" as="geometry"/>
+        </mxCell>
+
+        <!-- ScenarioService -->
+        <mxCell id="scenario-svc-cls" value="&lt;b&gt;ScenarioService&lt;/b&gt;&lt;hr&gt;&lt;div style='text-align:left;padding:4px;'&gt;+ create_game(scenario_id, user_id) → GameClientSyncSchema&lt;br&gt;+ get_json(scenario_id) → dict&lt;br&gt;+ extract_initial_npc_data(world_data) → dict&lt;br&gt;+ extract_initial_player_data(world_data) → dict&lt;br&gt;+ extract_initial_world_data(world_data) → dict&lt;/div&gt;" style="shape=mxgraph.uml25.class;whiteSpace=wrap;html=1;align=center;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="40" y="1420" width="380" height="140" as="geometry"/>
+        </mxCell>
+
+        <!-- Dependency arrows: GameService uses components -->
+        <mxCell id="dep-gs-day" value="" style="endArrow=open;endSize=12;dashed=1;html=1;strokeWidth=1.5;strokeColor=#999999;" edge="1" parent="1" source="game-svc-cls" target="day-ctrl-cls">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="dep-gs-day-label" value="«uses»" style="edgeLabel;html=1;align=center;fontSize=9;fontColor=#999999;" vertex="1" connectable="0" parent="dep-gs-day">
+          <mxGeometry x="-0.2" relative="1" as="geometry"><mxPoint as="offset"/></mxGeometry>
+        </mxCell>
+        <mxCell id="dep-gs-night" value="" style="endArrow=open;endSize=12;dashed=1;html=1;strokeWidth=1.5;strokeColor=#999999;" edge="1" parent="1" source="game-svc-cls" target="night-ctrl-cls">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="dep-lock-cond" value="" style="endArrow=open;endSize=12;dashed=1;html=1;strokeWidth=1.5;strokeColor=#999999;" edge="1" parent="1" source="lock-mgr-cls" target="cond-eval-cls">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="dep-lock-cond-label" value="«uses»" style="edgeLabel;html=1;align=center;fontSize=9;fontColor=#999999;" vertex="1" connectable="0" parent="dep-lock-cond">
+          <mxGeometry x="-0.2" relative="1" as="geometry"><mxPoint as="offset"/></mxGeometry>
+        </mxCell>
+        <mxCell id="dep-ending-cond" value="" style="endArrow=open;endSize=12;dashed=1;html=1;strokeWidth=1.5;strokeColor=#999999;" edge="1" parent="1" source="ending-chk-cls" target="cond-eval-cls">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="dep-item-cond" value="" style="endArrow=open;endSize=12;dashed=1;html=1;strokeWidth=1.5;strokeColor=#999999;" edge="1" parent="1" source="item-acq-cls" target="cond-eval-cls">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

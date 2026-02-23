@@ -154,8 +154,22 @@ def score_importance(
     npc_name: str,
     persona_summary: str,
     llm: GenerativeAgentsLLM,
+    hits_info: dict[str, int] | None = None,
 ) -> float:
-    """기억의 중요도를 LLM으로 채점 (1‑10). fallback은 규칙 기반."""
+    """기억의 중요도를 LLM으로 채점 (1‑10). fallback은 규칙 기반.
+
+    Args:
+        hits_info: 낮 대화 영향 분석의 {"plus_hits": N, "minus_hits": N}.
+                   제공 시 hits 기반 보너스를 적용하여 LLM 호출 생략.
+                   None이면 기존 LLM 채점 유지 (밤 페이즈).
+    """
+    # 낮 페이즈: hits 기반 계산 (LLM 호출 없이 결정적 점수)
+    if hits_info is not None:
+        total_hits = hits_info.get("plus_hits", 0) + hits_info.get("minus_hits", 0)
+        base = _score_importance_rule(description)
+        return min(base + total_hits * 1.5, 10.0)
+
+    # 밤 페이즈: LLM 채점
     if not llm.available:
         return _score_importance_rule(description)
 
@@ -166,7 +180,7 @@ def score_importance(
         f"NPC: {npc_name} ({persona_summary})\n\n"
         "중요도 점수:"
     )
-    resp = llm.generate(prompt, max_tokens=5, temperature=0.1)
+    resp = llm.generate(prompt=prompt, max_tokens=5, temperature=0.1)
     score = extract_number(resp, default=5.0)
     return min(max(score, 1.0), 10.0)
 
