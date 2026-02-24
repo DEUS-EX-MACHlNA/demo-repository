@@ -478,7 +478,7 @@ class GameService:
         # ── Step 5.6: day_action_log 축적 (밤 가족회의 안건용) ──
         day_log_entry = {
             "turn": world_after.turn,
-            "input": user_text,
+            "input": user_input,
             "intent": tool_result.intent,
             "events": tool_result.event_description,
         }
@@ -495,7 +495,7 @@ class GameService:
             }
             if ending_result.triggered_delta:
                 game.status = GameStatus.ENDING.value
-                _apply_delta(world_after, ending_result.triggered_delta, assets)
+                _apply_delta(world_after, ending_result.triggered_delta.to_dict(), assets)
 
         # ── Step 7: NarrativeLayer - 나레이션 생성 ──
         try:
@@ -512,6 +512,7 @@ class GameService:
                     assets=assets,
                     event_description=tool_result.event_description,
                     state_delta=tool_result.state_delta,
+                    npc_response=tool_result.npc_response
                 )
         except Exception as e:
              logger.error(f"[GameService] NarrativeLayer failed: {e}")
@@ -521,23 +522,23 @@ class GameService:
         # DB 모델 객체 업데이트 (JSON 구조체 갱신)
         cls._world_state_to_games(game, world_after, assets)
         
-        # Redis 캐시 업데이트
-        try:
-            npc_stats = {}
-            if game.npc_data and "npcs" in game.npc_data:
-                for npc in game.npc_data["npcs"]:
-                    if "npc_id" in npc:
-                        npc_stats[npc["npc_id"]] = npc
+        # # Redis 캐시 업데이트
+        # try:
+        #     npc_stats = {}
+        #     if game.npc_data and "npcs" in game.npc_data:
+        #         for npc in game.npc_data["npcs"]:
+        #             if "npc_id" in npc:
+        #                 npc_stats[npc["npc_id"]] = npc
             
-            redis_client.set_game_state(
-                str(game_id),
-                game.world_meta_data,
-                npc_stats,
-                game.player_data
-            )
-            logger.debug(f"Updated Redis cache for game_id={game_id}")
-        except Exception as e:
-            logger.error(f"Failed to update Redis cache: {e}")
+        #     redis_client.set_game_state(
+        #         str(game_id),
+        #         game.world_meta_data,
+        #         npc_stats,
+        #         game.player_data
+        #     )
+        #     logger.debug(f"Updated Redis cache for game_id={game_id}")
+        # except Exception as e:
+        #     logger.error(f"Failed to update Redis cache: {e}")
 
         # 6. 저장 (DB) - 주기적 동기화 구현 전까지는 안전하게 매 턴 저장 유지
         # TODO: 추후 Background Task로 이관 시 이 부분 조건부 실행 검토
@@ -546,19 +547,19 @@ class GameService:
         if game.world_meta_data and "state" in game.world_meta_data:
             current_turn = game.world_meta_data["state"].get("turn", 1)
             
-        # [PERFORMANCE] Use separate session for logging to avoid committing game state
-        log_db = SessionLocal()
-        try:
-            create_chat_log(
-                log_db, game_id, LogType.DIALOGUE, "Player", user_content, current_turn
-            )
+        # # [PERFORMANCE] Use separate session for logging to avoid committing game state
+        # log_db = SessionLocal()
+        # try:
+        #     create_chat_log(
+        #         log_db, game_id, LogType.DIALOGUE, "Player", user_content, current_turn
+        #     )
             
-            # System Narrative Logging
-            create_chat_log(
-                log_db, game_id, LogType.NARRATIVE, "System", narrative, world_after.turn
-            )
-        finally:
-            log_db.close()
+        #     # System Narrative Logging
+        #     create_chat_log(
+        #         log_db, game_id, LogType.NARRATIVE, "System", narrative, world_after.turn
+        #     )
+        # finally:
+        #     log_db.close()
 
         # [PERFORMANCE] Background Sync로 이관 (Redis Only Update)
         # crud_game.update_game(db, game)
@@ -570,7 +571,7 @@ class GameService:
             ending_info=ending_info,
             state_result=tool_result.state_delta,
             debug=debug,
-        )
+        ), game, world_after
 
     @staticmethod
     def _create_night_response_data(narrative: str, night_result: NightResult) -> Dict[str, Any]:

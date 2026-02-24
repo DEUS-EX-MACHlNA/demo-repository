@@ -99,14 +99,12 @@ class UnifiedLLMEngine:
             self.api_key = self.config["api_key"]
             self._client = httpx.Client(timeout=httpx.Timeout(60.0))
 
-            # debugging 용
-            logger.info(self.api_key)
-            logger.warning(self.base_url)
-            logger.warning(self._model_name)
+            logger.info(
+                f"[LLM Init] vLLM 연결: base_url={self.base_url}, "
+                f"base_model={self._model_name}"
+            )
 
-
-
-        logger.info(f"UnifiedLLMEngine 초기화: backend={backend}, model={self._get_model_name()}")
+        logger.info(f"[LLM Init] backend={backend}, model={self._get_model_name()}")
 
     def _get_model_name(self) -> str:
         """현재 모델 이름 반환"""
@@ -190,17 +188,18 @@ class UnifiedLLMEngine:
         self._chinese_processor = ChineseBlockingLogitsProcessor(self._tokenizer)
 
     def generate(self, prompt, **kargs):
+        npc_id = kargs.get("npc_id")
+        model_label = f"LoRA({npc_id})" if npc_id else "base"
         try:
             if self.backend == "vLLM":
-                logger.info(f"vLLM에 의한 generate 시도")
+                logger.info(f"[LLM Generate] backend=vLLM, model={model_label}")
                 return self.generate_vLLM(prompt, **kargs)
             else:
-                logger.info(f"local transformers에 의한 generate 시도")
-                # transformers 백엔드는 npc_id를 사용하지 않으므로 제거
+                logger.info(f"[LLM Generate] backend=transformers, model=base (LoRA 미지원)")
                 kargs.pop("npc_id", None)
                 return self.generate_transformers(prompt, **kargs)
         except Exception as e:
-            logger.info(f"local transformers에 의한 generate 시도 : {e}")
+            logger.warning(f"[LLM Generate] vLLM 실패 → transformers fallback: {e}")
             kargs.pop("npc_id", None)
             return self.generate_transformers(prompt, **kargs)
 
@@ -233,9 +232,10 @@ class UnifiedLLMEngine:
         adapter_name = get_adapter_model(npc_id)
         if adapter_name:
             model_to_use = adapter_name
-            logger.info(f"LoRA 어댑터 사용: {adapter_name} (npc_id={npc_id})")
+            logger.info(f"[vLLM Request] model={adapter_name} (LoRA, npc_id={npc_id})")
         else:
             model_to_use = self._model_name
+            logger.info(f"[vLLM Request] model={self._model_name} (base)")
 
         if system_prompt:
             formatted_prompt = f"{system_prompt}\n\n{prompt}"
@@ -245,6 +245,8 @@ class UnifiedLLMEngine:
         # 중국어 차단 logit_bias (lazy 초기화, 1회만 토크나이저 로드)
         if not hasattr(self, "_vllm_logit_bias"):
             self._vllm_logit_bias = self._build_vllm_logit_bias()
+
+        # logger.info(f"FINAL URL = {self.base_url.rstrip('/') + '/v1/completions'}")
 
         base = self.base_url.rstrip("/")
         resp = self._client.post(
@@ -260,12 +262,14 @@ class UnifiedLLMEngine:
             },
         )
         resp.raise_for_status()
-        logger.debug(f"vLLM resp status: {resp.status_code}")
         data = resp.json()
-        logger.debug(f"vLLM resp data: {str(data)[:200]}")
         raw_text = data["choices"][0]["text"]
-        if npc_id:
-            logger.info(f"[LoRA 출력] adapter={model_to_use} | {raw_text[:120]}")
+        model_label = f"LoRA({npc_id})" if npc_id else "base"
+        logger.info(
+            f"[vLLM Response] model={model_to_use} ({model_label}) | "
+            f"tokens={data['usage']['completion_tokens']} | "
+            f"output={raw_text}..."
+        )
         return raw_text
 
     def generate_transformers(

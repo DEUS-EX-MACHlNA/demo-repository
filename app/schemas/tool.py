@@ -19,6 +19,6 @@ class ToolResult(BaseModel):
     event_description: List[str]
     intent: str = "neutral"
     npc_response: Optional[str] = None # interact()만 존재
-    npc_id: Optional[str]  = None      # interact()만 존재
+    npc_id: Optional[str]  = None      # interact(), use()만 존재
     item_id: Optional[str] = None      # use()만 존재
     ending_info: Optional[Dict[str, Any]] = None  # use()에서 엔딩 트리거 시 존재

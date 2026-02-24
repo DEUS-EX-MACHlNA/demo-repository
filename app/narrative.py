@@ -141,7 +141,7 @@ class NarrativeLayer:
         try:
             llm_engine = _get_llm()
             raw_output = llm_engine.generate(prompt)
-            logger.debug(f"[narrative] LLM day response: {raw_output[:200]}")
+            logger.debug(f"[narrative] LLM day response: {raw_output}")
             if not raw_output:
                 return self._render_simple_day(event_description, state_delta, world_state, assets)
             return parse_narrative_response(raw_output)
@@ -189,7 +189,7 @@ class NarrativeLayer:
         try:
             llm_engine = _get_llm()
             raw_output = llm_engine.generate(prompt)
-            logger.debug(f"[narrative] LLM night response: {raw_output[:200]}")
+            logger.debug(f"[narrative] LLM night response: {raw_output}")
             if not raw_output:
                 return self._render_simple_night(world_state, assets, night_conversation)
             return "---\n\n" + parse_narrative_response(raw_output)
@@ -323,9 +323,9 @@ class NarrativeLayer:
 
         conversation_text = "\n".join(conversation_lines) if conversation_lines else "(대화 없음)"
 
-        if total_suspicion >= 10:
+        if total_suspicion >= 70:
             tone_guide = "극도의 긴장감. 몬스터들의 본성이 드러남. 플레이어를 향한 직접적 위협."
-        elif total_suspicion >= 5:
+        elif total_suspicion >= 40:
             tone_guide = "불안한 분위기. 상냥함 뒤에 숨은 광기가 새어나옴."
         else:
             tone_guide = "표면적 평온. 하지만 뭔가 이상한 느낌이 감돈다."

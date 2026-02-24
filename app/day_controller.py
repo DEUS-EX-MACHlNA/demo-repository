@@ -81,13 +81,13 @@ class DayController:
 
         # 1.5. 라우팅 가드: interact인데 인벤토리 아이템이 입력에 포함 → use로 재라우팅
         if tool_name == "interact":
-            detected_item = _detect_inventory_item_in_input(user_input_str, world_state, assets)
+            detected_item = _detect_inventory_item_in_input(user_input, world_state, assets)
             if detected_item:
                 logger.info(f"[DayController] 라우팅 재지정: interact → use (detected item: {detected_item})")
                 tool_name = "use"
                 tool_args = {
                     "item": detected_item,
-                    "action": user_input_str,
+                    "action": user_input,
                     "target": tool_args.get("target"),
                     "use_type": "use",
                 }
