@@ -50,7 +50,7 @@ def generate_long_term_plan(
         "위 최상위 목표를 달성하기 위한 전체적인 전략을 2~3문장으로 서술하세요.\n\n"
         "전략:"
     )
-    plan = llm.generate(prompt, max_tokens=150, npc_id=npc_id)
+    plan = llm.generate(prompt, max_tokens=150)
     if not plan:
         plan = f"{npc_name}은(는) 상황을 주시하며 기회를 엿본다."
     logger.info(f"long_term_plan: npc={npc_id} plan='{plan[:60]}...'")
@@ -106,7 +106,7 @@ def generate_short_term_plan(
         "2. 내일 낮에 플레이어를 어떻게 대할 것인가?\n\n"
         "계획:"
     )
-    plan = llm.generate(prompt, max_tokens=120, npc_id=npc_id)
+    plan = llm.generate(prompt, max_tokens=120)
     if not plan:
         plan = f"{npc_name}은(는) 내일도 같은 태도로 플레이어를 지켜볼 것이다."
     logger.debug(f"short_term_plan: npc={npc_id} plan='{plan[:60]}...'")

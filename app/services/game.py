@@ -478,7 +478,7 @@ class GameService:
         # ── Step 5.6: day_action_log 축적 (밤 가족회의 안건용) ──
         day_log_entry = {
             "turn": world_after.turn,
-            "input": user_text,
+            "input": user_input,
             "intent": tool_result.intent,
             "events": tool_result.event_description,
         }
@@ -512,6 +512,7 @@ class GameService:
                     assets=assets,
                     event_description=tool_result.event_description,
                     state_delta=tool_result.state_delta,
+                    npc_response=tool_result.npc_response
                 )
         except Exception as e:
              logger.error(f"[GameService] NarrativeLayer failed: {e}")

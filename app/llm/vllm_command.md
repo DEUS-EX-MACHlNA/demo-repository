@@ -56,6 +56,13 @@ public_url = ngrok.connect(8000, "http")
 print(public_url)
 ```
 
+혹은 터미널에서 아래 코드 실행.
+
+```
+ngrok config add-authtoken "$NGROK_AUTHTOKEN"
+ngrok http 8000
+```
+
 ## 6. VLLM 실행
 
 터미널에서 아래 코드 실행.
@@ -66,13 +73,13 @@ python -m vllm.entrypoints.openai.api_server \
   --model "$MODEL" \
   --served-model-name "$MODEL" \
   --dtype auto \
-  --max-model-len 2048 \
+  --max-model-len 8192 \
   --enable-lora \
   --max-loras 5 \
   --lora-modules stepmother_lora=lucete171/deus-mother-lora \
                  stepfather_lora=lucete171/deus-stepfather-lora \
                  brother_lora=lucete171/deus-sibling-lora \
-                 dog_baron_lora=lucete171/deus-dog-baron-lora \
+                 dog_baron_lora=lucete171/deus-dog_baron-lora \
                  grandmother_lora=lucete171/deus-grandmother-lora \
   > vllm.log 2>&1 &
 ```
