@@ -56,10 +56,32 @@ def get_db() -> Generator:
 
 def init_db():
     """
-    DB 초기화 - 모든 테이블 생성
+    DB 초기화 - 모든 테이블 생성 및 Alembic 버전 관리 연동
     """
-    Base.metadata.create_all(bind=engine)
-    print(f"✓ Database initialized: {DATABASE_URL}")
+    from sqlalchemy import inspect
+    inspector = inspect(engine)
+    
+    # alembic_version 테이블이 있는지 확인 (이미 마이그레이션이 진행된 적이 있는지)
+    has_alembic = inspector.has_table("alembic_version")
+    
+    if not has_alembic:
+        print("최초 DB 초기화 중 - 테이블 생성 후 Alembic 버전을 최신으로 동기화합니다.")
+        Base.metadata.create_all(bind=engine)
+        
+        # 새 DB를 생성했으므로, 더 이상 불필요한 과거 마이그레이션을 돌지 않도록 alembic을 stamp head 처리
+        try:
+            from alembic.config import Config
+            from alembic import command
+            alembic_cfg = Config("alembic.ini")
+            command.stamp(alembic_cfg, "head")
+        except Exception as e:
+            print(f"Alembic stamp skipped or failed: {e}")
+            
+    else:
+        print("기존 DB 발견 - Alembic 마이그레이션으로 스키마 변경을 위임합니다.")
+        # create_all()을 호출하지 않고 alembic upgrade head가 뒷단에서 처리하도록 둠
+
+    print(f"✓ Database initialization complete: {DATABASE_URL}")
 
 
 def drop_db():
