@@ -478,7 +478,7 @@ class GameService:
         # ── Step 5.6: day_action_log 축적 (밤 가족회의 안건용) ──
         day_log_entry = {
             "turn": world_after.turn,
-            "input": user_text,
+            "input": user_input,
             "intent": tool_result.intent,
             "events": tool_result.event_description,
         }
@@ -512,6 +512,7 @@ class GameService:
                     assets=assets,
                     event_description=tool_result.event_description,
                     state_delta=tool_result.state_delta,
+                    npc_response=tool_result.npc_response
                 )
         except Exception as e:
              logger.error(f"[GameService] NarrativeLayer failed: {e}")
@@ -810,74 +811,6 @@ class GameService:
         )
         
         return client_sync_data
-
-    @classmethod
-    def _initialize_npc_plans(cls, db: Session, game: Games) -> None:
-        """게임 최초 시작 시 모든 NPC의 Long-term Plan을 생성.
-
-        이미 LT plan이 있으면 스킵한다.
-        """
-        from app.agents.planning import generate_long_term_plan
-        from app.llm import get_llm
-
-        world_state = cls._create_world_state(game)
-
-        # Assets 로드
-        assets = None
-        if game.scenario and game.scenario.world_asset_data:
-            try:
-                assets = ScenarioAssets(**game.scenario.world_asset_data)
-            except Exception:
-                pass
-        if not assets:
-            scenario_title = game.scenario.title if game.scenario else "coraline"
-            project_root = Path(__file__).parent.parent.parent
-            scenarios_dir = project_root / "scenarios"
-            loader = ScenarioLoader(base_path=scenarios_dir)
-            assets = loader.load(scenario_title)
-
-        # LT plan이 하나라도 이미 있으면 스킵
-        any_has_plan = any(
-            npc_state.memory.get("long_term_plan")
-            for npc_state in world_state.npcs.values()
-        )
-        if any_has_plan:
-            return
-
-        llm = get_llm()
-        scenario_title = assets.scenario.get("title", "")
-        changed = False
-
-        for npc_id, npc_state in world_state.npcs.items():
-            npc_data = assets.get_npc_by_id(npc_id)
-            if not npc_data:
-                continue
-
-            npc_goal = npc_data.get("goal", "")
-            phases = npc_data.get("phases", [])
-            if not npc_goal or not phases:
-                continue
-
-            lt_plan = generate_long_term_plan(
-                npc_id=npc_id,
-                npc_name=npc_data["name"],
-                persona=npc_data.get("persona", {}),
-                npc_goal=npc_goal,
-                initial_phase=phases[0],
-                stats=npc_state.stats,
-                scenario_title=scenario_title,
-                llm=llm,
-            )
-            npc_state.memory["long_term_plan"] = lt_plan
-            npc_state.memory["current_phase_id"] = phases[0].get("phase_id", "A")
-            npc_state.memory["last_reflected_phase_id"] = phases[0].get("phase_id", "A")
-            changed = True
-            logger.info(f"[GameService] LT plan generated for {npc_id}: {lt_plan[:60]}...")
-
-        if changed:
-            _world_state_to_games(game, world_state)
-            crud_game.update_game(db, game)
-            logger.info("[GameService] NPC LT plans saved to DB")
     # 텍스트로 맵 이동을 받으면 플레이어의 위치를 그 맵으로 변경
     @staticmethod
     def change_location(game_id: int, location: str):

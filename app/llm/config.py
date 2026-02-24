@@ -4,20 +4,20 @@ LLM 모델 설정 관리
 """
 import os
 from typing import Literal
-
 from dotenv import load_dotenv
+
 load_dotenv()
 
 # 기본 모델 설정 (여기서 모델을 변경하세요)
-DEFAULT_MODEL = "kakaocorp/kanana-1.5-8b-instruct-2505"
-ALTERNATIVE_MODEL = "LGAI-EXAONE/EXAONE-3.5-7.8B-Instruct"
+DEFAULT_MODEL = "Qwen/Qwen2.5-7B-Instruct"
+ALTERNATIVE_MODEL = "kakaocorp/kanana-1.5-8b-instruct-2505"
 
 # LLM 백엔드 타입
 LLMBackend = Literal["vLLM", "transformers"]
 DEFAULT_BACKEND: LLMBackend = "vLLM"
 
 # vLLM 설정 — .env의 VLLM_BASE_URL로 재정의 가능
-VLLM_BASE_URL = os.environ.get("VLLM_BASE_URL", "")
+VLLM_BASE_URL = os.environ.get("VLLM_BASE_URL")
 VLLM_SERVED_MODEL_NAME = os.environ.get("VLLM_MODEL", "Qwen/Qwen2.5-7B-Instruct")
 
 # Transformers 설정

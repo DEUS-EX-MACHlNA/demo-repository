@@ -121,6 +121,7 @@ def generate_utterance(
     resp = llm.generate(prompt=prompt, max_tokens=80, npc_id=speaker_id)
     if not resp:
         resp = f"...{speaker_name}은(는) 잠시 말을 아꼈다."
+    logger.debug(f"[Utterance] npc={speaker_id} → {listener_name} | model=LoRA({speaker_id}) | {resp.strip()[:80]}")
     return resp.strip()
 
 
@@ -455,7 +456,7 @@ def analyze_conversation_impact(
     resp = llm.generate(prompt=prompt, max_tokens=200, temperature=0.3)
 
     result = _parse_impact_response(resp, npc1_id, npc1_name, npc2_id, npc2_name, stat_names, include_triggers)
-    logger.debug(f"conversation_impact: {result}")
+    logger.info(f"[Impact Analysis] {npc1_id}<->{npc2_id} | model=base | stats={result.get('npc_stats', {})}")
     return result
 
 

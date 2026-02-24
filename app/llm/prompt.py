@@ -179,22 +179,54 @@ def build_action_prompt(
     """
     system_prompt = SYSTEM_PROMPT_ACTION
 
+    ws = world_snapshot or {}
+    genre = ws.get("genre", "")
+    tone = ws.get("tone", "")
+
+    # flags: true인 것만 추출
+    flags = ws.get("flags", {})
+    flags_summary = ", ".join(k for k, v in flags.items() if v) or "(없음)"
+
+    inventory = ws.get("inventory", [])
+    inventory_str = ", ".join(inventory) if inventory else "(없음)"
+
     user_parts = []
 
-    if world_snapshot:
+    # 1. 장르/톤 컨텍스트
+    if genre or tone:
         user_parts.append(
-            "[세계 상태]\n" +
-            "\n".join(f"- {k}: {v}" for k, v in world_snapshot.items())
+            f"[ROLE]\n"
+            f"장르: {genre}  톤: {tone}\n"
+            f"확정된 세계 상태만 사용하라. 새로운 사실·장소·인물 생성 금지."
         )
 
+    # 2. 세계 스냅샷 (구조화)
+    if ws:
+        snapshot_lines = [
+            f"day={ws.get('day', 1)}, turn={ws.get('turn', 1)}",
+            f"장소: {ws.get('node_id', 'unknown')}",
+            f"의심도: {ws.get('suspicion_level', 0)} | 플레이어 인간성: {ws.get('player_humanity', 100)}",
+            f"인벤토리: {inventory_str}",
+            f"활성 flags: {flags_summary}",
+        ]
+        user_parts.append("[WORLD SNAPSHOT]\n" + "\n".join(snapshot_lines))
+
+    # 3. 현장 NPC
     if npc_context:
-        user_parts.append(
-            "[등장인물]\n" + "\n".join(npc_context)
-        )
+        user_parts.append("[SCENE NPCs]\n" + "\n".join(npc_context))
 
-    user_parts.append(
-        "[행동]\n" + action
-    )
+    # 4. 플레이어 행동
+    user_parts.append("[PLAYER ACTION]\n" + action)
+
+    # 5. 명시적 태스크
+    task_lines = [
+        "[TASK]",
+        "위 행동의 결과를 판정하라.",
+        "- 탐색/조사/검사 행동: area_{장소}_{행동} 형식의 플래그를 state_delta.vars에 설정 (예: area_kitchen_searched: true)",
+        "- 변화한 vars만 포함 (변경 없으면 빈 객체)",
+        "- 사건 묘사는 1문장 이내, 과장·수식어 금지",
+    ]
+    user_parts.append("\n".join(task_lines))
 
     # 동적 OUTPUT_FORMAT 생성
     npc_stat_names = assets.get_npc_stat_names() if assets else None
@@ -222,30 +254,76 @@ def build_use_prompt(
     """
     system_prompt = SYSTEM_PROMPT_ITEM
 
+    ws = world_snapshot or {}
+    genre = ws.get("genre", "")
+    tone = ws.get("tone", "")
+
+    # flags: true인 것만 추출
+    flags = ws.get("flags", {})
+    flags_summary = ", ".join(k for k, v in flags.items() if v) or "(없음)"
+
+    inventory = ws.get("inventory", [])
+    inventory_str = ", ".join(inventory) if inventory else "(없음)"
+
     user_parts = []
 
-    if world_snapshot:
+    # 1. 장르/톤 컨텍스트
+    if genre or tone:
         user_parts.append(
-            "[세계 상태]\n" +
-            "\n".join(f"- {k}: {v}" for k, v in world_snapshot.items())
+            f"[ROLE]\n"
+            f"장르: {genre}  톤: {tone}\n"
+            f"아이템 정의(effects/conditions)에 따른 결과만 생성하라. 정의에 없는 효과 임의 추가 금지."
         )
 
+    # 2. 세계 스냅샷 (구조화)
+    if ws:
+        snapshot_lines = [
+            f"day={ws.get('day', 1)}, turn={ws.get('turn', 1)}",
+            f"장소: {ws.get('node_id', 'unknown')}",
+            f"의심도: {ws.get('suspicion_level', 0)} | 플레이어 인간성: {ws.get('player_humanity', 100)}",
+            f"인벤토리: {inventory_str}",
+            f"활성 flags: {flags_summary}",
+        ]
+        user_parts.append("[WORLD SNAPSHOT]\n" + "\n".join(snapshot_lines))
+
+    # 3. 아이템 정보
     if item_def:
         item_info_lines = [f"- 이름: {item_name}"]
         for k, v in item_def.items():
             if k not in ("acquire",):
                 item_info_lines.append(f"- {k}: {v}")
-        user_parts.append("[아이템 정보]\n" + "\n".join(item_info_lines))
+        user_parts.append("[ITEM INFO]\n" + "\n".join(item_info_lines))
     else:
-        user_parts.append(f"[아이템 정보]\n- 이름: {item_name}")
+        user_parts.append(f"[ITEM INFO]\n- 이름: {item_name}")
 
+    # 4. 대상 NPC (있을 때만)
     if target_npc_id:
-        user_parts.append(f"[대상]\n- NPC: {target_npc_id}")
+        # npc_context에서 해당 NPC 정보 찾기
+        target_line = f"- NPC ID: {target_npc_id}"
+        if npc_context:
+            for npc_str in npc_context:
+                if target_npc_id in npc_str:
+                    target_line += f"\n- NPC 정보: {npc_str}"
+                    break
+        user_parts.append(f"[TARGET NPC]\n{target_line}")
 
+    # 5. 현장 NPC (대상 NPC와 별개로 전체 목록)
     if npc_context:
-        user_parts.append("[등장인물]\n" + "\n".join(npc_context))
+        user_parts.append("[SCENE NPCs]\n" + "\n".join(npc_context))
 
-    user_parts.append(f"[아이템 사용]\n{action}")
+    # 6. 아이템 사용 행동
+    user_parts.append(f"[ITEM ACTION]\n{action}")
+
+    # 7. 명시적 태스크
+    task_lines = [
+        "[TASK]",
+        "위 아이템 사용/획득의 결과를 판정하라.",
+        "- NPC 스탯과 vars 변화를 state_delta에 최종값으로 포함",
+        "- 사건 묘사는 1문장 이내, 과장·수식어 금지",
+    ]
+    if target_npc_id:
+        task_lines.append(f"- 대상 NPC({target_npc_id})의 스탯 변화도 반드시 판정")
+    user_parts.append("\n".join(task_lines))
 
     # 동적 OUTPUT_FORMAT 생성
     npc_stat_names = assets.get_npc_stat_names() if assets else None

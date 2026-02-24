@@ -207,13 +207,13 @@ def interact(target: str, interact: str) -> Dict[str, Any]:
 
     # 3-1. NPC 대사 후처리 (글리치/광기 효과 적용)
     npc_humanity = npc_state.stats.get("humanity", 100) if npc_state else 100
-    logger.debug(f"[LoRA raw] {npc_response}")
+    logger.debug(f"[NPC Raw] npc={target} | LoRA 원본: {npc_response[:120]}")
     npc_response = postprocess_npc_dialogue(
         text=npc_response,
         npc_id=target,
         humanity=npc_humanity,
     )
-    logger.info(f"NPC 응답: {npc_response[:80]}...")
+    logger.info(f"[NPC Final] npc={target} | humanity={npc_humanity} | 후처리 결과: {npc_response[:80]}")
 
     # 4. 영향 분석 (state_delta + event_description)
     world_context = {
