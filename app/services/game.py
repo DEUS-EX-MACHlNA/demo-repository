@@ -478,7 +478,7 @@ class GameService:
         # ── Step 5.6: day_action_log 축적 (밤 가족회의 안건용) ──
         day_log_entry = {
             "turn": world_after.turn,
-            "input": user_text,
+            "input": user_input,
             "intent": tool_result.intent,
             "events": tool_result.event_description,
         }
@@ -493,8 +493,8 @@ class GameService:
                 "name": ending_result.ending.name,
                 "epilogue_prompt": ending_result.ending.epilogue_prompt,
             }
+            game.status = GameStatus.ENDING.value
             if ending_result.triggered_delta:
-                game.status = GameStatus.ENDING.value
                 _apply_delta(world_after, ending_result.triggered_delta, assets)
 
         # ── Step 7: NarrativeLayer - 나레이션 생성 ──
@@ -562,8 +562,12 @@ class GameService:
 
         # [PERFORMANCE] Background Sync로 이관 (Redis Only Update)
         # crud_game.update_game(db, game)
-        
-        logger.info(f"Turn {world_after.turn} processed (Source: {load_source}, Redis: Updated)")
+        if game.status == GameStatus.ENDING.value:
+            db.commit()
+            redis_client.delete_game_state(str(game_id))
+            logger.info(f"Game {game_id} ended at turn {world_after.turn}. Synced to DB and removed from Redis.")
+        else:
+            logger.info(f"Turn {world_after.turn} processed (Source: {load_source}, Redis: Updated)")
 
         return StepResponseSchema(
             narrative=narrative,
@@ -686,9 +690,11 @@ class GameService:
 
         # ── Step 6: EndingChecker - 엔딩 체크 (has_item 조건 스킵) ──
         ending_result = check_ending(world_after, assets, skip_has_item=True)
-        ending_info = ending_result.to_ending_info_dict()
+        ending_info = ending_result.to_ending_info_dict() if ending_result.reached else None
         if ending_result.reached:
-            _apply_delta(world_after, ending_result.triggered_delta.to_dict(), assets)
+            game.status = GameStatus.ENDING.value
+            if ending_result.triggered_delta:
+                _apply_delta(world_after, ending_result.triggered_delta.to_dict(), assets)
 
         # ── Step 7: NarrativeLayer - 나레이션 생성 ──
         narrative_layer = get_narrative_layer()
@@ -748,11 +754,15 @@ class GameService:
 
         # [PERFORMANCE] Background Sync로 이관 (Redis Only Update)
         # crud_game.update_game(db, game)
-
-        logger.info(
-            f"Night completed: game={game_id}, "
-            f"turn={world_after.turn}, ending={ending_result.reached}, Source={load_source}"
-        )
+        if game.status == GameStatus.ENDING.value:
+            db.commit()
+            redis_client.delete_game_state(str(game_id))
+            logger.info(f"Game {game_id} ended during night. Synced to DB and removed from Redis.")
+        else:
+            logger.info(
+                f"Night completed: game={game_id}, "
+                f"turn={world_after.turn}, ending={ending_result.reached}, Source={load_source}"
+            )
 
         return NightResponseResult(
             narrative=response_data["narrative"],
@@ -761,6 +771,42 @@ class GameService:
             ending_info=ending_info,
             vars=world_after.vars,
         )
+
+    @staticmethod
+    def quit_game(db: Session, game_id: int):
+        """
+        사용자가 게임을 중간에 종료(Quit)할 때 호출됨.
+        Redis에서 캐싱된 데이터를 DB에 플러시(저장)하고 캐시를 삭제함.
+        게임의 상태(status)는 계속 진행 가능하도록 변경하지 않음.
+        """
+        game = crud_game.get_game_by_id(db, game_id)
+        if not game:
+            raise ValueError(f"Game not found: {game_id}")
+            
+        redis_client = get_redis_client()
+        cached_state = redis_client.get_game_state(str(game_id))
+        
+        if cached_state:
+            # DB 모델에 최신 Redis 데이터 반영
+            meta = cached_state.get("meta_data", {})
+            npc_stats = cached_state.get("npc_stats", {})
+            player_info = cached_state.get("player_info", {})
+            
+            game.world_meta_data = meta
+            game.npc_data = {"npcs": list(npc_stats.values())}
+            game.player_data = player_info
+            
+            from sqlalchemy.orm.attributes import flag_modified
+            flag_modified(game, "world_meta_data")
+            flag_modified(game, "npc_data")
+            flag_modified(game, "player_data")
+            
+            # DB에 커밋
+            db.commit()
+            
+            # Redis 정리
+            redis_client.delete_game_state(str(game_id))
+            logger.info(f"Game {game_id} saved to DB and Redis cache cleared on quit.")
 
     @staticmethod
     def start_game(db: Session, game_id: int):

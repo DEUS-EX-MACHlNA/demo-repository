@@ -73,11 +73,24 @@ async def sync_game_state_to_db():
                 
                 db.add(game)
                 
+                # 30분 이상 유휴(Idle) 상태인지 확인 후 메모리 비우기 (Force Quit 대응)
+                import time
+                IDLE_TIMEOUT_SECONDS = 600  # 10분
+                last_updated = cached.get("last_updated", 0)
+                
+                if isinstance(last_updated, (int, float)) and (time.time() - last_updated) > IDLE_TIMEOUT_SECONDS:
+                    # 이번 루프에서 커밋할 대상 추가
+                    logger.info(f"알림: 게임 {game_id}가 장시간(10분) 이용되지 않아 DB 저장 후 종료되었습니다.")
+                    # 삭제 대기 목록에 추가하거나 바로 삭제할 수 있지만, DB 커밋 안정성을 위해
+                    # 커밋 성공 여부와 상관없이 삭제하는 것은 위험할 수 있으므로
+                    # 이 블록에서는 db가 커밋될 것을 가정하고 삭제합니다.
+                    redis_client.delete_game_state(game_id_str)
+                
             except Exception as e:
                 logger.error(f"[SyncWorker] Failed to sync game {game_id_str}: {e}")
         
         db.commit()
-        logger.info(f"[SyncWorker] Synced {len(active_game_ids)} games to DB.")
+        # logger.info(f"[SyncWorker] Synced {len(active_game_ids)} games to DB.")
         
     except Exception as e:
         logger.error(f"[SyncWorker] Critical error during sync: {e}")

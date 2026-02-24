@@ -25,6 +25,8 @@ from app.schemas.night import (
 
 router = APIRouter(tags=["game"])
 
+# 원래 유저 아이디를 받으면 그에 해당되는 게임들을 조회해주는건데
+# 
 
 @router.get("/", summary="게임 목록 조회", response_model=list[dict])
 def get_games(db: Session = Depends(get_db)):
@@ -59,6 +61,16 @@ def get_game(game_id: int, db: Session = Depends(get_db)) -> GameClientSyncSchem
         raise HTTPException(status_code=404, detail="게임을 찾을 수 없습니다.")
 
     return game
+
+# 진행 중인 게임 임시 종료 및 저장
+@router.post("/{game_id}/quit", summary="진행중인 게임 임시 종료 및 저장")
+def quit_game(game_id: int, db: Session = Depends(get_db)):
+    try:
+        GameService.quit_game(db, game_id)
+        return {"message": "정상적으로 저장 후 종료되었습니다."}
+    except ValueError:
+        raise HTTPException(status_code=404, detail="게임을 찾을 수 없습니다.")
+
 
 # 밤 파이프라인 실행
 @router.post("/{game_id}/night_dialogue", summary="밤 파이프라인 실행", response_model=NightResponseResult)

@@ -25,6 +25,7 @@ services:
     build: .
     restart: always
     environment:
+      # --- 기존 필수 변수 ---
       - DB_USER=${POSTGRES_USER:-postgres}
       - DB_PASSWORD=${POSTGRES_PASSWORD:-password}
       - DB_NAME=${POSTGRES_DB:-maratang_db}
@@ -33,6 +34,10 @@ services:
       - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-password}@db:5432/${POSTGRES_DB:-maratang_db}
       - REDIS_URL=redis://redis:6379/0
       - TZ=Asia/Seoul
+      
+      # --- 추가된 AI 통신 변수 (이미 완벽하게 있음) ---
+      - VLLM_BASE_URL=http://vllm:8000/v1
+      - VLLM_MODEL=${VLLM_MODEL:-Qwen/Qwen2.5-7B-Instruct}
     ports:
       - "8000:8000"
     depends_on:
@@ -42,6 +47,8 @@ services:
         condition: service_started
       init_db:
         condition: service_completed_successfully
+      vllm:
+        condition: service_started
     networks:
       - maratang_net
 
@@ -76,9 +83,41 @@ services:
       - maratang_net
     command: redis-server --appendonly yes
 
+  vllm:
+    image: vllm/vllm-openai:latest
+    restart: always
+    environment:
+      - HF_TOKEN=${HF_TOKEN}
+    ports:
+      - "8001:8000"
+    volumes:
+      - huggingface_cache:/root/.cache/huggingface
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    command: >
+      --model ${VLLM_MODEL:-Qwen/Qwen2.5-7B-Instruct}
+      --served-model-name ${VLLM_MODEL:-Qwen/Qwen2.5-7B-Instruct}
+      --dtype auto
+      --max-model-len 2048
+      --enable-lora
+      --max-loras 5
+      --lora-modules stepmother_lora=lucete171/deus-mother-lora
+                     stepfather_lora=lucete171/deus-stepfather-lora
+                     brother_lora=lucete171/deus-sibling-lora
+                     dog_baron_lora=lucete171/deus-dog-baron-lora
+                     grandmother_lora=lucete171/deus-grandmother-lora
+    networks:
+      - maratang_net
+
 networks:
   maratang_net:
 
 volumes:
   postgres_data:
   redis_data:
+  huggingface_cache:

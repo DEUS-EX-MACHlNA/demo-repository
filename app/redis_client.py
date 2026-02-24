@@ -1,3 +1,4 @@
+import time
 import json
 import redis
 from typing import Optional, Dict, Any
@@ -18,12 +19,20 @@ class RedisClient:
         if not data:
             return None
             
+        # last_updated 원래 값이 문자열 'now' 였던 레거시 대응
+        last_updated_raw = data.get("last_updated", 0)
+        try:
+            last_updated = float(last_updated_raw)
+        except ValueError:
+            import time
+            last_updated = time.time()  # 변환 실패 시 현재 시간으로 간주
+
         # JSON 문자열을 파싱하여 반환
         return {
             "meta_data": json.loads(data.get("meta_data", "{}")),
             "npc_stats": json.loads(data.get("npc_stats", "{}")),
             "player_info": json.loads(data.get("player_info", "{}")),
-            "last_updated": data.get("last_updated")
+            "last_updated": last_updated
         }
 
     def set_game_state(self, game_id: str, meta_data: dict, npc_stats: dict, player_info: dict):
@@ -36,7 +45,7 @@ class RedisClient:
             "meta_data": json.dumps(meta_data, ensure_ascii=False),
             "npc_stats": json.dumps(npc_stats, ensure_ascii=False),
             "player_info": json.dumps(player_info, ensure_ascii=False),
-            "last_updated": "now" # TODO: timestamp
+            "last_updated": time.time()
         }
         self.client.hset(key, mapping=mapping)
         self.client.expire(key, self.ttl)
