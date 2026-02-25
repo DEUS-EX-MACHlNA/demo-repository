@@ -517,6 +517,14 @@ class GameService:
              logger.error(f"[GameService] NarrativeLayer failed: {e}")
              narrative = ""
         
+        # ── Step 7.5: Update Game Summary ──
+        current_summary = game.summary
+        if current_summary:
+            game.summary = f"{current_summary}\n{narrative}"
+        else:
+            game.summary = narrative
+        flag_modified(game, "summary")
+
         # ── Step 8: Update Game State & Cache ──
         # DB 모델 객체 업데이트 (JSON 구조체 갱신)
         cls._world_state_to_games(game, world_after, assets)
@@ -713,7 +721,18 @@ class GameService:
                 night_conversation=night_result.night_conversation,
             )
 
-        # ── Step 7.5: day_action_log 초기화 (다음 낮을 위해) ──
+        # ── Step 7.5: Update Game Summary ──
+        current_summary = game.summary or ""
+        if isinstance(current_summary, dict) or isinstance(current_summary, list):
+            current_summary = ""
+            
+        if current_summary:
+            game.summary = f"{current_summary}\n{narrative}"
+        else:
+            game.summary = narrative
+        flag_modified(game, "summary")
+
+        # ── Step 7.8: day_action_log 초기화 (다음 낮을 위해) ──
         world_after.day_action_log = []
 
         # ── Step 8: WorldStatePipeline → DB 반영 + Cache Update ──

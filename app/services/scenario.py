@@ -404,7 +404,7 @@ class ScenarioService:
                 world_meta_data=world_state_data,
                 player_data=player_data,
                 npc_data=npc_data,
-                # summary={},  # TODO: 이 부분은 추후 LLM에 넣어 둘 내용을 의미
+                summary="",
                 status=GameStatus.LIVE,
             )
 
