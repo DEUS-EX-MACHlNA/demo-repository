@@ -17,6 +17,7 @@ from app.llm import GenerativeAgentsLLM
 from app.agents.memory import MEMORY_DIALOGUE, MemoryEntry, add_memory
 from app.agents.retrieval import retrieve_memories, score_importance
 from app.agents.utils import format_emotion, format_persona, parse_stat_changes_text
+from app.postprocess import phase_to_level
 
 logger = logging.getLogger(__name__)
 
@@ -75,6 +76,8 @@ def generate_utterance(
     llm: GenerativeAgentsLLM,
     current_turn: int = 1,
     world_snapshot: dict[str, Any] | None = None,
+    phase_id: str | None = None,
+    npc_phases: list | None = None,
 ) -> str:
     """단일 발화 생성.
 
@@ -99,11 +102,11 @@ def generate_utterance(
         history = "(대화 시작)"
 
     if world_snapshot:
-        humanity = speaker_stats.get("humanity", 100)
+        phase_level = phase_to_level(phase_id, npc_phases)
         prompt = _build_rich_utterance_prompt(
             speaker_id, speaker_name, speaker_persona, persona_str, emotion_str,
             plan_text, mem_ctx, history, listener_name, world_snapshot,
-            humanity=humanity,
+            phase_level=phase_level,
         )
     else:
         # 폴백: 간단 프롬프트
@@ -125,7 +128,7 @@ def generate_utterance(
     return resp.strip()
 
 
-_HUMANITY_DIRECTIVES: dict[str, dict[int, str]] = {
+_PHASE_DIRECTIVES: dict[str, dict[int, str]] = {
     "stepmother": {
         1: "차분하고 통제적. 달콤하지만 은근한 위협. 완벽주의적 규율 강조.",
         2: "불안정 시작. 달콤함과 날카로움이 공존. 가끔 말이 반복되거나 과도해짐.",
@@ -153,34 +156,27 @@ _HUMANITY_DIRECTIVES: dict[str, dict[int, str]] = {
     },
 }
 
-_HUMANITY_DEFAULT: dict[int, str] = {
+_PHASE_DEFAULT: dict[int, str] = {
     1: "자연스러운 기본 반응.",
     2: "다소 경직되거나 불안한 반응.",
     3: "극도로 위협적이거나 단절된 반응.",
 }
 
-_HUMANITY_LEVEL_LABELS = {1: "정상", 2: "중간", 3: "극단"}
+_PHASE_LEVEL_LABELS = {1: "A단계(정상)", 2: "B단계(중간)", 3: "C단계(극단)"}
 
 
-def _build_humanity_directive(npc_id: str, humanity: int) -> str:
-    """humanity 수치를 레벨로 변환해 NPC별 행동 지침 문자열 반환.
+def _build_phase_directive(npc_id: str, level: int) -> str:
+    """phase 레벨(1~3)을 받아 NPC별 행동 지침 문자열 반환.
 
-    레벨 매핑 (postprocess/__init__.py의 humanity_to_level과 동일):
-        ≥ 70  → 레벨 1 (정상)
-        40~69 → 레벨 2 (중간)
-        < 40  → 레벨 3 (극단)
+    레벨은 phase_to_level()이 반환한 값을 그대로 사용:
+        1 → phase A (정상)
+        2 → phase B (중간)
+        3 → phase C (극단)
     """
-    if humanity >= 70:
-        level = 1
-    elif humanity >= 40:
-        level = 2
-    else:
-        level = 3
-
-    directives = _HUMANITY_DIRECTIVES.get(npc_id, _HUMANITY_DEFAULT)
-    label = _HUMANITY_LEVEL_LABELS[level]
+    directives = _PHASE_DIRECTIVES.get(npc_id, _PHASE_DEFAULT)
+    label = _PHASE_LEVEL_LABELS[level]
     guide = directives[level]
-    return f"humanity={humanity} → {label} 상태. {guide}"
+    return f"phase={label} 상태. {guide}"
 
 
 def _build_rich_utterance_prompt(
@@ -194,7 +190,7 @@ def _build_rich_utterance_prompt(
     history: str,
     listener_name: str,
     ws: dict[str, Any],
-    humanity: int = 100,
+    phase_level: int = 1,
 ) -> str:
     """world_snapshot이 있을 때 사용하는 구체화된 NPC 발화 프롬프트."""
     genre = ws.get("genre", "")
@@ -222,7 +218,7 @@ def _build_rich_utterance_prompt(
     # 인벤토리
     inventory = ", ".join(ws.get("inventory", [])) or "(없음)"
 
-    humanity_directive = _build_humanity_directive(speaker_id, humanity)
+    phase_directive = _build_phase_directive(speaker_id, phase_level)
 
     return (
         f"[ROLE]\n"
@@ -244,7 +240,7 @@ def _build_rich_utterance_prompt(
         f"- fear↑: 더 집착/불안/통제\n"
         f"- affection↓: 더 차갑고 거리감\n\n"
         f"[현재 상태 가이드]\n"
-        f"{humanity_directive}\n\n"
+        f"{phase_directive}\n\n"
         f"[WORLD SNAPSHOT]\n"
         f"day={ws.get('day', 1)}, turn={ws.get('turn', 1)}, "
         f"suspicion_level={ws.get('suspicion_level', 0)}, "

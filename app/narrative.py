@@ -127,6 +127,9 @@ class NarrativeLayer:
     # ============================================================
     # 낮 — LM 경로
     # ============================================================
+    # 내러티브 생성 중단 마커 — 모델이 재작성/편집 주석을 달기 시작하면 멈춤
+    _NARRATIVE_STOP = ["\n\n", "\n[내용", "\n(문장", "\n(최종", "[비고]"]
+
     def _render_lm_day(
         self,
         event_description: list[str],
@@ -140,7 +143,7 @@ class NarrativeLayer:
         )
         try:
             llm_engine = _get_llm()
-            raw_output = llm_engine.generate(prompt)
+            raw_output = llm_engine.generate(prompt, stop=self._NARRATIVE_STOP)
             logger.debug(f"[narrative] LLM day response: {raw_output[:200]}")
             if not raw_output:
                 return self._render_simple_day(event_description, state_delta, world_state, assets)
@@ -188,7 +191,7 @@ class NarrativeLayer:
         prompt = self._build_night_narrative_prompt(world_state, assets, night_conversation)
         try:
             llm_engine = _get_llm()
-            raw_output = llm_engine.generate(prompt)
+            raw_output = llm_engine.generate(prompt, stop=self._NARRATIVE_STOP)
             logger.debug(f"[narrative] LLM night response: {raw_output[:200]}")
             if not raw_output:
                 return self._render_simple_night(world_state, assets, night_conversation)

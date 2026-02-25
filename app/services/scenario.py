@@ -358,9 +358,11 @@ class ScenarioService:
                 scenario_title=scenario_title,
                 llm=llm,
             )
+            initial_phase_id = phases[0].get("phase_id", "A")
             npc_state.memory["long_term_plan"] = lt_plan
-            npc_state.memory["current_phase_id"] = phases[0].get("phase_id", "A")
-            npc_state.memory["last_reflected_phase_id"] = phases[0].get("phase_id", "A")
+            npc_state.memory["current_phase_id"] = initial_phase_id       # 하위호환 유지
+            npc_state.memory["last_reflected_phase_id"] = initial_phase_id
+            npc_state.current_phase_id = initial_phase_id                 # NPCState 필드 직접 설정
             changed = True
             logger.info(f"[ScenarioService] LT plan generated for {npc_id}: {lt_plan[:60]}...")
 

@@ -9,16 +9,19 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # 기본 모델 설정 (여기서 모델을 변경하세요)
-DEFAULT_MODEL = "Qwen/Qwen2.5-7B-Instruct"
-ALTERNATIVE_MODEL = "kakaocorp/kanana-1.5-8b-instruct-2505"
+DEFAULT_MODEL = "kakaocorp/kanana-1.5-8b-instruct-2505"  # 기본 모델 (non-LoRA)
+LORA_BASE_MODEL = "Qwen/Qwen2.5-7B-Instruct"  # LoRA 어댑터 전용 베이스 모델
 
 # LLM 백엔드 타입
 LLMBackend = Literal["vLLM", "transformers"]
 DEFAULT_BACKEND: LLMBackend = "vLLM"
 
-# vLLM 설정 — .env의 VLLM_BASE_URL로 재정의 가능
+# vLLM 설정 — .env의 VLLM_BASE_URL로 재정의 가능 (기본 서버: Kanana)
 VLLM_BASE_URL = os.environ.get("VLLM_BASE_URL")
-VLLM_SERVED_MODEL_NAME = os.environ.get("VLLM_MODEL", "Qwen/Qwen2.5-7B-Instruct")
+VLLM_SERVED_MODEL_NAME = os.environ.get("VLLM_MODEL", "kakaocorp/kanana-1.5-8b-instruct-2505")
+
+# LoRA 서버 설정 — 미설정 시 VLLM_BASE_URL과 동일한 서버 사용
+LORA_VLLM_BASE_URL = os.environ.get("LORA_VLLM_BASE_URL", VLLM_BASE_URL)
 
 # Transformers 설정
 TRANSFORMERS_DEVICE = None  # None이면 자동 감지 (cuda/cpu)
@@ -47,7 +50,7 @@ NPC_HF_REPO_MAP: dict[str, str] = {
     "stepmother":  "lucete171/deus-mother-lora",
     "stepfather":  "lucete171/deus-stepfather-lora",
     "brother":     "lucete171/deus-sibling-lora",
-    "dog_baron":   "lucete171/deus-dog-baron-lora",
+    "dog_baron":   "lucete171/deus-dog_baron-lora",
     "grandmother": "lucete171/deus-grandmother-lora",
 }
 

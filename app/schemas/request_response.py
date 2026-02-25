@@ -49,6 +49,7 @@ class NightResponseResult(BaseModel):
     npc_state_results: Dict[str, Dict[str, int]] = Field(..., description="NPC 상태 결과 (Key: NPC ID, Value: {stat_name: value})")
     ending_info: Optional[Dict[str, Any]] = None
     vars: Optional[Dict[str, Any]]
+    phase_changes: Dict[str, str] = Field(default_factory=dict, description="NPC phase 전환 결과 (Key: NPC ID, Value: 새 phase_id)")
 
 # ============================================================
 # 시나리오 정보 응답
