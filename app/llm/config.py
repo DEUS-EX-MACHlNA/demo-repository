@@ -21,7 +21,7 @@ VLLM_BASE_URL = os.environ.get("VLLM_BASE_URL")
 VLLM_SERVED_MODEL_NAME = os.environ.get("VLLM_MODEL", "kakaocorp/kanana-1.5-8b-instruct-2505")
 
 # LoRA 서버 설정 — 미설정 시 VLLM_BASE_URL과 동일한 서버 사용
-LORA_VLLM_BASE_URL = os.environ.get("LORA_VLLM_BASE_URL", VLLM_BASE_URL)
+LORA_VLLM_BASE_URL = os.environ.get("LORA_VLLM_BASE_URL")
 
 # Transformers 설정
 TRANSFORMERS_DEVICE = None  # None이면 자동 감지 (cuda/cpu)
@@ -77,6 +77,7 @@ def get_model_config(backend: LLMBackend | None = None) -> dict:
         return {
             "model": VLLM_SERVED_MODEL_NAME,
             "base_url": VLLM_BASE_URL,
+            "lora_base_url": LORA_VLLM_BASE_URL,
             "temperature": DEFAULT_TEMPERATURE,
             "api_key": "EMPTY",
         }

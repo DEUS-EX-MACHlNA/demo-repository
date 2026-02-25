@@ -118,7 +118,7 @@ class UnifiedLLMEngine:
         # vLLM용 설정
         if self.backend == "vLLM":
             self.base_url = self.config["base_url"]
-            self.lora_base_url = LORA_VLLM_BASE_URL
+            self.lora_base_url = self.config["lora_base_url"]
             self.api_key = self.config["api_key"]
             self._client = httpx.Client(timeout=httpx.Timeout(60.0))
 
@@ -289,7 +289,6 @@ class UnifiedLLMEngine:
                     "top_p": top_p,
                     "max_tokens": max_tokens,
                     "logit_bias": logit_bias,
-                    **({"stop": stop} if stop else {}),
                 },
             )
             resp.raise_for_status()
@@ -303,7 +302,7 @@ class UnifiedLLMEngine:
             messages.append({"role": "user", "content": prompt})
 
             resp = self._client.post(
-                f"{base}/chat/completions",
+                f"{base}/v1/chat/completions",
                 headers={"Authorization": f"Bearer {self.api_key}"},
                 json={
                     "model": model_to_use,
