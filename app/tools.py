@@ -188,6 +188,12 @@ def interact(target: str, interact: str) -> Dict[str, Any]:
     npc_name = npc_info.get("name", target)
     npc_persona = npc_info.get("persona", {})
 
+    # NPC phase 정보 미리 읽기 (로그 및 postprocess 공용)
+    npc_phase_id = npc_state.current_phase_id if npc_state else None
+    npc_phases = npc_info.get("phases", [])
+    available_phase_ids = [p.get("phase_id", "?") for p in npc_phases]
+    logger.warning(f"[NPC Phase] npc={target} | current={npc_phase_id} | available={available_phase_ids}")
+
     # 2. world_snapshot 조립
     world_snapshot = _build_world_snapshot(world_state, assets)
 
@@ -203,17 +209,18 @@ def interact(target: str, interact: str) -> Dict[str, Any]:
         llm=llm_engine,
         current_turn=world_state.turn,
         world_snapshot=world_snapshot,
+        phase_id=npc_phase_id,
+        npc_phases=npc_phases,
     )
 
-    # 3-1. NPC 대사 후처리 (글리치/광기 효과 적용)
-    npc_humanity = npc_state.stats.get("humanity", 100) if npc_state else 100
-    logger.debug(f"[LoRA raw] {npc_response}")
+    # 3-1. NPC 대사 후처리 (phase 기반 글리치/광기 효과 적용)
     npc_response = postprocess_npc_dialogue(
         text=npc_response,
         npc_id=target,
-        humanity=npc_humanity,
+        phase_id=npc_phase_id,
+        npc_phases=npc_phases,
     )
-    logger.info(f"NPC 응답: {npc_response[:80]}...")
+    logger.warning(f"[NPC Final] npc={target} | phase={npc_phase_id} | 후처리 결과: {npc_response[:80]}")
 
     # 4. 영향 분석 (state_delta + event_description)
     world_context = {

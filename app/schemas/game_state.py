@@ -25,6 +25,7 @@ class NPCState(BaseModel):
     status: NPCStatus = NPCStatus.ALIVE
     stats: Dict[str, Any] = Field(default_factory=dict)
     memory: Dict[str, Any] = Field(default_factory=dict)
+    current_phase_id: Optional[str] = None  # 현재 NPC phase ID (flags 의존 제거)
 
     def to_dict(self) -> dict[str, Any]:
         return self.model_dump()
@@ -50,7 +51,12 @@ class NPCState(BaseModel):
             if extras:
                 memory = extras.copy()
 
-        return cls(npc_id=npc_id, stats=stats, memory=memory)
+        # 최상위 키 우선, 없으면 memory 내부에서 fallback (구버전 데이터 호환)
+        current_phase_id = data.get("current_phase_id") or (
+            memory.get("current_phase_id") if isinstance(memory, dict) else None
+        )
+
+        return cls(npc_id=npc_id, stats=stats, memory=memory, current_phase_id=current_phase_id)
 
     def get_stat(self, key: str, default: int = 0) -> int:
         return self.stats.get(key, default)
@@ -108,6 +114,7 @@ class StateDelta(BaseModel):
     """
     npc_stats: Dict[str, Dict[str, int]] = Field(default_factory=dict)
     npc_status_changes: Dict[str, str] = Field(default_factory=dict)
+    npc_phase_changes: Dict[str, str] = Field(default_factory=dict)  # {npc_id: new_phase_id}
     flags: Dict[str, Any] = Field(default_factory=dict)
     inventory_add: List[str] = Field(default_factory=list)
     inventory_remove: List[str] = Field(default_factory=list)
@@ -125,6 +132,7 @@ class StateDelta(BaseModel):
         return cls(
             npc_stats=data.get("npc_stats", {}),
             npc_status_changes=data.get("npc_status_changes", {}),
+            npc_phase_changes=data.get("npc_phase_changes", {}),
             flags=data.get("flags", data.get("update_flags", {})),
             inventory_add=data.get("inventory_add", data.get("items_to_add", [])),
             inventory_remove=data.get("inventory_remove", data.get("items_to_remove", [])),
@@ -162,6 +170,7 @@ def merge_deltas(*deltas: dict[str, Any]) -> dict[str, Any]:
                 merged.npc_stats[npc_id][stat] = merged.npc_stats[npc_id].get(stat, 0) + value
 
         merged.npc_status_changes.update(delta.npc_status_changes)
+        merged.npc_phase_changes.update(delta.npc_phase_changes)
         merged.flags.update(delta.flags)
         merged.inventory_add.extend(delta.inventory_add)
         merged.inventory_remove.extend(delta.inventory_remove)

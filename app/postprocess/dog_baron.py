@@ -14,9 +14,9 @@ LoRA / rule-base 역할 분리:
 
 2단계 - 행동 모디파이어 후처리 (Action Modifier Post-Processing)
    loyalty_level:
-     1 — 우호적 (꼬리 흔들기, 핥기, 아이템 유인)
-     2 — 중립/경계 (코 킁킁, 고개 기울임, 관찰)
-     3 — 적대적 (으르렁, 짖기, 뒷걸음)
+     1 — 우호적 (우호 행동 항상 + 묘사체 종결 확률)
+     2 — 중립/경계 (경계 행동 항상 + 묘사체 종결 확률)
+     3 — 적대적 (적대 행동 항상 + 묘사체 종결 확률)
 
    기법:
      1. 우호 모디파이어  — 꼬리 흔들기 / 낑낑거림 접두 삽입 (레벨 1)
@@ -234,6 +234,18 @@ def narrative_ending_fix(text: str) -> str:
     return stripped + "습니다."
 
 
+# 필수 기법: 모든 레벨에서 항상 적용 (확률 파이프라인과 독립)
+# 각 레벨이 서로 다른 행동 모드를 표현하므로 1/2/3 모두 보장
+# lv1: friendly_modifier — 우호 행동 항상 (꼬리 흔들기 등)
+# lv2: cautious_modifier — 경계 행동 항상 (코 킁킁 등)
+# lv3: hostile_modifier  — 적대 행동 항상 (으르렁 등)
+_GUARANTEED_TRANSFORMS: dict[int, list] = {
+    1: [friendly_modifier],
+    2: [cautious_modifier],
+    3: [hostile_modifier],
+}
+
+
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #  통합 후처리 함수
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -266,8 +278,13 @@ def postprocess(
     # 1단계: 품질 검증/보정
     result, _issues = quality_gate(text)
 
-    # 2단계: 행동 모디파이어 후처리
     loyalty_level = max(1, min(3, loyalty_level))
+
+    # 2단계: 필수 기법 (모든 레벨에서 항상 적용, 변형 보장)
+    for fn in _GUARANTEED_TRANSFORMS.get(loyalty_level, []):
+        result = fn(result)
+
+    # 3단계: 확률 기법
     config = LOYALTY_CONFIG[loyalty_level]
 
     # 적용 순서: 모디파이어(접두 행동) → 묘사체 종결 보정

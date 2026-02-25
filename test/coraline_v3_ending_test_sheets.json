@@ -1,0 +1,569 @@
+{
+    "stealth_exit":  [
+                         {
+                             "input_data":  "동생아, 네 말대로 같이 놀아줄게.",
+                             "day":  1,
+                             "turn":  1
+                         },
+                         {
+                             "input_data":  "응, 네가 하자는 대로 할게.",
+                             "day":  1,
+                             "turn":  2
+                         },
+                         {
+                             "input_data":  "알겠어, 네 말 잘 들을게.",
+                             "day":  1,
+                             "turn":  3
+                         },
+                         {
+                             "input_data":  "동생아, 도망칠 길을 알고 있어? 비밀 통로를 알려줘.",
+                             "day":  1,
+                             "turn":  4
+                         },
+                         {
+                             "input_data":  "주방 찬장에서 강아지 간식을 꺼낸다.",
+                             "day":  1,
+                             "turn":  5
+                         },
+                         {
+                             "input_data":  "바론에게 간식을 준다.",
+                             "day":  1,
+                             "turn":  6
+                         },
+                         {
+                             "input_data":  "진짜 가족사진을 새엄마에게 보여준다.",
+                             "day":  1,
+                             "turn":  7
+                         },
+                         {
+                             "input_data":  "주방 찬장에서 수면제를 꺼낸다.",
+                             "day":  1,
+                             "turn":  8
+                         },
+                         {
+                             "input_data":  "따뜻한 차에 수면제를 탄다.",
+                             "day":  1,
+                             "turn":  9
+                         },
+                         {
+                             "input_data":  "거실에서 비밀 열쇠를 꺼낸다.",
+                             "day":  1,
+                             "turn":  10
+                         }
+                     ],
+    "chaotic_breakout":  [
+                             {
+                                 "input_data":  "할머니, 말씀대로 할게요.",
+                                 "day":  1,
+                                 "turn":  1
+                             },
+                             {
+                                 "input_data":  "알겠어요, 할머니 말 잘 들을게요.",
+                                 "day":  1,
+                                 "turn":  2
+                             },
+                             {
+                                 "input_data":  "네, 할머니가 시키는 대로 하겠습니다.",
+                                 "day":  1,
+                                 "turn":  3
+                             },
+                             {
+                                 "input_data":  "할머니 말씀에 순종할게요.",
+                                 "day":  1,
+                                 "turn":  4
+                             },
+                             {
+                                 "input_data":  "지하실에서 기름병을 꺼낸다.",
+                                 "day":  1,
+                                 "turn":  5
+                             },
+                             {
+                                 "input_data":  "거실 난로 옆에서 라이터를 집는다.",
+                                 "day":  1,
+                                 "turn":  6
+                             },
+                             {
+                                 "input_data":  "새엄마에게 기름을 끼얹는다.",
+                                 "day":  1,
+                                 "turn":  7
+                             },
+                             {
+                                 "input_data":  "라이터로 불을 붙인다.",
+                                 "day":  1,
+                                 "turn":  8
+                             }
+                         ],
+    "sibling_sacrifice":  [
+                              {
+                                  "input_data":  "주방 찬장에서 강아지 간식을 꺼낸다.",
+                                  "day":  1,
+                                  "turn":  1
+                              },
+                              {
+                                  "input_data":  "바론에게 간식을 준다.",
+                                  "day":  1,
+                                  "turn":  2
+                              },
+                              {
+                                  "input_data":  "진짜 가족사진을 동생에게 보여준다.",
+                                  "day":  1,
+                                  "turn":  3
+                              },
+                              {
+                                  "input_data":  "거실에서 비밀 열쇠를 꺼낸다.",
+                                  "day":  1,
+                                  "turn":  4
+                              }
+                          ],
+    "unfinished_doll":  [
+                            {
+                                "input_data":  "새엄마 말씀 잘 들을게요.",
+                                "day":  1,
+                                "turn":  1
+                            },
+                            {
+                                "input_data":  "새엄마 말씀 잘 들을게요.",
+                                "day":  1,
+                                "turn":  2
+                            },
+                            {
+                                "input_data":  "새엄마 말씀 잘 들을게요.",
+                                "day":  1,
+                                "turn":  3
+                            },
+                            {
+                                "input_data":  "새엄마 말씀 잘 들을게요.",
+                                "day":  1,
+                                "turn":  4
+                            },
+                            {
+                                "input_data":  "새엄마 말씀 잘 들을게요.",
+                                "day":  1,
+                                "turn":  5
+                            },
+                            {
+                                "input_data":  "새엄마 말씀 잘 들을게요.",
+                                "day":  1,
+                                "turn":  6
+                            },
+                            {
+                                "input_data":  "새엄마 말씀 잘 들을게요.",
+                                "day":  1,
+                                "turn":  7
+                            },
+                            {
+                                "input_data":  "새엄마 말씀 잘 들을게요.",
+                                "day":  1,
+                                "turn":  8
+                            },
+                            {
+                                "input_data":  "새엄마 말씀 잘 들을게요.",
+                                "day":  1,
+                                "turn":  9
+                            },
+                            {
+                                "input_data":  "새엄마 말씀 잘 들을게요.",
+                                "day":  1,
+                                "turn":  10
+                            },
+                            {
+                                "input_data":  "새엄마 말씀 잘 들을게요.",
+                                "day":  1,
+                                "turn":  11
+                            },
+                            {
+                                "input_data":  "새엄마 말씀 잘 들을게요.",
+                                "day":  1,
+                                "turn":  12
+                            },
+                            {
+                                "input_data":  "새엄마 말씀 잘 들을게요.",
+                                "day":  1,
+                                "turn":  13
+                            },
+                            {
+                                "input_data":  "새엄마 말씀 잘 들을게요.",
+                                "day":  1,
+                                "turn":  14
+                            },
+                            {
+                                "input_data":  "새엄마 말씀 잘 들을게요.",
+                                "day":  1,
+                                "turn":  15
+                            },
+                            {
+                                "input_data":  "새엄마 말씀 잘 들을게요.",
+                                "day":  1,
+                                "turn":  16
+                            },
+                            {
+                                "input_data":  "새엄마 말씀 잘 들을게요.",
+                                "day":  1,
+                                "turn":  17
+                            },
+                            {
+                                "input_data":  "새엄마 말씀 잘 들을게요.",
+                                "day":  1,
+                                "turn":  18
+                            },
+                            {
+                                "input_data":  "새엄마 말씀 잘 들을게요.",
+                                "day":  1,
+                                "turn":  19
+                            },
+                            {
+                                "input_data":  "새엄마 말씀 잘 들을게요.",
+                                "day":  1,
+                                "turn":  20
+                            }
+                        ],
+    "caught_and_confined":  [
+                                {
+                                    "input_data":  "몰래 집안을 조사한다.",
+                                    "day":  1,
+                                    "turn":  1
+                                },
+                                {
+                                    "input_data":  "몰래 집안을 조사한다.",
+                                    "day":  1,
+                                    "turn":  2
+                                },
+                                {
+                                    "input_data":  "몰래 집안을 조사한다.",
+                                    "day":  1,
+                                    "turn":  3
+                                },
+                                {
+                                    "input_data":  "몰래 집안을 조사한다.",
+                                    "day":  1,
+                                    "turn":  4
+                                },
+                                {
+                                    "input_data":  "몰래 집안을 조사한다.",
+                                    "day":  1,
+                                    "turn":  5
+                                },
+                                {
+                                    "input_data":  "몰래 집안을 조사한다.",
+                                    "day":  1,
+                                    "turn":  6
+                                },
+                                {
+                                    "input_data":  "몰래 집안을 조사한다.",
+                                    "day":  1,
+                                    "turn":  7
+                                },
+                                {
+                                    "input_data":  "몰래 집안을 조사한다.",
+                                    "day":  1,
+                                    "turn":  8
+                                },
+                                {
+                                    "input_data":  "몰래 집안을 조사한다.",
+                                    "day":  1,
+                                    "turn":  9
+                                },
+                                {
+                                    "input_data":  "몰래 집안을 조사한다.",
+                                    "day":  1,
+                                    "turn":  10
+                                },
+                                {
+                                    "input_data":  "몰래 집안을 조사한다.",
+                                    "day":  1,
+                                    "turn":  11
+                                },
+                                {
+                                    "input_data":  "몰래 집안을 조사한다.",
+                                    "day":  1,
+                                    "turn":  12
+                                },
+                                {
+                                    "input_data":  "몰래 집안을 조사한다.",
+                                    "day":  1,
+                                    "turn":  13
+                                },
+                                {
+                                    "input_data":  "몰래 집안을 조사한다.",
+                                    "day":  1,
+                                    "turn":  14
+                                },
+                                {
+                                    "input_data":  "몰래 집안을 조사한다.",
+                                    "day":  1,
+                                    "turn":  15
+                                },
+                                {
+                                    "input_data":  "몰래 집안을 조사한다.",
+                                    "day":  1,
+                                    "turn":  16
+                                },
+                                {
+                                    "input_data":  "몰래 집안을 조사한다.",
+                                    "day":  1,
+                                    "turn":  17
+                                },
+                                {
+                                    "input_data":  "몰래 집안을 조사한다.",
+                                    "day":  1,
+                                    "turn":  18
+                                },
+                                {
+                                    "input_data":  "몰래 집안을 조사한다.",
+                                    "day":  1,
+                                    "turn":  19
+                                },
+                                {
+                                    "input_data":  "몰래 집안을 조사한다.",
+                                    "day":  1,
+                                    "turn":  20
+                                }
+                            ],
+    "eternal_dinner":  [
+                           {
+                               "input_data":  "오늘 하루를 정리한다.",
+                               "day":  1,
+                               "turn":  1
+                           },
+                           {
+                               "input_data":  "오늘 하루를 정리한다.",
+                               "day":  1,
+                               "turn":  2
+                           },
+                           {
+                               "input_data":  "오늘 하루를 정리한다.",
+                               "day":  1,
+                               "turn":  3
+                           },
+                           {
+                               "input_data":  "오늘 하루를 정리한다.",
+                               "day":  1,
+                               "turn":  4
+                           },
+                           {
+                               "input_data":  "오늘 하루를 정리한다.",
+                               "day":  1,
+                               "turn":  5
+                           },
+                           {
+                               "input_data":  "오늘 하루를 정리한다.",
+                               "day":  1,
+                               "turn":  6
+                           },
+                           {
+                               "input_data":  "오늘 하루를 정리한다.",
+                               "day":  1,
+                               "turn":  7
+                           },
+                           {
+                               "input_data":  "오늘 하루를 정리한다.",
+                               "day":  1,
+                               "turn":  8
+                           },
+                           {
+                               "input_data":  "오늘 하루를 정리한다.",
+                               "day":  1,
+                               "turn":  9
+                           },
+                           {
+                               "input_data":  "오늘 하루를 정리한다.",
+                               "day":  1,
+                               "turn":  10
+                           },
+                           {
+                               "input_data":  "오늘 하루를 정리한다.",
+                               "day":  1,
+                               "turn":  11
+                           },
+                           {
+                               "input_data":  "오늘 하루를 정리한다.",
+                               "day":  1,
+                               "turn":  12
+                           },
+                           {
+                               "input_data":  "오늘 하루를 정리한다.",
+                               "day":  1,
+                               "turn":  13
+                           },
+                           {
+                               "input_data":  "오늘 하루를 정리한다.",
+                               "day":  1,
+                               "turn":  14
+                           },
+                           {
+                               "input_data":  "오늘 하루를 정리한다.",
+                               "day":  1,
+                               "turn":  15
+                           },
+                           {
+                               "input_data":  "오늘 하루를 정리한다.",
+                               "day":  1,
+                               "turn":  16
+                           },
+                           {
+                               "input_data":  "오늘 하루를 정리한다.",
+                               "day":  1,
+                               "turn":  17
+                           },
+                           {
+                               "input_data":  "오늘 하루를 정리한다.",
+                               "day":  1,
+                               "turn":  18
+                           },
+                           {
+                               "input_data":  "오늘 하루를 정리한다.",
+                               "day":  1,
+                               "turn":  19
+                           },
+                           {
+                               "input_data":  "오늘 하루를 정리한다.",
+                               "day":  1,
+                               "turn":  20
+                           },
+                           {
+                               "input_data":  "오늘 하루를 정리한다.",
+                               "day":  1,
+                               "turn":  21
+                           },
+                           {
+                               "input_data":  "오늘 하루를 정리한다.",
+                               "day":  1,
+                               "turn":  22
+                           },
+                           {
+                               "input_data":  "오늘 하루를 정리한다.",
+                               "day":  1,
+                               "turn":  23
+                           },
+                           {
+                               "input_data":  "오늘 하루를 정리한다.",
+                               "day":  1,
+                               "turn":  24
+                           },
+                           {
+                               "input_data":  "오늘 하루를 정리한다.",
+                               "day":  1,
+                               "turn":  25
+                           },
+                           {
+                               "input_data":  "오늘 하루를 정리한다.",
+                               "day":  1,
+                               "turn":  26
+                           },
+                           {
+                               "input_data":  "오늘 하루를 정리한다.",
+                               "day":  1,
+                               "turn":  27
+                           },
+                           {
+                               "input_data":  "오늘 하루를 정리한다.",
+                               "day":  1,
+                               "turn":  28
+                           },
+                           {
+                               "input_data":  "오늘 하루를 정리한다.",
+                               "day":  1,
+                               "turn":  29
+                           },
+                           {
+                               "input_data":  "오늘 하루를 정리한다.",
+                               "day":  1,
+                               "turn":  30
+                           },
+                           {
+                               "input_data":  "오늘 하루를 정리한다.",
+                               "day":  1,
+                               "turn":  31
+                           },
+                           {
+                               "input_data":  "오늘 하루를 정리한다.",
+                               "day":  1,
+                               "turn":  32
+                           },
+                           {
+                               "input_data":  "오늘 하루를 정리한다.",
+                               "day":  1,
+                               "turn":  33
+                           },
+                           {
+                               "input_data":  "오늘 하루를 정리한다.",
+                               "day":  1,
+                               "turn":  34
+                           },
+                           {
+                               "input_data":  "오늘 하루를 정리한다.",
+                               "day":  1,
+                               "turn":  35
+                           },
+                           {
+                               "input_data":  "오늘 하루를 정리한다.",
+                               "day":  1,
+                               "turn":  36
+                           },
+                           {
+                               "input_data":  "오늘 하루를 정리한다.",
+                               "day":  1,
+                               "turn":  37
+                           },
+                           {
+                               "input_data":  "오늘 하루를 정리한다.",
+                               "day":  1,
+                               "turn":  38
+                           },
+                           {
+                               "input_data":  "오늘 하루를 정리한다.",
+                               "day":  1,
+                               "turn":  39
+                           },
+                           {
+                               "input_data":  "오늘 하루를 정리한다.",
+                               "day":  1,
+                               "turn":  40
+                           },
+                           {
+                               "input_data":  "오늘 하루를 정리한다.",
+                               "day":  1,
+                               "turn":  41
+                           },
+                           {
+                               "input_data":  "오늘 하루를 정리한다.",
+                               "day":  1,
+                               "turn":  42
+                           },
+                           {
+                               "input_data":  "오늘 하루를 정리한다.",
+                               "day":  1,
+                               "turn":  43
+                           },
+                           {
+                               "input_data":  "오늘 하루를 정리한다.",
+                               "day":  1,
+                               "turn":  44
+                           },
+                           {
+                               "input_data":  "오늘 하루를 정리한다.",
+                               "day":  1,
+                               "turn":  45
+                           },
+                           {
+                               "input_data":  "오늘 하루를 정리한다.",
+                               "day":  1,
+                               "turn":  46
+                           },
+                           {
+                               "input_data":  "오늘 하루를 정리한다.",
+                               "day":  1,
+                               "turn":  47
+                           },
+                           {
+                               "input_data":  "오늘 하루를 정리한다.",
+                               "day":  1,
+                               "turn":  48
+                           },
+                           {
+                               "input_data":  "오늘 하루를 정리한다.",
+                               "day":  1,
+                               "turn":  49
+                           }
+                       ]
+}

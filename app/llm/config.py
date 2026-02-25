@@ -4,18 +4,30 @@ LLM 모델 설정 관리
 """
 import os
 from typing import Literal
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # 기본 모델 설정 (여기서 모델을 변경하세요)
-DEFAULT_MODEL = "kakaocorp/kanana-1.5-8b-instruct-2505"
-ALTERNATIVE_MODEL = "LGAI-EXAONE/EXAONE-3.5-7.8B-Instruct"
+DEFAULT_MODEL = "kakaocorp/kanana-1.5-8b-instruct-2505"  # 기본 모델 (non-LoRA)
+LORA_BASE_MODEL = "Qwen/Qwen2.5-7B-Instruct"  # LoRA 어댑터 전용 베이스 모델
 
 # LLM 백엔드 타입
 LLMBackend = Literal["vLLM", "transformers"]
 DEFAULT_BACKEND: LLMBackend = "vLLM"
 
+<<<<<<< HEAD
 # vLLM 설정 — .env의 VLLM_BASE_URL로 재정의 가능
 VLLM_BASE_URL = os.environ.get("VLLM_BASE_URL", "http://host.docker.internal:8002")
 VLLM_SERVED_MODEL_NAME = os.environ.get("VLLM_MODEL", "Qwen/Qwen2.5-7B-Instruct")
+=======
+# vLLM 설정 — .env의 VLLM_BASE_URL로 재정의 가능 (기본 서버: Kanana)
+VLLM_BASE_URL = os.environ.get("VLLM_BASE_URL")
+VLLM_SERVED_MODEL_NAME = os.environ.get("VLLM_MODEL", "kakaocorp/kanana-1.5-8b-instruct-2505")
+
+# LoRA 서버 설정 — 미설정 시 VLLM_BASE_URL과 동일한 서버 사용
+LORA_VLLM_BASE_URL = os.environ.get("LORA_VLLM_BASE_URL")
+>>>>>>> f37ae33dc4aeb26e22a93490cbc33c2bb169ca16
 
 # Transformers 설정
 TRANSFORMERS_DEVICE = None  # None이면 자동 감지 (cuda/cpu)
@@ -44,7 +56,7 @@ NPC_HF_REPO_MAP: dict[str, str] = {
     "stepmother":  "lucete171/deus-mother-lora",
     "stepfather":  "lucete171/deus-stepfather-lora",
     "brother":     "lucete171/deus-sibling-lora",
-    "dog_baron":   "lucete171/deus-dog-baron-lora",
+    "dog_baron":   "lucete171/deus-dog_baron-lora",
     "grandmother": "lucete171/deus-grandmother-lora",
 }
 
@@ -71,6 +83,7 @@ def get_model_config(backend: LLMBackend | None = None) -> dict:
         return {
             "model": VLLM_SERVED_MODEL_NAME,
             "base_url": VLLM_BASE_URL,
+            "lora_base_url": LORA_VLLM_BASE_URL,
             "temperature": DEFAULT_TEMPERATURE,
             "api_key": "EMPTY",
         }

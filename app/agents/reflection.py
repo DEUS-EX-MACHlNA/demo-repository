@@ -154,7 +154,6 @@ def _generate_questions(
     current_phase: dict[str, Any],
     prev_phase_name: str,
     llm: GenerativeAgentsLLM,
-    npc_id: str | None = None,
 ) -> list[str]:
     descs = "\n".join(f"- {m.description}" for m in memories)
     phase_name = current_phase.get("name", "새로운 단계")
@@ -170,7 +169,7 @@ def _generate_questions(
         f"통찰적인 질문 {MAX_QUESTIONS}가지를 생성하세요.\n\n"
         "질문 1:"
     )
-    resp = llm.generate(prompt, max_tokens=200, npc_id=npc_id)
+    resp = llm.generate(prompt, max_tokens=200)
     if not resp:
         return [f"{npc_name}은(는) 새로운 국면에서 자신의 행동을 돌아본다."]
 
@@ -188,7 +187,6 @@ def _generate_insights(
     persona: dict[str, Any],
     current_phase: dict[str, Any],
     llm: GenerativeAgentsLLM,
-    npc_id: str | None = None,
 ) -> list[str]:
     descs = "\n".join(f"- {m.description}" for m in memories)
     persona_str = format_persona(persona)
@@ -204,7 +202,7 @@ def _generate_insights(
             f"질문: {q}\n\n"
             "이 질문에 대한 통찰을 1~2문장으로 답변하세요:"
         )
-        resp = llm.generate(prompt, max_tokens=100, npc_id=npc_id)
+        resp = llm.generate(prompt, max_tokens=100)
         insights.append(resp.strip() if resp else f"{npc_name}은(는) 아직 답을 찾지 못했다.")
 
     return insights
@@ -234,8 +232,8 @@ def perform_reflection(
     # LLM 사용 가능하면 전체 파이프라인, 아니면 간단 fallback
     if llm.available:
         if candidates:
-            questions = _generate_questions(candidates, npc_name, current_phase, prev_phase_name, llm, npc_id=npc_id)
-            insights = _generate_insights(questions, candidates, npc_name, persona, current_phase, llm, npc_id=npc_id)
+            questions = _generate_questions(candidates, npc_name, current_phase, prev_phase_name, llm)
+            insights = _generate_insights(questions, candidates, npc_name, persona, current_phase, llm)
         else:
             phase_name = current_phase.get("name", "새로운 단계")
             insights = [f"{npc_name}은(는) '{phase_name}' 단계로 접어들며 마음을 다잡는다."]

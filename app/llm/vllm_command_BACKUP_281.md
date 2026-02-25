@@ -29,7 +29,7 @@ pip -q install -U vllm pyngrok
 
 NGROK_AUTHTOKEN
 
-VLLM_BASE_URL = ""
+VLLM_BASE_URL = "[https://nontheatrical-judiciarily-susanne.ngrok-free.dev/v1](https://nontheatrical-judiciarily-susanne.ngrok-free.dev/v1)"
 
 VLLM_MODEL = "Qwen/Qwen2.5-7B-Instruct"
 
@@ -60,7 +60,11 @@ print(public_url)
 
 ```
 ngrok config add-authtoken "$NGROK_AUTHTOKEN"
+<<<<<<< HEAD
 ngrok http 8001
+=======
+ngrok http 8000
+>>>>>>> da3351c65c4cf163a2384a159fbf47b49bfc4f40
 ```
 
 ## 6. VLLM 실행

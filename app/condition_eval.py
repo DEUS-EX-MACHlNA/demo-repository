@@ -187,7 +187,12 @@ class ConditionEvaluator:
             if not npc_state:
                 return False
 
-            # NPCState의 stats에서 조회
+            # stat == "phase" → NPCState.current_phase_id 직접 조회
+            if stat == "phase":
+                current = npc_state.current_phase_id or ""
+                return str(current) == expected
+
+            # NPCState의 stats에서 조회 후 memory fallback
             current = npc_state.stats.get(stat)
             if current is None:
                 current = npc_state.memory.get(stat, "")

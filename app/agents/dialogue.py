@@ -17,6 +17,7 @@ from app.llm import GenerativeAgentsLLM
 from app.agents.memory import MEMORY_DIALOGUE, MemoryEntry, add_memory
 from app.agents.retrieval import retrieve_memories, score_importance
 from app.agents.utils import format_emotion, format_persona, parse_stat_changes_text
+from app.postprocess import phase_to_level
 
 logger = logging.getLogger(__name__)
 
@@ -75,6 +76,8 @@ def generate_utterance(
     llm: GenerativeAgentsLLM,
     current_turn: int = 1,
     world_snapshot: dict[str, Any] | None = None,
+    phase_id: str | None = None,
+    npc_phases: list | None = None,
 ) -> str:
     """단일 발화 생성.
 
@@ -99,9 +102,11 @@ def generate_utterance(
         history = "(대화 시작)"
 
     if world_snapshot:
+        phase_level = phase_to_level(phase_id, npc_phases)
         prompt = _build_rich_utterance_prompt(
-            speaker_name, speaker_persona, persona_str, emotion_str,
+            speaker_id, speaker_name, speaker_persona, persona_str, emotion_str,
             plan_text, mem_ctx, history, listener_name, world_snapshot,
+            phase_level=phase_level,
         )
     else:
         # 폴백: 간단 프롬프트
@@ -119,10 +124,63 @@ def generate_utterance(
     resp = llm.generate(prompt=prompt, max_tokens=80, npc_id=speaker_id)
     if not resp:
         resp = f"...{speaker_name}은(는) 잠시 말을 아꼈다."
+    logger.debug(f"[Utterance] npc={speaker_id} → {listener_name} | model=LoRA({speaker_id}) | {resp.strip()[:80]}")
     return resp.strip()
 
 
+_PHASE_DIRECTIVES: dict[str, dict[int, str]] = {
+    "stepmother": {
+        1: "차분하고 통제적. 달콤하지만 은근한 위협. 완벽주의적 규율 강조.",
+        2: "불안정 시작. 달콤함과 날카로움이 공존. 가끔 말이 반복되거나 과도해짐.",
+        3: "광기적 집착. 감정이 달콤함↔분노로 폭발적 급변. 말이 끊기거나 반복 과다. 은근함 없이 직접적 집착/위협.",
+    },
+    "stepfather": {
+        1: "규칙을 강조하되 인간적 기억 흔적이 새어나옴. 가끔 과거 감정이 드러남.",
+        2: "냉정하고 명령적. 감정 절제. 짧고 단호한 지시 위주.",
+        3: "완전 기계적. 극도로 짧은 명령형 문장. 감정 일절 없음. 규칙과 지시만 반복.",
+    },
+    "grandmother": {
+        1: "의식 또렷. 따뜻하지만 가끔 공포스러운 진실을 말함.",
+        2: "반명료. 문장을 완성하기 어려움. 과거와 현재가 뒤섞임.",
+        3: "혼수 상태. 단편적 단어 나열. 문장 불완전. 의미 불분명한 단어들.",
+    },
+    "brother": {
+        1: "정상적인 5세 아이. 애정을 갈구하고 외로워함. 자연스러운 아이 말투.",
+        2: "혼란. 말을 더듬고 같은 단어를 반복. 가끔 자신을 3인칭으로 부름.",
+        3: "인형화. 감정 없이 평탄하게 말함. '나' 대신 '이 아이' 또는 3인칭 사용. 느낌표 없음.",
+    },
+    "dog_baron": {
+        1: "우호적이고 활발. 꼬리 흔드는 이미지. 플레이어에게 친밀하게 반응.",
+        2: "경계적·주저함. 조심스럽게 접근. 머뭇거리는 반응.",
+        3: "적대적. 으르렁거리며 위협. 접근 거부. 공격적 행동 묘사.",
+    },
+}
+
+_PHASE_DEFAULT: dict[int, str] = {
+    1: "자연스러운 기본 반응.",
+    2: "다소 경직되거나 불안한 반응.",
+    3: "극도로 위협적이거나 단절된 반응.",
+}
+
+_PHASE_LEVEL_LABELS = {1: "A단계(정상)", 2: "B단계(중간)", 3: "C단계(극단)"}
+
+
+def _build_phase_directive(npc_id: str, level: int) -> str:
+    """phase 레벨(1~3)을 받아 NPC별 행동 지침 문자열 반환.
+
+    레벨은 phase_to_level()이 반환한 값을 그대로 사용:
+        1 → phase A (정상)
+        2 → phase B (중간)
+        3 → phase C (극단)
+    """
+    directives = _PHASE_DIRECTIVES.get(npc_id, _PHASE_DEFAULT)
+    label = _PHASE_LEVEL_LABELS[level]
+    guide = directives[level]
+    return f"phase={label} 상태. {guide}"
+
+
 def _build_rich_utterance_prompt(
+    speaker_id: str,
     speaker_name: str,
     speaker_persona: dict[str, Any],
     persona_str: str,
@@ -132,6 +190,7 @@ def _build_rich_utterance_prompt(
     history: str,
     listener_name: str,
     ws: dict[str, Any],
+    phase_level: int = 1,
 ) -> str:
     """world_snapshot이 있을 때 사용하는 구체화된 NPC 발화 프롬프트."""
     genre = ws.get("genre", "")
@@ -159,16 +218,7 @@ def _build_rich_utterance_prompt(
     # 인벤토리
     inventory = ", ".join(ws.get("inventory", [])) or "(없음)"
 
-    # intent가 neutral일 때 대화 주제 포함
-    intent = ws.get("intent", "")
-    topics_section = ""
-    if intent == "neutral":
-        conv_topics = speaker_persona.get("conversation_topics", [])
-        if conv_topics:
-            topic_descs = [t.get("description", "") for t in conv_topics if t.get("description")]
-            if topic_descs:
-                topics_str = "\n".join(f"- {desc}" for desc in topic_descs)
-                topics_section = f"\n[CONVERSATION TOPICS - 아래 주제 중 하나를 골라 대화를 이끌어라]\n{topics_str}\n"
+    phase_directive = _build_phase_directive(speaker_id, phase_level)
 
     return (
         f"[ROLE]\n"
@@ -187,9 +237,10 @@ def _build_rich_utterance_prompt(
         f"현재 감정: {emotion_str}\n"
         f"현재 계획(단기): {plan_text}\n"
         f"스탯 반영 가이드:\n"
-        f"- humanity↑: 더 인간적/망설임/죄책감\n"
+        f"- fear↑: 더 집착/불안/통제\n"
         f"- affection↓: 더 차갑고 거리감\n\n"
-        f"{topics_section}"
+        f"[현재 상태 가이드]\n"
+        f"{phase_directive}\n\n"
         f"[WORLD SNAPSHOT]\n"
         f"day={ws.get('day', 1)}, turn={ws.get('turn', 1)}, "
         f"suspicion_level={ws.get('suspicion_level', 0)}, "
@@ -401,7 +452,7 @@ def analyze_conversation_impact(
     resp = llm.generate(prompt=prompt, max_tokens=200, temperature=0.3)
 
     result = _parse_impact_response(resp, npc1_id, npc1_name, npc2_id, npc2_name, stat_names, include_triggers)
-    logger.debug(f"conversation_impact: {result}")
+    logger.info(f"[Impact Analysis] {npc1_id}<->{npc2_id} | model=base | stats={result.get('npc_stats', {})}")
     return result
 
 

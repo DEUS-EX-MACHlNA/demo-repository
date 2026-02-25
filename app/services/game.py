@@ -103,6 +103,14 @@ def _apply_delta(
             except ValueError:
                 logger.warning(f"Invalid NPC status: {new_status}")
 
+    # 1c. NPC phase changes
+    for npc_id, new_phase_id in delta.npc_phase_changes.items():
+        if npc_id in world_state.npcs:
+            prev = world_state.npcs[npc_id].current_phase_id
+            world_state.npcs[npc_id].current_phase_id = new_phase_id
+            if prev != new_phase_id:
+                logger.info(f"[apply_delta] phase 전환: npc={npc_id} | {prev} → {new_phase_id}")
+
     # 2. Flags (덮어쓰기)
     world_state.flags.update(delta.flags)
 
@@ -375,14 +383,17 @@ class GameService:
                 
                 # Stats 업데이트
                 npc_dict["stats"] = npc_state.stats
-                
+
+                # current_phase_id 업데이트 (NPCState 필드 → DB 최상위 키)
+                npc_dict["current_phase_id"] = npc_state.current_phase_id
+
                 # Memory 업데이트
                 # 기존 memory가 있으면 병합하거나 덮어쓰기. 여기서는 덮어쓰기/병합
                 # NPCState.memory는 dict 형태임
                 current_mem = npc_dict.get("memory", {})
                 if isinstance(current_mem, list): # 구버전 데이터 호환
                      current_mem = {}
-                
+
                 current_mem.update(npc_state.memory)
                 npc_dict["memory"] = current_mem
         
@@ -495,7 +506,12 @@ class GameService:
             }
             game.status = GameStatus.ENDING.value
             if ending_result.triggered_delta:
+<<<<<<< HEAD
                 _apply_delta(world_after, ending_result.triggered_delta, assets)
+=======
+                game.status = GameStatus.ENDING.value
+                _apply_delta(world_after, ending_result.triggered_delta.to_dict(), assets)
+>>>>>>> f37ae33dc4aeb26e22a93490cbc33c2bb169ca16
 
         # ── Step 7: NarrativeLayer - 나레이션 생성 ──
         try:
@@ -512,6 +528,7 @@ class GameService:
                     assets=assets,
                     event_description=tool_result.event_description,
                     state_delta=tool_result.state_delta,
+                    npc_response=tool_result.npc_response
                 )
         except Exception as e:
              logger.error(f"[GameService] NarrativeLayer failed: {e}")
@@ -529,23 +546,23 @@ class GameService:
         # DB 모델 객체 업데이트 (JSON 구조체 갱신)
         cls._world_state_to_games(game, world_after, assets)
         
-        # Redis 캐시 업데이트
-        try:
-            npc_stats = {}
-            if game.npc_data and "npcs" in game.npc_data:
-                for npc in game.npc_data["npcs"]:
-                    if "npc_id" in npc:
-                        npc_stats[npc["npc_id"]] = npc
+        # # Redis 캐시 업데이트
+        # try:
+        #     npc_stats = {}
+        #     if game.npc_data and "npcs" in game.npc_data:
+        #         for npc in game.npc_data["npcs"]:
+        #             if "npc_id" in npc:
+        #                 npc_stats[npc["npc_id"]] = npc
             
-            redis_client.set_game_state(
-                str(game_id),
-                game.world_meta_data,
-                npc_stats,
-                game.player_data
-            )
-            logger.debug(f"Updated Redis cache for game_id={game_id}")
-        except Exception as e:
-            logger.error(f"Failed to update Redis cache: {e}")
+        #     redis_client.set_game_state(
+        #         str(game_id),
+        #         game.world_meta_data,
+        #         npc_stats,
+        #         game.player_data
+        #     )
+        #     logger.debug(f"Updated Redis cache for game_id={game_id}")
+        # except Exception as e:
+        #     logger.error(f"Failed to update Redis cache: {e}")
 
         # 6. 저장 (DB) - 주기적 동기화 구현 전까지는 안전하게 매 턴 저장 유지
         # TODO: 추후 Background Task로 이관 시 이 부분 조건부 실행 검토
@@ -554,19 +571,19 @@ class GameService:
         if game.world_meta_data and "state" in game.world_meta_data:
             current_turn = game.world_meta_data["state"].get("turn", 1)
             
-        # [PERFORMANCE] Use separate session for logging to avoid committing game state
-        log_db = SessionLocal()
-        try:
-            create_chat_log(
-                log_db, game_id, LogType.DIALOGUE, "Player", user_content, current_turn
-            )
+        # # [PERFORMANCE] Use separate session for logging to avoid committing game state
+        # log_db = SessionLocal()
+        # try:
+        #     create_chat_log(
+        #         log_db, game_id, LogType.DIALOGUE, "Player", user_content, current_turn
+        #     )
             
-            # System Narrative Logging
-            create_chat_log(
-                log_db, game_id, LogType.NARRATIVE, "System", narrative, world_after.turn
-            )
-        finally:
-            log_db.close()
+        #     # System Narrative Logging
+        #     create_chat_log(
+        #         log_db, game_id, LogType.NARRATIVE, "System", narrative, world_after.turn
+        #     )
+        # finally:
+        #     log_db.close()
 
         # [PERFORMANCE] Background Sync로 이관 (Redis Only Update)
         # crud_game.update_game(db, game)
@@ -582,7 +599,7 @@ class GameService:
             ending_info=ending_info,
             state_result=tool_result.state_delta,
             debug=debug,
-        )
+        ), game, world_after
 
     @staticmethod
     def _create_night_response_data(narrative: str, night_result: NightResult) -> Dict[str, Any]:
@@ -789,6 +806,7 @@ class GameService:
             npc_state_results=response_data["npc_state_results"],
             ending_info=ending_info,
             vars=world_after.vars,
+            phase_changes=night_result.phase_changes,
         )
 
     @staticmethod

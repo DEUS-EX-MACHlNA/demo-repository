@@ -14,9 +14,9 @@ LoRA / rule-base 역할 분리:
 
 2단계 - 의식 붕괴 후처리 (Consciousness Collapse)
    lucidity_level:
-     1 — 명료 (생기를 받아 의식이 돌아옴, 기괴하지만 이해 가능)
-     2 — 반명료 (문장이 끊기고 파편화됨)
-     3 — 혼수 (거의 알아들을 수 없음, 키워드만 남음)
+     1 — 명료 (생기를 받아 의식이 돌아옴, 섬뜩한 속삭임 확률)
+     2 — 반명료 (숨 멈춤 항상 + 문장 단절·단어 부식 확률)
+     3 — 혼수 (숨 멈춤 + 문장 단절 항상 + 단어 부식·최대 파편화 확률)
 
    기법:
      1. 숨 멈춤         — 문장 사이에 ... 삽입 (레벨 2-3)
@@ -246,6 +246,15 @@ def max_fragment(text: str) -> str:
     return first + "..."
 
 
+# 필수 기법: lv2/3에서 항상 적용 (확률 파이프라인과 독립)
+# lv2: breath_pause — 숨 멈춤(...)으로 의식 파편화 시작을 항상 보장
+# lv3: breath_pause + sentence_cut — 숨 멈춤 + 문장 단절로 혼수 상태 보장
+_GUARANTEED_TRANSFORMS: dict[int, list] = {
+    2: [breath_pause],
+    3: [breath_pause, sentence_cut],
+}
+
+
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #  통합 후처리 함수
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -278,8 +287,13 @@ def postprocess(
     # 1단계: 품질 검증/보정
     result, _issues = quality_gate(text)
 
-    # 2단계: 의식 붕괴 후처리
     lucidity_level = max(1, min(3, lucidity_level))
+
+    # 2단계: 필수 기법 (lv2+: 항상 적용, 변형 보장)
+    for fn in _GUARANTEED_TRANSFORMS.get(lucidity_level, []):
+        result = fn(result)
+
+    # 3단계: 확률 기법
     config = LUCIDITY_CONFIG[lucidity_level]
 
     # 적용 순서:
