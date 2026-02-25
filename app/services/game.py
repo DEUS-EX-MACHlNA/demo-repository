@@ -543,22 +543,22 @@ class GameService:
         cls._world_state_to_games(game, world_after, assets)
         
         # # Redis 캐시 업데이트
-        # try:
-        #     npc_stats = {}
-        #     if game.npc_data and "npcs" in game.npc_data:
-        #         for npc in game.npc_data["npcs"]:
-        #             if "npc_id" in npc:
-        #                 npc_stats[npc["npc_id"]] = npc
+        try:
+            npc_stats = {}
+            if game.npc_data and "npcs" in game.npc_data:
+                for npc in game.npc_data["npcs"]:
+                    if "npc_id" in npc:
+                        npc_stats[npc["npc_id"]] = npc
             
-        #     redis_client.set_game_state(
-        #         str(game_id),
-        #         game.world_meta_data,
-        #         npc_stats,
-        #         game.player_data
-        #     )
-        #     logger.debug(f"Updated Redis cache for game_id={game_id}")
-        # except Exception as e:
-        #     logger.error(f"Failed to update Redis cache: {e}")
+            redis_client.set_game_state(
+                str(game_id),
+                game.world_meta_data,
+                npc_stats,
+                game.player_data
+            )
+            logger.debug(f"Updated Redis cache for game_id={game_id}")
+        except Exception as e:
+            logger.error(f"Failed to update Redis cache: {e}")
 
         # 6. 저장 (DB) - 주기적 동기화 구현 전까지는 안전하게 매 턴 저장 유지
         # TODO: 추후 Background Task로 이관 시 이 부분 조건부 실행 검토
@@ -567,22 +567,28 @@ class GameService:
         if game.world_meta_data and "state" in game.world_meta_data:
             current_turn = game.world_meta_data["state"].get("turn", 1)
             
-        # # [PERFORMANCE] Use separate session for logging to avoid committing game state
-        # log_db = SessionLocal()
-        # try:
-        #     create_chat_log(
-        #         log_db, game_id, LogType.DIALOGUE, "Player", user_content, current_turn
-        #     )
-            
-        #     # System Narrative Logging
-        #     create_chat_log(
-        #         log_db, game_id, LogType.NARRATIVE, "System", narrative, world_after.turn
-        #     )
-        # finally:
-        #     log_db.close()
 
-        # [PERFORMANCE] Background Sync로 이관 (Redis Only Update)
-        # crud_game.update_game(db, game)
+
+        log_db = SessionLocal()
+        try:
+            create_chat_log(
+                log_db, game_id, LogType.DIALOGUE, "Player", user_content, current_turn
+            )
+            
+            # System Narrative Logging
+            create_chat_log(
+                log_db, game_id, LogType.NARRATIVE, "System", narrative, world_after.turn
+            )
+            
+            # Save summary along with the logs using this separate session
+            log_game = log_db.query(Games).filter(Games.id == game_id).first()
+            if log_game:
+                log_game.summary = game.summary
+                flag_modified(log_game, "summary")
+                log_db.commit()
+        finally:
+            log_db.close()
+
         if game.status == GameStatus.ENDING.value:
             db.commit()
             redis_client.delete_game_state(str(game_id))
@@ -590,12 +596,51 @@ class GameService:
         else:
             logger.info(f"Turn {world_after.turn} processed (Source: {load_source}, Redis: Updated)")
 
+        # ── Assemble state_result for frontend ──
+        _delta = tool_result.state_delta
+
+        sr_npc_stats = _delta.get("npc_stats") or None
+        sr_flags = _delta.get("flags") or None
+        sr_inventory_add = _delta.get("inventory_add") or None
+        sr_inventory_remove = _delta.get("inventory_remove") or None
+
+        sr_npc_disabled_states = None
+        active_effects = world_after.vars.get("status_effects", [])
+        if active_effects:
+            disabled = {}
+            for eff in active_effects:
+                if isinstance(eff, dict):
+                    npc_id = eff.get("target_npc_id")
+                    if npc_id:
+                        disabled[npc_id] = {
+                            "is_disabled": True,
+                            "remaining_turns": max(0, eff.get("expires_at_turn", 0) - world_after.turn),
+                            "reason": eff.get("applied_status", "unknown"),
+                        }
+            if disabled:
+                sr_npc_disabled_states = disabled
+
+        sr_vars = dict(_delta.get("vars", {}))
+        sr_humanity = sr_vars.pop("humanity", None)
+        sr_vars.pop("status_effects", None)
+
+        state_result = {
+            "npc_stats": sr_npc_stats,
+            "flags": sr_flags,
+            "inventory_add": sr_inventory_add,
+            "inventory_remove": sr_inventory_remove,
+            "item_state_changes": None,
+            "npc_disabled_states": sr_npc_disabled_states,
+            "humanity": sr_humanity,
+            "vars": sr_vars if sr_vars else {},
+        }
+
         return StepResponseSchema(
             narrative=narrative,
             ending_info=ending_info,
-            state_result=tool_result.state_delta,
+            state_result=state_result,
             debug=debug,
-        ), game, world_after
+        )
 
     @staticmethod
     def _create_night_response_data(narrative: str, night_result: NightResult) -> Dict[str, Any]:
@@ -623,13 +668,9 @@ class GameService:
                 text = utter.get("text", "...")
                 dialogues.append(NightDialogue(speaker_name=speaker, dialogue=text))
 
-        # 3. NPC State Results
-        npc_state_results = night_result.night_delta.get("npc_stats", {})
-
         return {
             "narrative": summary_narrative,
             "dialogues": dialogues,
-            "npc_state_results": npc_state_results,
         }
 
 
@@ -775,12 +816,19 @@ class GameService:
         # System Narrative Logging
         # NightDialogue 객체는 JSON 직렬화가 안되므로 dict로 변환
         dialogues_dict = [d.model_dump() for d in response_data["dialogues"]]
-        # [PERFORMANCE] Use separate session for logging
+        
         log_db = SessionLocal()
         try:
             create_chat_log(
                 log_db, game_id, LogType.NIGHT_EVENT, "System", response_data["narrative"], world_after.turn, {"dialogues": dialogues_dict}
             )
+            
+            # Save summary along with the logs using this separate session
+            log_game = log_db.query(Games).filter(Games.id == game_id).first()
+            if log_game:
+                log_game.summary = game.summary
+                flag_modified(log_game, "summary")
+                log_db.commit()
         finally:
             log_db.close()
 
@@ -796,12 +844,53 @@ class GameService:
                 f"turn={world_after.turn}, ending={ending_result.reached}, Source={load_source}"
             )
 
+        # ── Assemble state_result for frontend (night) ──
+        _night_delta = night_result.night_delta
+
+        sr_npc_stats = _night_delta.get("npc_stats") or None
+        sr_flags = _night_delta.get("flags") or None
+        sr_inventory_add = _night_delta.get("inventory_add") or None
+        sr_inventory_remove = _night_delta.get("inventory_remove") or None
+
+        sr_npc_disabled_states = None
+        active_effects = world_after.vars.get("status_effects", [])
+        if active_effects:
+            disabled = {}
+            for eff in active_effects:
+                if isinstance(eff, dict):
+                    npc_id = eff.get("target_npc_id")
+                    if npc_id:
+                        disabled[npc_id] = {
+                            "is_disabled": True,
+                            "remaining_turns": max(0, eff.get("expires_at_turn", 0) - world_after.turn),
+                            "reason": eff.get("applied_status", "unknown"),
+                        }
+            if disabled:
+                sr_npc_disabled_states = disabled
+
+        sr_vars = dict(_night_delta.get("vars", {}))
+        sr_humanity = sr_vars.pop("humanity", None)
+        sr_vars.pop("status_effects", None)
+
+        night_state_result = {
+            "npc_stats": sr_npc_stats,
+            "flags": sr_flags,
+            "inventory_add": sr_inventory_add,
+            "inventory_remove": sr_inventory_remove,
+            "item_state_changes": None,
+            "npc_disabled_states": sr_npc_disabled_states,
+            "humanity": sr_humanity,
+            "vars": sr_vars if sr_vars else {},
+        }
+
+        debug["turn_after"] = world_after.turn
+
         return NightResponseResult(
             narrative=response_data["narrative"],
             dialogues=response_data["dialogues"],
-            npc_state_results=response_data["npc_state_results"],
             ending_info=ending_info,
-            vars=world_after.vars,
+            state_result=night_state_result,
+            debug=debug,
             phase_changes=night_result.phase_changes,
         )
 

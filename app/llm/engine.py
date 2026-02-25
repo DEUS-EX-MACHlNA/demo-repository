@@ -295,7 +295,7 @@ class UnifiedLLMEngine:
             data = resp.json()
             raw_text = data["choices"][0]["text"]
         else:
-            # kanana1.5: /chat/completions (messages 형식)
+            # kanana1.5: /v1/chat/completions (messages 형식)
             messages = []
             if system_prompt:
                 messages.append({"role": "system", "content": system_prompt})
