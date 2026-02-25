@@ -146,7 +146,7 @@ npcs:
     name: "강아지 (바론)"
     role: "영적 안내자 및 탐지기"
     status: "alive"
-    stats: { affection: 70, humanity: 100, plus_hits: 0, minus_hits: 0 } # 유일한 순수 존재
+    stats: { affection: 70, humanity: 60, plus_hits: 0, minus_hits: 0 } # 유일한 순수 존재
     goal: "주인공을 보호하고, 영적 감지 능력으로 위험을 경고하며 탈출을 돕는다"
     persona:
       values: "나는 주인공에게 깊은 충성심과 호감을 가지고 있다. 주인공이 진짜 영혼을 가진 사람이라는 것을 냄새로 식별할 수 있으며, 그런 사람들에게는 친근하게 다가간다. 나는 이 집에서 유일하게 순수한 존재이기 때문에, 진짜 영혼과 가짜 인형을 구별할 수 있다."

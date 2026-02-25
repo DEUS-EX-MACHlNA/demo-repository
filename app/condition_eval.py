@@ -136,6 +136,26 @@ class ConditionEvaluator:
             current = npc_state.stats.get(stat, 0)
             return self._compare(current, op, value)
 
+        # 0e-1. player.location == '{place}' 패턴
+        player_loc_match = re.match(r"player\.location\s*(==|!=)\s*'(\w+)'", condition)
+        if player_loc_match:
+            op = player_loc_match.group(1)
+            expected = player_loc_match.group(2)
+            current = world_state.player_location or ""
+            return (current == expected) if op == "==" else (current != expected)
+
+        # 0e-2. npc.{id}.location == player.location (위치 일치 비교)
+        npc_loc_player_match = re.match(r"npc\.(\w+)\.location\s*(==|!=)\s*player\.location", condition)
+        if npc_loc_player_match:
+            npc_id = npc_loc_player_match.group(1)
+            op = npc_loc_player_match.group(2)
+            npc_state = world_state.npcs.get(npc_id)
+            if not npc_state:
+                return False
+            npc_loc = npc_state.location or ""
+            player_loc = world_state.player_location or ""
+            return (npc_loc == player_loc) if op == "==" else (npc_loc != player_loc)
+
         # 0e. area.current == '{area}' 패턴
         area_current_match = re.match(
             r"area\.current\s*(==|!=)\s*'(\w+)'", condition
@@ -190,6 +210,16 @@ class ConditionEvaluator:
             # stat == "phase" → NPCState.current_phase_id 직접 조회
             if stat == "phase":
                 current = npc_state.current_phase_id or ""
+                return str(current) == expected
+
+            # stat == "location" → NPCState.location 직접 조회
+            if stat == "location":
+                current = npc_state.location or ""
+                return str(current) == expected
+
+            # stat == "status" → NPCState.status 직접 조회
+            if stat == "status":
+                current = npc_state.status.value if npc_state.status else ""
                 return str(current) == expected
 
             # NPCState의 stats에서 조회 후 memory fallback
