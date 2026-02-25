@@ -13,15 +13,16 @@ class StepRequestSchema(BaseModel):
     chat_input: str
     npc_name: Optional[str] = None
     item_name: Optional[str] = None
+    player_location: Optional[str] = None  # 플레이어 현재 위치 (WorldStatePipeline에 별도 주입, combined string 제외)
 
     def to_combined_string(self) -> str:
-        """입력 컨텍스트(NPC, 아이템)를 포함한 문자열 반환"""
+        """입력 컨텍스트(NPC, 아이템)를 포함한 문자열 반환 (player_location 제외)"""
         parts = []
         if self.npc_name:
             parts.append(f"(target: {self.npc_name})")
         if self.item_name:
             parts.append(f"(use: {self.item_name})")
-        
+
         parts.append(self.chat_input)
         return " ".join(parts)
 

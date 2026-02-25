@@ -306,6 +306,7 @@ class GameService:
             locks=locks,
             vars=vars_,
             day_action_log=day_action_log,
+            player_location=player.get("current_node"),  # 저장된 플레이어 위치 복원
         )
 
     """
@@ -344,6 +345,10 @@ class GameService:
         # 2. Player Data (Inventory)
         player = game.player_data or {}
         player["inventory"] = world_state.inventory
+
+        # 플레이어 위치 저장
+        if world_state.player_location:
+            player["current_node"] = world_state.player_location
 
         # 2-0. Update Player Stats (Humanity)
         # vars에 humanity가 있다면 player.stats에도 동기화
@@ -456,6 +461,10 @@ class GameService:
         from app.status_effect_manager import get_status_effect_manager
         sem = get_status_effect_manager()
         sem.tick(world_state.turn, world_state)
+
+        # ── Step 3.7: 플레이어 위치 갱신 (프론트에서 받은 값 우선) ──
+        if input_data.player_location:
+            world_state.player_location = input_data.player_location
 
         # ── Step 4: DayController - 낮 턴 실행 ──
         user_input = input_data.to_combined_string()

@@ -79,7 +79,7 @@ items:
           label: "바론에게 주기"
           allowed_when: "true"
           effects:
-            - { type: npc_stat_add, target: "npc.dog_baron.affection", value: 25 }
+            - { type: npc_stat_add, target: "npc.dog_baron.affection", value: 20 }
           success_message: "바론이 꼬리를 흔들며 간식을 받아먹었다. 눈빛에 신뢰가 깃든다."
           failure_message: "바론이 보이지 않는다. 가까이에 있을 때 줘야 할 것 같다."
 

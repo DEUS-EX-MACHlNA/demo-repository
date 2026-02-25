@@ -71,9 +71,25 @@ class ItemAcquireResolver:
             }
 
         acquire = item_def.get("acquire", {})
+        item_name = item_def.get("name", item_id)
 
-        # 3. acquire.condition 평가
-        # TODO: condition 종류별 분기 (위치 조건, NPC 상태 조건 등)
+        # 3. 위치 조건 체크 (acquire.location이 있고, 플레이어 위치가 알려진 경우)
+        required_location = acquire.get("location", "")
+        if required_location and world_state.player_location:
+            if world_state.player_location != required_location:
+                failure_msg = acquire.get("failure_message", "") or f"여기서는 {item_name}을(를) 찾을 수 없다."
+                logger.info(
+                    f"[ItemAcquireResolver] 위치 불일치: item={item_id} "
+                    f"required={required_location}, player={world_state.player_location}"
+                )
+                return {
+                    "success": False,
+                    "item_id": item_id,
+                    "message": failure_msg,
+                    "acquisition_delta": {},
+                }
+
+        # 4. acquire.condition 평가
         condition = acquire.get("condition", "")
         if condition and condition != "true":
             context = EvalContext(
@@ -90,15 +106,15 @@ class ItemAcquireResolver:
                     "acquisition_delta": {},
                 }
 
-        # 4. 성공
+        # 5. 성공
         success_msg = acquire.get("success_message", "")
-        item_name = item_def.get("name", item_id)
         if not success_msg:
             success_msg = f"{item_name}을(를) 획득했다."
 
         delta = {"inventory_add": [item_id]}
 
         logger.info(f"[ItemAcquireResolver] 획득 성공: {item_id} (condition: {condition})")
+        logger.info(f"[ItemAcquireResolver] Location: required={required_location}, player={world_state.player_location}")
 
         return {
             "success": True,

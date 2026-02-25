@@ -26,6 +26,7 @@ class NPCState(BaseModel):
     stats: Dict[str, Any] = Field(default_factory=dict)
     memory: Dict[str, Any] = Field(default_factory=dict)
     current_phase_id: Optional[str] = None  # 현재 NPC phase ID (flags 의존 제거)
+    location: Optional[str] = None  # NPC 현재 물리적 위치 (예: "kitchen", "garden")
 
     def to_dict(self) -> dict[str, Any]:
         return self.model_dump()
@@ -56,7 +57,9 @@ class NPCState(BaseModel):
             memory.get("current_phase_id") if isinstance(memory, dict) else None
         )
 
-        return cls(npc_id=npc_id, stats=stats, memory=memory, current_phase_id=current_phase_id)
+        location = data.get("location")
+
+        return cls(npc_id=npc_id, stats=stats, memory=memory, current_phase_id=current_phase_id, location=location)
 
     def get_stat(self, key: str, default: int = 0) -> int:
         return self.stats.get(key, default)
@@ -81,6 +84,7 @@ class WorldStatePipeline(BaseModel):
     locks: Dict[str, bool] = Field(default_factory=dict)
     vars: Dict[str, Any] = Field(default_factory=dict)
     day_action_log: List[Dict[str, Any]] = Field(default_factory=list)
+    player_location: Optional[str] = None  # 플레이어 현재 물리적 위치 (예: "kitchen", "garden")
 
     def to_dict(self) -> dict[str, Any]:
         return self.model_dump()
@@ -101,6 +105,7 @@ class WorldStatePipeline(BaseModel):
             locks=data.get("locks", {}),
             vars=data.get("vars", {}),
             day_action_log=data.get("day_action_log", []),
+            player_location=data.get("player_location"),
         )
 
 class StateDelta(BaseModel):

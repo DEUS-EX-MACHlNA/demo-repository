@@ -136,6 +136,16 @@ def call_tool(
 
     # 5. JSON 파싱
     result = parse_tool_call_response(raw_output, user_input)
+
+    # use_type 누락 보정: use 도구인데 use_type이 없고 아이템이 인벤토리에 없으면 acquire로
+    if result["tool_name"] == "use" and "use_type" not in result["args"]:
+        item_id = result["args"].get("item", "")
+        if item_id and item_id not in world_state.inventory:
+            result["args"]["use_type"] = "acquire"
+            logger.info(f"[call_tool] use_type 자동 보정: item={item_id} → acquire")
+        else:
+            result["args"]["use_type"] = "use"
+
     logger.info(f"[call_tool] 선택된 tool: {result['tool_name']}, intent: {result.get('intent', 'neutral')}, args={result['args']}")
 
     return result
@@ -187,6 +197,20 @@ def interact(target: str, interact: str) -> Dict[str, Any]:
 
     npc_name = npc_info.get("name", target)
     npc_persona = npc_info.get("persona", {})
+
+    # 1-1. NPC 위치 체크: 플레이어와 NPC 위치가 알려진 경우, 같은 장소여야 대화 가능
+    if npc_state and npc_state.location and world_state.player_location:
+        if world_state.player_location != npc_state.location:
+            logger.info(
+                f"[interact] 위치 불일치로 대화 차단: npc={target}({npc_state.location}), "
+                f"player={world_state.player_location}"
+            )
+            return {
+                "npc_response": "",
+                "event_description": [f"{npc_name}은(는) 이 곳에 없다."],
+                "state_delta": {},
+                "npc_id": target,
+            }
 
     # NPC phase 정보 미리 읽기 (로그 및 postprocess 공용)
     npc_phase_id = npc_state.current_phase_id if npc_state else None
@@ -481,6 +505,7 @@ def _build_world_snapshot(
         "player_humanity": world_state.vars.get("humanity", 100),
         "flags": {k: v for k, v in world_state.flags.items() if v},
         "node_id": world_state.vars.get("node_id", "unknown"),
+        "player_location": world_state.player_location or "",
         "inventory": world_state.inventory,
         "genre": assets.scenario.get("genre", ""),
         "tone": assets.scenario.get("tone", ""),
