@@ -71,14 +71,17 @@ class NightController:
         night_delta: dict[str, Any] = {
             "npc_stats": {},
             "vars": {},
+            "npc_phase_changes": {},
         }
 
         night_events: list[str] = []
         npc_ids = list(world_snapshot.npcs.keys())
         turn = world_snapshot.turn
 
-        # Phase 1: 성찰
-        self._run_reflections(world_snapshot, assets, npc_ids, turn, llm, night_events)
+        # Phase 1: 성찰 (phase 전환 감지 포함)
+        phase_changes: dict[str, str] = {}
+        self._run_reflections(world_snapshot, assets, npc_ids, turn, llm, night_events, phase_changes)
+        night_delta["npc_phase_changes"] = phase_changes
 
         # Phase 2: 계획 수립
         self._run_planning(world_snapshot, assets, npc_ids, turn, llm)
@@ -114,6 +117,7 @@ class NightController:
             night_delta=night_delta,
             night_conversation=night_conversation,
             night_description=night_description,
+            phase_changes=phase_changes,
         )
 
     # ── Phase 1: 성찰 (Phase 전환 기반) ─────────────────────
@@ -125,6 +129,7 @@ class NightController:
         turn: int,
         llm: GenerativeAgentsLLM,
         night_events: list[str],
+        phase_changes: dict[str, str],
     ) -> None:
         for npc_id in npc_ids:
             npc_state = world_snapshot.npcs[npc_id]
@@ -136,8 +141,11 @@ class NightController:
             current_phase = determine_current_phase(npc_phases, npc_state.stats)
             current_phase_id = current_phase.get("phase_id", "")
 
-            # phase를 flags로 노출 (프론트엔드 / condition_eval 접근용)
-            world_snapshot.flags[f"phase_{npc_id}"] = current_phase_id
+            # phase 전환 감지: NPCState 필드 기준 (flags 의존 제거)
+            prev_phase_id = npc_state.current_phase_id
+            if prev_phase_id != current_phase_id:
+                phase_changes[npc_id] = current_phase_id
+            npc_state.current_phase_id = current_phase_id
 
             if should_reflect(npc_state.memory, current_phase_id):
                 npc_name = npc_data.get("name", npc_id)
@@ -151,7 +159,7 @@ class NightController:
                     llm=llm,
                     current_turn=turn,
                     current_phase=current_phase,
-                    prev_phase_id=npc_state.memory.get("last_reflected_phase_id"),
+                    prev_phase_id=prev_phase_id,
                 )
                 if insights:
                     night_events.append(f"{npc_name}이(가) 깊은 생각에 잠긴다.")
@@ -219,6 +227,7 @@ class NightController:
                 "data": data,
                 "name": data.get("name", npc_id),
                 "persona": data.get("persona", {}),
+                "phases": data.get("phases", []),
             }
 
         # 6번 발화 (랜덤 발화자 선택)
@@ -244,6 +253,8 @@ class NightController:
                 llm,
                 current_turn=turn,
                 world_snapshot=ws_dict,
+                phase_id=state.current_phase_id,
+                npc_phases=speaker["phases"],
             )
             conversation.append({"speaker": speaker["name"], "text": utterance})
 

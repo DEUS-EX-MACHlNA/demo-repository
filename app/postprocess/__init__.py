@@ -24,19 +24,21 @@ from .common import split_event_section, parse_text_segments, normalize_descript
 logger = logging.getLogger(__name__)
 
 
-def humanity_to_level(humanity: int) -> int:
-    """humanity 스탯(0~100)을 후처리 레벨(1~3)로 변환한다.
+def phase_to_level(phase_id: Optional[str], npc_phases: Optional[list] = None) -> int:
+    """phase_id와 phases 리스트에서 후처리 레벨(1~3)을 결정한다.
 
-    - humanity >= 70 → 1 (정상)
-    - 40 <= humanity < 70 → 2 (혼란 / 중간 광기)
-    - humanity < 40 → 3 (인형화 / 완전 광기)
+    phases 리스트 내 위치(0-indexed)를 레벨로 변환:
+    - index 0 (첫 번째 phase / A) → 1 (정상)
+    - index 1 (두 번째 phase / B) → 2 (혼란 / 중간 광기)
+    - index 2 이상 (세 번째+ / C) → 3 (인형화 / 완전 광기)
     """
-    if humanity >= 70:
+    if not phase_id or not npc_phases:
         return 1
-    elif humanity >= 40:
-        return 2
-    else:
-        return 3
+    phase_ids = [p.get("phase_id", "") for p in npc_phases]
+    try:
+        return min(phase_ids.index(phase_id) + 1, 3)
+    except ValueError:
+        return 1
 
 
 def _apply_character_postprocess(
@@ -63,7 +65,8 @@ def _apply_character_postprocess(
 def postprocess_npc_dialogue(
     text: str,
     npc_id: str,
-    humanity: int = 100,
+    phase_id: Optional[str] = None,
+    npc_phases: Optional[list] = None,
     seed: Optional[int] = None,
 ) -> str:
     """npc_id에 따라 적절한 후처리기를 선택하여 적용한다.
@@ -75,17 +78,17 @@ def postprocess_npc_dialogue(
     Args:
         text: 원본 LLM 출력
         npc_id: NPC 식별자 ("brother", "stepmother", "stepfather", "grandmother", "dog_baron")
-        humanity: NPC의 humanity 스탯 (0~100)
-            - stepfather: 높을수록 기억 혼란, 낮을수록 로봇화
-            - grandmother: 높을수록 명료(생기 공유 후), 낮을수록 혼수
-            - dog_baron: 높을수록 우호적, 낮을수록 적대적
+        phase_id: NPC의 현재 phase ID (NPCState.current_phase_id)
+        npc_phases: NPC phases 리스트 (YAML phases 필드)
+            - phase 순서로 후처리 레벨(1~3)을 결정: A→1, B→2, C→3
         seed: 랜덤 시드 (재현이 필요할 때)
 
     Returns:
         후처리된 문자열
     """
-    level = humanity_to_level(humanity)
-    logger.debug(f"npc_id={npc_id} | humanity={humanity} → level={level} | raw={text[:80]}")
+    level = phase_to_level(phase_id, npc_phases)
+    logger.info(f"[postprocess] npc={npc_id} | phase={phase_id} → level={level}")
+    logger.debug(f"[postprocess] raw={text[:80]}")
 
     # 사건 섹션 분리 (후처리 대상에서 제외)
     main_text, event_text = split_event_section(text)
@@ -113,5 +116,5 @@ def postprocess_npc_dialogue(
     if event_text:
         result = result.rstrip() + "\n사건: " + event_text
 
-    logger.debug(f"npc_id={npc_id} | processed={result[:80]}")
+    logger.debug(f"[postprocess] processed={result[:80]}")
     return result

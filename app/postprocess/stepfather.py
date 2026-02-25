@@ -14,9 +14,9 @@ LoRA / rule-base 역할 분리:
 
 2단계 - 억압 후처리 (Suppression Post-Processing)
    suppression_level:
-     1 — 기억 혼란 (humanity 높음 — 과거 기억이 새어 나옴)
-     2 — 냉정한 통제 (기본, 변형 최소)
-     3 — 완전 로봇화 (humanity 낮음 — 명령만 남음)
+     1 — 기억 혼란 (humanity 높음 — 과거 기억이 새어 나옴, 기억 파편 확률)
+     2 — 냉정한 통제 (명령형 강화 항상 + 문장 압축·침묵 확률)
+     3 — 완전 로봇화 (명령형 강화 + 문장 압축 항상 + 침묵 확률)
 
    기법:
      1. 기억 파편 삽입   — 과거 기억이 새어 나오다 억제됨 (레벨 1)
@@ -244,6 +244,15 @@ def silent_drop(text: str) -> str:
     return text
 
 
+# 필수 기법: lv2/3에서 항상 적용 (확률 파이프라인과 독립)
+# lv2: order_intensify — 어미를 딱딱한 명령형으로 항상 변환 (냉정함 보장)
+# lv3: order_intensify + compress_sentence — 명령형 + 핵심 명령 압축으로 로봇화 보장
+_GUARANTEED_TRANSFORMS: dict[int, list] = {
+    2: [order_intensify],
+    3: [order_intensify, compress_sentence],
+}
+
+
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #  통합 후처리 함수
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -273,8 +282,13 @@ def postprocess(
     # 1단계: 품질 검증/보정
     result, _issues = quality_gate(text)
 
-    # 2단계: 억압 후처리
     suppression_level = max(1, min(3, suppression_level))
+
+    # 2단계: 필수 기법 (lv2+: 항상 적용, 변형 보장)
+    for fn in _GUARANTEED_TRANSFORMS.get(suppression_level, []):
+        result = fn(result)
+
+    # 3단계: 확률 기법
     config = SUPPRESSION_CONFIG[suppression_level]
 
     # 적용 순서:

@@ -16,9 +16,9 @@ LoRA / rule-base 역할 분리:
 
 2단계 - 글리치 후처리 (Glitch Post-Processing)
    glitch_level:
-     1 — 변형 없음 (외로운 아이)
-     2 — 혼란 (인형/인간 사이 흔들림)
-     3 — 인형화 (인형 본능이 지배)
+     1 — 변형 없음 (외로운 아이, 품질 검증만)
+     2 — 혼란 (말 끊김 항상 + 에코·자기 지칭 혼란 확률)
+     3 — 인형화 (말 끊김 + 감정 플랫화 항상 + 전체 기법 확률)
 
    기법:
      1. 말 끊김 삽입     — 단어 사이에 ... 삽입
@@ -291,6 +291,15 @@ def sentence_cut(text: str) -> str:
     return text
 
 
+# 필수 기법: lv2/3에서 항상 적용 (확률 파이프라인과 독립)
+# lv2: stutter_pause — 말 끊김(...)으로 혼란 시작을 항상 보장
+# lv3: stutter_pause + flatten_emotion — 말 끊김 + 감정 제거로 인형화 보장
+_GUARANTEED_TRANSFORMS: dict[int, list] = {
+    2: [stutter_pause],
+    3: [stutter_pause, flatten_emotion],
+}
+
+
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #  통합 후처리 함수
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -324,8 +333,13 @@ def postprocess(
     # 1단계: 품질 검증/보정
     result, _issues = quality_gate(text)
 
-    # 2단계: 글리치 후처리
     glitch_level = max(1, min(3, glitch_level))
+
+    # 2단계: 필수 기법 (lv2+: 항상 적용, 변형 보장)
+    for fn in _GUARANTEED_TRANSFORMS.get(glitch_level, []):
+        result = fn(result)
+
+    # 3단계: 확률 기법
     config = GLITCH_CONFIG[glitch_level]
 
     # 적용 순서:

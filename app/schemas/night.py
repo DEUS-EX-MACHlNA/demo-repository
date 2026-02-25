@@ -16,6 +16,7 @@ class NightResult(BaseModel):
     night_delta: Dict[str, Any]
     night_conversation: List[Dict[str, str]]
     night_description: List[str] = Field(default_factory=list)
+    phase_changes: Dict[str, str] = Field(default_factory=dict)  # {npc_id: new_phase_id}
 
 
 class NightExposedLog(BaseModel):

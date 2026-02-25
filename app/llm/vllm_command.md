@@ -29,7 +29,7 @@ pip -q install -U vllm pyngrok
 
 NGROK_AUTHTOKEN
 
-VLLM_BASE_URL = "[https://nontheatrical-judiciarily-susanne.ngrok-free.dev/v1](https://nontheatrical-judiciarily-susanne.ngrok-free.dev/v1)"
+VLLM_BASE_URL = ""
 
 VLLM_MODEL = "Qwen/Qwen2.5-7B-Instruct"
 

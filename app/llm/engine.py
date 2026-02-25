@@ -15,6 +15,8 @@ from .config import (
     DEFAULT_TEMPERATURE,
     DEFAULT_TOP_P,
     DEFAULT_REPETITION_PENALTY,
+    LORA_BASE_MODEL,
+    LORA_VLLM_BASE_URL,
     get_model_config,
     get_adapter_model,
 )
@@ -24,17 +26,37 @@ logger = logging.getLogger(__name__)
 _instance: Optional[UnifiedLLMEngine] = None
 
 # 중국어 유니코드 범위
+# 한국어(Hangul), 일본어(Hiragana/Katakana)는 제외하고 CJK 계열만 포함
 _CHINESE_UNICODE_RANGES = [
-    (0x4E00, 0x9FFF),   # CJK Unified Ideographs
+    (0x2E80, 0x2EFF),   # CJK Radicals Supplement (부수 보충)
+    (0x2F00, 0x2FDF),   # Kangxi Radicals (강희 자전)
     (0x3400, 0x4DBF),   # CJK Unified Ideographs Extension A
-    (0x20000, 0x2A6DF), # CJK Unified Ideographs Extension B
+    (0x4E00, 0x9FFF),   # CJK Unified Ideographs (기본 한자)
     (0xF900, 0xFAFF),   # CJK Compatibility Ideographs
+    (0x20000, 0x2A6DF), # CJK Unified Ideographs Extension B
+    (0x2A700, 0x2B73F), # CJK Unified Ideographs Extension C
+    (0x2B740, 0x2B81F), # CJK Unified Ideographs Extension D
+    (0x2B820, 0x2CEAF), # CJK Unified Ideographs Extension E
+    (0x2CEB0, 0x2EBEF), # CJK Unified Ideographs Extension F
 ]
 
 
 def _is_chinese_char(char: str) -> bool:
     cp = ord(char)
     return any(start <= cp <= end for start, end in _CHINESE_UNICODE_RANGES)
+
+
+def _strip_chinese_chars(text: str) -> str:
+    """생성된 텍스트에서 중국어 문자를 제거 (logit_bias 실패 시 안전망)
+
+    logit_bias/LogitsProcessor가 모든 경우를 커버하지 못할 때를 대비한
+    2차 방어선. 중국어 유니코드 범위에 해당하는 문자만 제거하고 나머지는 유지.
+    """
+    result = "".join(c for c in text if not _is_chinese_char(c))
+    if len(result) < len(text):
+        removed = len(text) - len(result)
+        logger.warning(f"중국어 문자 {removed}개 제거 (logit_bias 누락 추정): {text[:80]!r}")
+    return result
 
 
 def _find_chinese_token_ids(tokenizer) -> list:
@@ -96,11 +118,13 @@ class UnifiedLLMEngine:
         # vLLM용 설정
         if self.backend == "vLLM":
             self.base_url = self.config["base_url"]
+            self.lora_base_url = LORA_VLLM_BASE_URL
             self.api_key = self.config["api_key"]
             self._client = httpx.Client(timeout=httpx.Timeout(60.0))
 
             logger.info(
                 f"[LLM Init] vLLM 연결: base_url={self.base_url}, "
+                f"lora_base_url={self.lora_base_url}, "
                 f"base_model={self._model_name}"
             )
 
@@ -192,10 +216,10 @@ class UnifiedLLMEngine:
         model_label = f"LoRA({npc_id})" if npc_id else "base"
         try:
             if self.backend == "vLLM":
-                logger.info(f"[LLM Generate] backend=vLLM, model={model_label}")
+                logger.debug(f"[LLM Generate] backend=vLLM, model={model_label}")
                 return self.generate_vLLM(prompt, **kargs)
             else:
-                logger.info(f"[LLM Generate] backend=transformers, model=base (LoRA 미지원)")
+                logger.debug(f"[LLM Generate] backend=transformers, model=base (LoRA 미지원)")
                 kargs.pop("npc_id", None)
                 return self.generate_transformers(prompt, **kargs)
         except Exception as e:
@@ -211,6 +235,7 @@ class UnifiedLLMEngine:
         top_p: float = DEFAULT_TOP_P,
         repetition_penalty: float = DEFAULT_REPETITION_PENALTY,
         npc_id: str | None = None,
+        stop: list[str] | None = None,
     ) -> str:
         """
         vLLM을 이용한 텍스트 생성 (통일된 인터페이스)
@@ -224,6 +249,7 @@ class UnifiedLLMEngine:
             repetition_penalty: 반복 패널티 (transformers만 사용)
             npc_id: NPC ID — vLLM 기동 시 --lora-modules로 등록된 어댑터 이름을 사용
                     등록된 어댑터가 없으면 base 모델로 생성
+            stop: 생성 중단 토큰 목록 (None이면 미사용)
 
         Returns:
             생성된 텍스트
@@ -231,45 +257,74 @@ class UnifiedLLMEngine:
         # NPC에 매핑된 어댑터 이름 조회 (vLLM --lora-modules로 사전 등록된 이름)
         adapter_name = get_adapter_model(npc_id)
         if adapter_name:
+            # LoRA 경로: Qwen2.5 서버 + LoRA 어댑터
             model_to_use = adapter_name
-            logger.info(f"[vLLM Request] model={adapter_name} (LoRA, npc_id={npc_id})")
+            base = self.lora_base_url.rstrip("/")
+            # 중국어 차단 logit_bias (lazy 초기화, 1회만 토크나이저 로드)
+            if not hasattr(self, "_vllm_logit_bias"):
+                self._vllm_logit_bias = self._build_vllm_logit_bias()
+            logit_bias = self._vllm_logit_bias or None
+            logger.warning(f"[vLLM Request] model={adapter_name} (LoRA, npc_id={npc_id})")
         else:
+            # 기본 경로: Kanana 서버
             model_to_use = self._model_name
-            logger.info(f"[vLLM Request] model={self._model_name} (base)")
+            base = self.base_url.rstrip("/")
+            logit_bias = None  # Kanana는 한국어 모델, logit_bias 불필요
+            logger.warning(f"[vLLM Request] model={self._model_name} (kanana, base)")
 
-        if system_prompt:
-            formatted_prompt = f"{system_prompt}\n\n{prompt}"
+        if adapter_name:
+            # LoRA(qwen2.5): /v1/completions (raw prompt)
+            if system_prompt:
+                formatted_prompt = f"{system_prompt}\n\n{prompt}"
+            else:
+                formatted_prompt = prompt
+
+            resp = self._client.post(
+                f"{base}/v1/completions",
+                headers={"Authorization": f"Bearer {self.api_key}"},
+                json={
+                    "model": model_to_use,
+                    "prompt": formatted_prompt,
+                    "temperature": temperature,
+                    "top_p": top_p,
+                    "max_tokens": max_tokens,
+                    "logit_bias": logit_bias,
+                    **({"stop": stop} if stop else {}),
+                },
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            raw_text = data["choices"][0]["text"]
         else:
-            formatted_prompt = prompt
+            # kanana1.5: /chat/completions (messages 형식)
+            messages = []
+            if system_prompt:
+                messages.append({"role": "system", "content": system_prompt})
+            messages.append({"role": "user", "content": prompt})
 
-        # 중국어 차단 logit_bias (lazy 초기화, 1회만 토크나이저 로드)
-        if not hasattr(self, "_vllm_logit_bias"):
-            self._vllm_logit_bias = self._build_vllm_logit_bias()
+            resp = self._client.post(
+                f"{base}/chat/completions",
+                headers={"Authorization": f"Bearer {self.api_key}"},
+                json={
+                    "model": model_to_use,
+                    "messages": messages,
+                    "temperature": temperature,
+                    "top_p": top_p,
+                    "max_tokens": max_tokens,
+                    **({"stop": stop} if stop else {}),
+                },
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            raw_text = data["choices"][0]["message"]["content"]
 
-        # logger.info(f"FINAL URL = {self.base_url.rstrip('/') + '/v1/completions'}")
-
-        base = self.base_url.rstrip("/")
-        resp = self._client.post(
-            f"{base}/v1/completions",
-            headers={"Authorization": f"Bearer {self.api_key}"},
-            json={
-                "model": model_to_use,
-                "prompt": formatted_prompt,
-                "temperature": temperature,
-                "top_p": top_p,
-                "max_tokens": max_tokens,
-                "logit_bias": self._vllm_logit_bias or None,
-            },
-        )
-        resp.raise_for_status()
-        data = resp.json()
-        raw_text = data["choices"][0]["text"]
+        raw_text = _strip_chinese_chars(raw_text)  # 2차 방어: 잔류 중국어 제거
         model_label = f"LoRA({npc_id})" if npc_id else "base"
         logger.info(
             f"[vLLM Response] model={model_to_use} ({model_label}) | "
-            f"tokens={data['usage']['completion_tokens']} | "
-            f"output={raw_text}..."
+            f"tokens={data['usage']['completion_tokens']}"
         )
+        logger.debug(f"[vLLM Output] {raw_text[:200]}")
         return raw_text
 
     def generate_transformers(
@@ -374,7 +429,8 @@ class UnifiedLLMEngine:
 
         # 디코딩
         generated_tokens = outputs[0][input_ids.shape[-1]:]
-        return self._tokenizer.decode(generated_tokens, skip_special_tokens=True).strip()
+        decoded = self._tokenizer.decode(generated_tokens, skip_special_tokens=True).strip()
+        return _strip_chinese_chars(decoded)  # 2차 방어: 잔류 중국어 제거
 
     def get_llm_with_tools(self, tools: list) -> Any:
         """
