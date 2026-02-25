@@ -506,12 +506,8 @@ class GameService:
             }
             game.status = GameStatus.ENDING.value
             if ending_result.triggered_delta:
-<<<<<<< HEAD
-                _apply_delta(world_after, ending_result.triggered_delta, assets)
-=======
                 game.status = GameStatus.ENDING.value
                 _apply_delta(world_after, ending_result.triggered_delta.to_dict(), assets)
->>>>>>> f37ae33dc4aeb26e22a93490cbc33c2bb169ca16
 
         # ── Step 7: NarrativeLayer - 나레이션 생성 ──
         try:

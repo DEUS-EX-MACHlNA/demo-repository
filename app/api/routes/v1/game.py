@@ -58,7 +58,7 @@ def step_game(game_id: int, request: StepRequestSchema, db: Session = Depends(ge
     if not game:
         raise HTTPException(status_code=404, detail="게임을 찾을 수 없습니다.")
 
-    result = GameService.process_turn(db, game_id, request, game)
+    result, updated_game, world_after = GameService.process_turn(db, game_id, request, game)
 
     return result
 

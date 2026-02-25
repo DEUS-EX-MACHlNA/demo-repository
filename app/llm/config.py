@@ -16,18 +16,12 @@ LORA_BASE_MODEL = "Qwen/Qwen2.5-7B-Instruct"  # LoRA 어댑터 전용 베이스 
 LLMBackend = Literal["vLLM", "transformers"]
 DEFAULT_BACKEND: LLMBackend = "vLLM"
 
-<<<<<<< HEAD
-# vLLM 설정 — .env의 VLLM_BASE_URL로 재정의 가능
-VLLM_BASE_URL = os.environ.get("VLLM_BASE_URL", "http://host.docker.internal:8002")
-VLLM_SERVED_MODEL_NAME = os.environ.get("VLLM_MODEL", "Qwen/Qwen2.5-7B-Instruct")
-=======
 # vLLM 설정 — .env의 VLLM_BASE_URL로 재정의 가능 (기본 서버: Kanana)
 VLLM_BASE_URL = os.environ.get("VLLM_BASE_URL")
 VLLM_SERVED_MODEL_NAME = os.environ.get("VLLM_MODEL", "kakaocorp/kanana-1.5-8b-instruct-2505")
 
 # LoRA 서버 설정 — 미설정 시 VLLM_BASE_URL과 동일한 서버 사용
 LORA_VLLM_BASE_URL = os.environ.get("LORA_VLLM_BASE_URL")
->>>>>>> f37ae33dc4aeb26e22a93490cbc33c2bb169ca16
 
 # Transformers 설정
 TRANSFORMERS_DEVICE = None  # None이면 자동 감지 (cuda/cpu)
