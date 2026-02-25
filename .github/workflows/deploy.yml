@@ -1,4 +1,4 @@
-# TODO일단은 인스턴스 확정되면 주석을 푸시오
+# #TODO일단은 인스턴스 확정되면 주석을 푸시오
 
 # name: Deploy to AWS EC2
 
@@ -28,5 +28,4 @@
 #             git pull origin main
             
 #             # 3. 기존 컨테이너 중단 및 새 이미지 파이프라인으로 다시 띄웁니다.
-#             sudo docker-compose -f docker-compose.prod.yml down
-#             sudo docker-compose -f docker-compose.prod.yml up -d --build
+#             sudo sh ./start_prod.sh

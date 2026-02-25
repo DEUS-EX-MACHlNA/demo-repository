@@ -1,5 +1,5 @@
 from __future__ import annotations
-from sqlalchemy import Column, String, DateTime, Integer, func, ForeignKey, Enum as SQLEnum
+from sqlalchemy import Column, String, DateTime, Integer, func, ForeignKey, Enum as SQLEnum, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from app.database import Base
@@ -35,7 +35,7 @@ class Games(Base):
     npc_data = Column(JSONB, nullable=False, default={})
     
     # ERD: 게임 요약본
-    summary = Column(JSONB, nullable=False, default={})
+    summary = Column(Text, nullable=False, default="")
     
     # ERD: 게임 상태 (live, ending)
     status = Column(SQLEnum(GameStatus), nullable=False, default=GameStatus.LIVE)

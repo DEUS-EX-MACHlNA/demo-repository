@@ -46,10 +46,11 @@ class NightDialogue(BaseModel):
 class NightResponseResult(BaseModel):
     narrative: str = Field(..., description="별도의 요청 없이 표시될 밤 이야기 개요")
     dialogues: List[NightDialogue] = Field(..., description="밤 대화 리스트")
-    npc_state_results: Dict[str, Dict[str, int]] = Field(..., description="NPC 상태 결과 (Key: NPC ID, Value: {stat_name: value})")
     ending_info: Optional[Dict[str, Any]] = None
-    vars: Optional[Dict[str, Any]]
+    state_result: Dict[str, Any] = Field(default_factory=dict)
+    debug: Dict[str, Any] = Field(default_factory=dict)
     phase_changes: Dict[str, str] = Field(default_factory=dict, description="NPC phase 전환 결과 (Key: NPC ID, Value: 새 phase_id)")
+
 
 # ============================================================
 # 시나리오 정보 응답

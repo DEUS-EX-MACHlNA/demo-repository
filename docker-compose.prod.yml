@@ -4,12 +4,12 @@ services:
   init_db:
     build: .
     environment:
-      - DB_USER=${POSTGRES_USER:-postgres}
-      - DB_PASSWORD=${POSTGRES_PASSWORD:-password}
-      - DB_NAME=${POSTGRES_DB:-maratang_db}
+      - DB_USER=${POSTGRES_USER}
+      - DB_PASSWORD=${POSTGRES_PASSWORD}
+      - DB_NAME=${POSTGRES_DB}
       - DB_HOST=db
       - DB_PORT=5432
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-password}@db:5432/${POSTGRES_DB:-maratang_db}
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
       - TZ=Asia/Seoul
     depends_on:
       db:
@@ -24,17 +24,24 @@ services:
   app:
     build: .
     restart: always
+    env_file:
+      - .env.prod
     environment:
-      - DB_USER=${POSTGRES_USER:-postgres}
-      - DB_PASSWORD=${POSTGRES_PASSWORD:-password}
-      - DB_NAME=${POSTGRES_DB:-maratang_db}
+      # --- 기존 필수 변수 ---
+      - DB_USER=${POSTGRES_USER}
+      - DB_PASSWORD=${POSTGRES_PASSWORD}
+      - DB_NAME=${POSTGRES_DB}
       - DB_HOST=db
       - DB_PORT=5432
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-password}@db:5432/${POSTGRES_DB:-maratang_db}
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
       - REDIS_URL=redis://redis:6379/0
       - TZ=Asia/Seoul
+      - VLLM_BASE_URL=${VLLM_BASE_URL}
+      - LORA_VLLM_BASE_URL=${LORA_VLLM_BASE_URL}
     ports:
       - "8000:8000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       db:
         condition: service_healthy
@@ -42,6 +49,7 @@ services:
         condition: service_started
       init_db:
         condition: service_completed_successfully
+
     networks:
       - maratang_net
 
@@ -49,16 +57,16 @@ services:
     image: postgres:16-alpine
     restart: always
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
-      POSTGRES_DB: ${POSTGRES_DB:-maratang_db}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
       TZ: Asia/Seoul
     ports:
-      - "5432:5432"
+      - "5434:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -76,9 +84,26 @@ services:
       - maratang_net
     command: redis-server --appendonly yes
 
+
+  nginx:
+    image: nginx:alpine
+    restart: always
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - app
+
+    networks:
+      - maratang_net
+
 networks:
   maratang_net:
 
 volumes:
   postgres_data:
   redis_data:
+  huggingface_cache:

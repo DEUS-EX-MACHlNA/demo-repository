@@ -25,19 +25,31 @@ from app.schemas.night import (
 
 router = APIRouter(tags=["game"])
 
+# 원래 유저 아이디를 받으면 그에 해당되는 게임들을 조회해주는건데
+# 
 
 @router.get("/", summary="게임 목록 조회", response_model=list[dict])
 def get_games(db: Session = Depends(get_db)):
     games = crud_game.get_all_games(db)
-    # 필요한 필드만 추출 (id, summary)
-    return [
-        {
+    result = []
+    for g in games:
+        # DB의 world_meta_data에서 진행 상태 추출
+        meta = g.world_meta_data or {}
+        state = meta.get("state", {})
+        turn = state.get("turn", 1)
+        
+        # 날짜(day) 데이터는 vars 안에 존재 (없으면 1로 초기화)
+        vars_data = state.get("vars", {})
+        day = vars_data.get("day", 1)
+        
+        result.append({
             "game_id": g.id,
-            "summary": g.summary if g.summary else {},
+            "summary": g.summary if g.summary else "",
             "status": g.status,
-        }
-        for g in games
-    ]
+            "turn": turn,
+            "day": day
+        })
+    return result
 # 대화 요청(낮)
 @router.post("/{game_id}/step", summary="게임 대화 요청", response_model=StepResponseSchema)
 def step_game(game_id: int, request: StepRequestSchema, db: Session = Depends(get_db)) -> StepResponseSchema:
@@ -59,6 +71,16 @@ def get_game(game_id: int, db: Session = Depends(get_db)) -> GameClientSyncSchem
         raise HTTPException(status_code=404, detail="게임을 찾을 수 없습니다.")
 
     return game
+
+# 진행 중인 게임 임시 종료 및 저장
+@router.post("/{game_id}/quit", summary="진행중인 게임 임시 종료 및 저장")
+def quit_game(game_id: int, db: Session = Depends(get_db)):
+    try:
+        GameService.quit_game(db, game_id)
+        return {"message": "정상적으로 저장 후 종료되었습니다."}
+    except ValueError:
+        raise HTTPException(status_code=404, detail="게임을 찾을 수 없습니다.")
+
 
 # 밤 파이프라인 실행
 @router.post("/{game_id}/night_dialogue", summary="밤 파이프라인 실행", response_model=NightResponseResult)

@@ -309,11 +309,13 @@ def _analyze_impact(
     npc_stats = result.get("npc_stats", {})
     npc_stat_delta = npc_stats.get(npc_id, {})
 
-    # plus_hits / minus_hits를 state_delta에서 분리 (importance 계산용)
+    # plus_hits / minus_hits: importance 계산용으로 읽되, state_delta에도 남겨둠
+    # (1) state_result.npc_stats에 프론트엔드 전달
+    # (2) _apply_delta()를 통해 NPC stats에 누적 (phase 전환 조건 평가에 사용)
     hits_info = None
     if npc_stat_delta:
-        plus_hits = npc_stat_delta.pop("plus_hits", 0)
-        minus_hits = npc_stat_delta.pop("minus_hits", 0)
+        plus_hits = npc_stat_delta.get("plus_hits", 0)
+        minus_hits = npc_stat_delta.get("minus_hits", 0)
         if plus_hits or minus_hits:
             hits_info = {"plus_hits": plus_hits, "minus_hits": minus_hits}
 

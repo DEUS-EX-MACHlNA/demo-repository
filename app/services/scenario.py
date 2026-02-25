@@ -406,17 +406,17 @@ class ScenarioService:
                 world_meta_data=world_state_data,
                 player_data=player_data,
                 npc_data=npc_data,
-                # summary={},  # TODO: 이 부분은 추후 LLM에 넣어 둘 내용을 의미
+                summary="",
                 status=GameStatus.LIVE,
             )
-        
-            crud_game.create_game(db, game)
-            
+
             # 장기 계획(Long-term Plan) 초기화
             try:
                 cls._initialize_npc_plans(db, game)
             except Exception as e:
                 logger.error(f"[ScenarioService] Failed to initialize NPC plans: {e}")
+        
+            crud_game.create_game(db, game)
             
             # Redis Caching
             try:
