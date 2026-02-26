@@ -117,7 +117,7 @@ npcs:
     name: "할머니 (마가렛)"
     role: "세계관 설명자 (Lore)"
     status: "alive"
-    stats: { affection: 20, humanity: 10, plus_hits: 0, minus_hits: 0 }
+    stats: { affection: 40, humanity: 10, plus_hits: 0, minus_hits: 0 }
     goal: "플레이어에게 저택의 진실을 전달하고, 생기를 얻어 새엄마에 대한 복수를 준비한다"
     persona:
       values: "나는 이 집의 진실을 알고 있으며, 그것을 플레이어에게 전달해야 한다고 생각한다. 내 안에 마지막 생기가 얼마 남아있지 않으며, 나에게 생기를 나누어 줄 수 있는 사람을 찾고 있다. 그것은 새엄마(엘리노어)에 대한 복수를 위한 에너지를 얻기 위해서다. 새엄마가 내게 한 일에 대한 복수를 원하지만, 지금은 힘이 없어서 기회를 기다리고 있다."

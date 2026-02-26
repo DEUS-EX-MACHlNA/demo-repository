@@ -421,6 +421,8 @@ def save_assets_to_db(assets: ScenarioAssets):
         except Exception as e:
             logger.error(f"✗ Failed to cache scenario {assets.scenario_id} to Redis: {e}")
             
+        db.commit()
+            
     except Exception as e:
         db.rollback()
         logger.error(f"✗ Failed to save scenario {assets.scenario_id}: {str(e)}")
