@@ -19,7 +19,7 @@ from .stepmother import postprocess as stepmother_postprocess
 from .stepfather import postprocess as stepfather_postprocess
 from .grandmother import postprocess as grandmother_postprocess
 from .dog_baron import postprocess as dog_baron_postprocess
-from .common import split_event_section, parse_text_segments, normalize_description
+from .common import split_event_section
 
 logger = logging.getLogger(__name__)
 
@@ -71,8 +71,7 @@ def postprocess_npc_dialogue(
 ) -> str:
     """npc_id에 따라 적절한 후처리기를 선택하여 적용한다.
 
-    소설체 혼합 형식(따옴표 대사 + 서술)이 감지되면 대사 파트에만 캐릭터 효과를
-    적용하고, 서술 파트는 광기 아티팩트를 정규화하여 클린하게 유지한다.
+    전체 텍스트를 대사로 간주하고 캐릭터 효과를 적용한다.
     사건(사건:) 섹션은 후처리에서 완전히 제외된다.
 
     Args:
@@ -93,24 +92,8 @@ def postprocess_npc_dialogue(
     # 사건 섹션 분리 (후처리 대상에서 제외)
     main_text, event_text = split_event_section(text)
 
-    # 세그먼트 분석
-    segments = parse_text_segments(main_text)
-    types = {seg_type for seg_type, _ in segments}
-    is_mixed = 'dialogue' in types and 'description' in types
-
-    if is_mixed:
-        # 소설체 혼합 형식: 대사만 후처리, 서술은 정규화
-        parts = []
-        for seg_type, content in segments:
-            if seg_type == 'dialogue':
-                processed = _apply_character_postprocess(content, npc_id, level, seed)
-                parts.append(f'"{processed}"')
-            else:
-                parts.append(normalize_description(content))
-        result = "".join(parts)
-    else:
-        # 순수 대사 형식: 전체 후처리 (기존 동작)
-        result = _apply_character_postprocess(main_text, npc_id, level, seed)
+    # 전체 텍스트를 대사로 간주하여 캐릭터 효과 적용
+    result = _apply_character_postprocess(main_text, npc_id, level, seed)
 
     # 사건 섹션 재결합
     if event_text:

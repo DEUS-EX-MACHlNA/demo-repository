@@ -46,6 +46,30 @@ def _is_chinese_char(char: str) -> bool:
     return any(start <= cp <= end for start, end in _CHINESE_UNICODE_RANGES)
 
 
+def _clean_lora_dialogue(text: str) -> str:
+    """LoRA 출력에서 순수 대사 텍스트만 추출한다.
+
+    LoRA 학습 데이터 형식 잔재를 제거:
+    - 개행 이후 텍스트 (다음 NPC 이름 시작 등)
+    - "[fear+N]", "[affection-N]", '["taboo"]' 등 인라인 태그 — "[" 시작점에서 자름
+    - "NPC이름: " prefix (한글/영문 이름 + 콜론 + 공백)
+    """
+    import re
+
+    # 개행 이전 첫 줄만 사용
+    first_line = text.split("\n")[0].strip()
+
+    # "[" 태그 시작 이전까지만 사용 (학습 데이터 잔재 태그 제거)
+    bracket_pos = first_line.find("[")
+    if bracket_pos > 0:
+        first_line = first_line[:bracket_pos].strip()
+
+    # "NPC이름: " prefix 제거 (한글·영문·공백 조합 이름 + 콜론 + 공백)
+    first_line = re.sub(r"^[\w가-힣\s]{1,20}:\s*", "", first_line).strip()
+
+    return first_line
+
+
 def _strip_chinese_chars(text: str) -> str:
     """생성된 텍스트에서 중국어 문자를 제거 (logit_bias 실패 시 안전망)
 
@@ -279,6 +303,10 @@ class UnifiedLLMEngine:
             else:
                 formatted_prompt = prompt
 
+            # LoRA 경로: 학습 데이터 잔재 태그 생성을 막기 위한 stop sequences
+            # caller가 stop을 명시하지 않으면 기본값 적용
+            lora_stop = stop if stop is not None else ["\n", "\n\n"]
+
             resp = self._client.post(
                 f"{base}/v1/completions",
                 headers={"Authorization": f"Bearer {self.api_key}"},
@@ -289,11 +317,14 @@ class UnifiedLLMEngine:
                     "top_p": top_p,
                     "max_tokens": max_tokens,
                     "logit_bias": logit_bias,
+                    "repetition_penalty": repetition_penalty,
+                    "stop": lora_stop,
                 },
             )
             resp.raise_for_status()
             data = resp.json()
             raw_text = data["choices"][0]["text"]
+            raw_text = _clean_lora_dialogue(raw_text)  # prefix·태그 제거
         else:
             # kanana1.5: /v1/chat/completions (messages 형식)
             messages = []
