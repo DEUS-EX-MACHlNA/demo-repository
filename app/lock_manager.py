@@ -20,6 +20,23 @@ logger = logging.getLogger(__name__)
 MEMORY_TYPE_SECRET = "unlocked_secret"
 SECRET_IMPORTANCE_SCORE = 9.5  # 매우 높은 중요도 (최대 10)
 
+# type별 event_description 접두사
+_LOCK_TYPE_PREFIX: Dict[str, str] = {
+    "quest_gate": "핵심 발견",
+    "item_hint": "힌트",
+    "npc_topic": "숨겨진 기억",
+    "lore": "발견된 정보",
+}
+
+
+def format_unlock_events(newly_unlocked: List["UnlockedInfo"]) -> List[str]:
+    """해금된 정보 목록을 event_description 문자열 리스트로 변환."""
+    events: List[str] = []
+    for info in newly_unlocked:
+        prefix = _LOCK_TYPE_PREFIX.get(info.type, "정보 해금")
+        events.append(f"[{prefix}] {info.info_title}: {info.description}")
+    return events
+
 
 class LockManager:
     """

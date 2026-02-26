@@ -15,6 +15,9 @@ from app.llm import GenerativeAgentsLLM
 from app.agents.memory import MEMORY_REFLECTION, MemoryEntry, get_memory_stream
 from app.agents.utils import extract_number
 
+# unlocked_secret 메모리 타입 (lock_manager.py와 동일 값)
+MEMORY_TYPE_SECRET = "unlocked_secret"
+
 logger = logging.getLogger(__name__)
 
 # ── 기본 하이퍼파라미터 ──────────────────────────────────────

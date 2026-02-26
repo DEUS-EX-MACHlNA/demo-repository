@@ -31,7 +31,7 @@ from app.crud.chat_log import create_chat_log
 from app.day_controller import get_day_controller
 from app.night_controller import get_night_controller
 from app.loader import ScenarioLoader, ScenarioAssets
-from app.lock_manager import get_lock_manager
+from app.lock_manager import get_lock_manager, format_unlock_events
 from app.ending_checker import check_ending
 from app.narrative import get_narrative_layer
 
@@ -495,7 +495,15 @@ class GameService:
                 acq_item_name = acq_item_def.get("name", acq_item_id) if acq_item_def else acq_item_id
                 tool_result.event_description.append(f"'{acq_item_name}'을(를) 발견했다!")
 
-        # ── Step 5.6: day_action_log 축적 (밤 가족회의 안건용) ──
+        # ── Step 5.7: LockManager - Delta 적용 후 추가 해금 체크 ──
+        lock_result_post = lock_manager.check_unlocks(world_after, locks_data)
+        all_newly_unlocked = lock_result.newly_unlocked + lock_result_post.newly_unlocked
+        if all_newly_unlocked:
+            unlock_events = format_unlock_events(all_newly_unlocked)
+            tool_result.event_description.extend(unlock_events)
+            logger.info(f"[LockManager] {len(all_newly_unlocked)}건 해금 → event_description 추가: {unlock_events}")
+
+        # ── Step 5.8: day_action_log 축적 (밤 가족회의 안건용) ──
         day_log_entry = {
             "turn": world_after.turn,
             "input": user_input,
@@ -758,6 +766,16 @@ class GameService:
             world_after.vars["day"] = 1
             
         logger.info(f"Day incremented: {world_after.vars['day']}")
+
+        # ── Step 5.7: LockManager - Delta 적용 후 추가 해금 체크 ──
+        lock_result_post = lock_manager.check_unlocks(world_after, locks_data)
+        all_newly_unlocked = lock_result.newly_unlocked + lock_result_post.newly_unlocked
+        if all_newly_unlocked:
+            unlock_events = format_unlock_events(all_newly_unlocked)
+            if night_result.night_description is None:
+                night_result.night_description = []
+            night_result.night_description.extend(unlock_events)
+            logger.info(f"[LockManager] 밤 {len(all_newly_unlocked)}건 해금 → night_description 추가: {unlock_events}")
 
         # ── Step 6: EndingChecker - 엔딩 체크 (has_item 조건 스킵) ──
         ending_result = check_ending(world_after, assets, skip_has_item=True)

@@ -15,7 +15,7 @@ from typing import Any
 
 from app.llm import GenerativeAgentsLLM
 from app.agents.memory import MEMORY_DIALOGUE, MemoryEntry, add_memory
-from app.agents.retrieval import retrieve_memories, score_importance
+from app.agents.retrieval import retrieve_memories, score_importance, MEMORY_TYPE_SECRET
 from app.agents.utils import format_emotion, format_persona, parse_stat_changes_text
 from app.postprocess import phase_to_level
 
@@ -92,7 +92,17 @@ def generate_utterance(
     # 관련 기억 검색
     query = f"{listener_name}와(과) 대화"
     memories = retrieve_memories(speaker_memory, query, llm, current_turn=current_turn, k=3)
-    mem_ctx = "\n".join(f"- {m.description}" for m in memories) if memories else "(관련 기억 없음)"
+
+    # secret 메모리와 일반 메모리 분리
+    secret_memories = [m for m in memories if m.memory_type == MEMORY_TYPE_SECRET]
+    normal_memories = [m for m in memories if m.memory_type != MEMORY_TYPE_SECRET]
+
+    mem_ctx = "\n".join(f"- {m.description}" for m in normal_memories) if normal_memories else "(관련 기억 없음)"
+    secret_ctx = "\n".join(f"- {m.description}" for m in secret_memories) if secret_memories else ""
+
+    logger.info(f"검색된 관련 메모리 정보 : {mem_ctx}")
+    if secret_ctx:
+        logger.info(f"검색된 비밀 메모리 정보 : {secret_ctx}")
 
     plan_text = speaker_memory.get("current_plan", {}).get("plan_text", "")
 
@@ -107,15 +117,23 @@ def generate_utterance(
             speaker_id, speaker_name, speaker_persona, persona_str, emotion_str,
             plan_text, mem_ctx, history, listener_name, world_snapshot,
             phase_level=phase_level,
+            secret_ctx=secret_ctx,
         )
     else:
         # 폴백: 간단 프롬프트
+        secret_section = ""
+        if secret_ctx:
+            secret_section = (
+                f"\n★ 당신이 알고 있는 중요한 비밀 (반드시 대화에 자연스럽게 녹여내세요):\n"
+                f"{secret_ctx}\n"
+            )
         prompt = (
             f"당신은 {speaker_name}입니다.\n\n"
             f"페르소나: {persona_str}\n"
             f"현재 감정: {emotion_str}\n"
             f"현재 계획: {plan_text}\n\n"
-            f"관련 기억:\n{mem_ctx}\n\n"
+            f"관련 기억:\n{mem_ctx}\n"
+            f"{secret_section}\n"
             f"대화 기록:\n{history}\n\n"
             f"{listener_name}에게 무엇을 말하겠습니까? (자연스럽고 간결하게, 1~2문장)\n\n"
             "발화:"
@@ -179,6 +197,19 @@ def _build_phase_directive(npc_id: str, level: int) -> str:
     return f"phase={label} 상태. {guide}"
 
 
+def _build_secret_section(secret_ctx: str) -> str:
+    """secret_ctx가 있으면 [CRITICAL SECRET] 프롬프트 섹션을 반환, 없으면 빈 문자열."""
+    if not secret_ctx:
+        return ""
+    return (
+        f"[CRITICAL SECRET — 반드시 대사에 반영할 것]\n"
+        f"아래는 당신이 알게 된 중요한 비밀 정보이다. "
+        f"이 정보를 캐릭터의 말투에 맞게 자연스럽게 대사에 녹여내라. "
+        f"직접 언급하거나 암시하는 형태 모두 허용된다.\n"
+        f"{secret_ctx}\n\n"
+    )
+
+
 def _build_rich_utterance_prompt(
     speaker_id: str,
     speaker_name: str,
@@ -191,6 +222,7 @@ def _build_rich_utterance_prompt(
     listener_name: str,
     ws: dict[str, Any],
     phase_level: int = 1,
+    secret_ctx: str = "",
 ) -> str:
     """world_snapshot이 있을 때 사용하는 구체화된 NPC 발화 프롬프트."""
     genre = ws.get("genre", "")
@@ -250,13 +282,15 @@ def _build_rich_utterance_prompt(
         f"플레이어 인벤토리: {inventory}\n\n"
         f"[MEMORY]\n"
         f"{mem_ctx}\n\n"
+        f"{_build_secret_section(secret_ctx)}"
         f"[RECENT DIALOGUE]\n"
         f"{history}\n\n"
         f"[YOUR TASK]\n"
         f"\"{listener_name}\"에게 지금 무엇을 말할지 결정하고 말하라.\n"
         f"- 1~2문장, 자연스럽고 간결.\n"
         f"- 트리거(plus/minus)와 금기(taboos)를 고려.\n"
-        f"- 의심도가 높으면: 더 확인 질문/견제/감시 톤 강화.\n\n"
+        f"- 의심도가 높으면: 더 확인 질문/견제/감시 톤 강화.\n"
+        f"{'- ★ [CRITICAL SECRET]에 해당하는 비밀 정보가 있으면 반드시 대사에 자연스럽게 반영하라.' if secret_ctx else ''}\n\n"
         f"발화:"
     )
 
