@@ -1,0 +1,41 @@
+============================================================
+Redis Fetch vs DB Fetch Performance Benchmark (Mocked LLM)
+============================================================
+Benchmarking 50 iterations for each mode (Warmup: 5)...
+
+Warming up...
+Redis cache MISS for game_id=59! Falling back to DB load.
+ Done.
+
+Running Redis Fetch Mode...
+Redis cache MISS for game_id=59! Falling back to DB load.
+Redis mode iteration 0
+Redis cache MISS for game_id=59! Falling back to DB load.
+Redis cache MISS for game_id=59! Falling back to DB load.
+Redis mode iteration 10
+Redis cache MISS for game_id=59! Falling back to DB load.
+Redis cache MISS for game_id=59! Falling back to DB load.
+Redis mode iteration 20
+Redis cache MISS for game_id=59! Falling back to DB load.
+Redis cache MISS for game_id=59! Falling back to DB load.
+Redis mode iteration 30
+Redis cache MISS for game_id=59! Falling back to DB load.
+Redis cache MISS for game_id=59! Falling back to DB load.
+Redis mode iteration 40
+Redis cache MISS for game_id=59! Falling back to DB load.
+ Done.
+[Redis Fetch Mode] Average Time: 0.0304 sec/turn
+Running DB Fetch Mode...
+DB mode iteration 0
+DB mode iteration 10
+DB mode iteration 20
+DB mode iteration 30
+DB mode iteration 40
+ Done.
+[DB Fetch Mode]    Average Time: 0.0107 sec/turn
+
+------------------------------------------------------------
+Time Saved per Turn (Redis vs DB): -0.0197 sec
+Performance Improvement: -183.15%
+------------------------------------------------------------
+No significant difference (check network/local DB latency) or DB is faster.

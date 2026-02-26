@@ -53,12 +53,12 @@ def get_games(db: Session = Depends(get_db)):
 # 대화 요청(낮)
 @router.post("/{game_id}/step", summary="게임 대화 요청", response_model=StepResponseSchema)
 def step_game(game_id: int, request: StepRequestSchema, db: Session = Depends(get_db)) -> StepResponseSchema:
-    # 1. 게임 정보 조회
-    game = db.query(Games).filter(Games.id == game_id).first()
-    if not game:
+    # 1. 게임 정보 조회 로직 제거 (Redis Cache 의존)
+    # 2. 캐시를 못 찾았을 경우 Service Layer 에서 DB Fallback 실행
+    try:
+        result = GameService.process_turn(db, game_id, request, game=None)
+    except ValueError as e:
         raise HTTPException(status_code=404, detail="게임을 찾을 수 없습니다.")
-
-    result = GameService.process_turn(db, game_id, request, game)
 
     return result
 
@@ -135,8 +135,7 @@ def get_night_log(game_id: int, db: Session = Depends(get_db)):
 # 맵 이동 요청
 @router.post("/{game_id}/move", summary="맵 이동 요청")
 def move_game(game_id: int, location: str, db: Session = Depends(get_db)) -> int:
-
-    result = GameService.change_location(game_id, location)
+    result = GameService.change_location(db, game_id, location)
     return result
 
 

@@ -1,0 +1,30 @@
+============================================================
+Redis Fetch vs DB Fetch Performance Benchmark (Mocked LLM)
+============================================================
+Benchmarking 50 iterations for each mode (Warmup: 5)...
+
+Warming up...
+ Done.
+
+Running Redis Fetch Mode...
+Redis mode iteration 0
+Redis mode iteration 10
+Redis mode iteration 20
+Redis mode iteration 30
+Redis mode iteration 40
+ Done.
+[Redis Fetch Mode] Average Time: 0.0132 sec/turn
+Running DB Fetch Mode...
+DB mode iteration 0
+DB mode iteration 10
+DB mode iteration 20
+DB mode iteration 30
+DB mode iteration 40
+ Done.
+[DB Fetch Mode]    Average Time: 0.0114 sec/turn
+
+------------------------------------------------------------
+Time Saved per Turn (Redis vs DB): -0.0018 sec
+Performance Improvement: -15.58%
+------------------------------------------------------------
+No significant difference (check network/local DB latency) or DB is faster.
