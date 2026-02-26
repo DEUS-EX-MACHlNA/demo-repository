@@ -481,6 +481,12 @@ class GameService:
         
         logger.debug(f"DayController result: {tool_result}")
 
+        # ── Step 4.5: 해금된 정보를 event_description에 추가 ──
+        for unlocked in lock_result.newly_unlocked:
+            tool_result.event_description.append(
+                f"[정보 해금: {unlocked.info_title}] {unlocked.description}"
+            )
+
         # ── Step 5: Delta 적용 ──
         world_after = _apply_delta(world_state, tool_result.state_delta, assets)
 
@@ -694,6 +700,12 @@ class GameService:
             assets
         )
         
+        # ── Step 4.5: 해금된 정보를 night_description에 추가 ──
+        for unlocked in lock_result.newly_unlocked:
+            night_result.night_description.append(
+                f"[정보 해금: {unlocked.info_title}] {unlocked.description}"
+            )
+
         # ── Step 5: Date Increment & Delta 적용 ──
         # 밤이 지나면 날짜(date)가 바뀜
         world_after = _apply_delta(world_state, night_result.night_delta, assets)
