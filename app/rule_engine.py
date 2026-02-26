@@ -193,12 +193,20 @@ def merge_rule_delta(
         "turn_increment": 1 if include_turn_increment else 0,
     }
 
-    # vars 병합 (누적)
+    # vars 병합 (숫자는 누적, 비숫자는 덮어쓰기)
     for key, value in tool_delta.get("vars", {}).items():
-        merged["vars"][key] = merged["vars"].get(key, 0) + value
+        existing = merged["vars"].get(key, 0)
+        if isinstance(existing, (int, float)) and isinstance(value, (int, float)):
+            merged["vars"][key] = existing + value
+        else:
+            merged["vars"][key] = value
 
     for key, value in rule_delta.get("vars", {}).items():
-        merged["vars"][key] = merged["vars"].get(key, 0) + value
+        existing = merged["vars"].get(key, 0)
+        if isinstance(existing, (int, float)) and isinstance(value, (int, float)):
+            merged["vars"][key] = existing + value
+        else:
+            merged["vars"][key] = value
 
     # npc_stats 병합 (누적)
     for npc_id, stats in tool_delta.get("npc_stats", {}).items():
