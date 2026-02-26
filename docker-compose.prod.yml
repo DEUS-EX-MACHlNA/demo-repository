@@ -74,7 +74,7 @@ services:
       - maratang_net
 
   redis:
-    image: redis:7-alpine
+    image: redis/redis-stack-server:latest
     restart: always
     ports:
       - "6380:6379"
@@ -82,7 +82,8 @@ services:
       - redis_data:/data
     networks:
       - maratang_net
-    command: redis-server --appendonly yes
+    # Note: redis-stack-server does not take standard redis-server args easily in compose
+    # so we might rely on default persistence or configure via a custom file later if needed
 
 
   nginx:

@@ -41,19 +41,29 @@ logger=logging.getLogger(__name__)
 
 def _scenario_to_assets(game: Games) -> ScenarioAssets:
     assets = None
-    if game.scenario and game.scenario.world_asset_data:
+    scenario_title = game.scenario.title if (game and game.scenario) else "coraline"
+    
+    # ── 1. RedisJSON Global Cache Hit 기도 ──
+    try:
+        redis_client = get_redis_client()
+        cached_assets = redis_client.get_scenario_assets(scenario_title)
+        if cached_assets:
+            logger.debug(f"[GameService] Loaded assets natively from RedisJSON for scenario: {scenario_title}")
+            assets = ScenarioAssets(**cached_assets)
+    except Exception as e:
+        logger.warning(f"Failed to fetch scenario from RedisJSON: {e}")
+
+    # ── 2. DB Fallback ──
+    if not assets and game and game.scenario and game.scenario.world_asset_data:
         try:
             # DB에 저장된 에셋 사용
-            # world_asset_data는 dict 형태여야 함
-            assets = ScenarioAssets(**game.scenario.world_asset_data)
             assets = ScenarioAssets(**game.scenario.world_asset_data)
             logger.debug(f"[GameService] Loaded assets from DB for scenario: {game.scenario.title}")
         except Exception as e:
             logger.error(f"[GameService] Failed to load assets from DB: {e}")
 
+    # ── 3. File System Fallback (최후의 수단) ──
     if not assets:
-        # Fallback: 파일 로드
-        scenario_title = game.scenario.title if game.scenario else "coraline"
         project_root = Path(__file__).parent.parent.parent
         scenarios_dir = project_root / "scenarios"
         loader = ScenarioLoader(base_path=scenarios_dir)
@@ -645,8 +655,10 @@ class GameService:
                 sr_npc_disabled_states = disabled
 
         sr_vars = dict(_delta.get("vars", {}))
-        sr_humanity = sr_vars.pop("humanity", None)
+        sr_vars.pop("humanity", None)
         sr_vars.pop("status_effects", None)
+
+        sr_humanity = world_after.vars.get("humanity")
 
         current_node = None
         if isinstance(game.player_data, dict):
@@ -703,10 +715,6 @@ class GameService:
         from app.status_effect_manager import get_status_effect_manager
         sem = get_status_effect_manager()
         sem.tick(world_state.turn, world_state)
-
-        # ── Step 3.7: 플레이어 위치 갱신 (프론트에서 받은 값 우선) ──
-        if input_data.player_location:
-            world_state.player_location = input_data.player_location
 
         # ── Step 4: DayController - 낮 턴 실행 ──
         user_input = input_data.to_combined_string()
@@ -1128,8 +1136,10 @@ class GameService:
                 sr_npc_disabled_states = disabled
 
         sr_vars = dict(_night_delta.get("vars", {}))
-        sr_humanity = sr_vars.pop("humanity", None)
+        sr_vars.pop("humanity", None)
         sr_vars.pop("status_effects", None)
+
+        sr_humanity = world_after.vars.get("humanity")
 
         # player_data에서 현재 current_node 추출
         current_node = None
@@ -1212,7 +1222,7 @@ class GameService:
         try:
             redis_client = get_redis_client()
             
-            # Serialize data for Redis
+            # Serialize data for Redis (RedisJSON expects raw dicts)
             meta_data = game.world_meta_data or {}
             
             # NPC Data extraction
@@ -1224,17 +1234,17 @@ class GameService:
             
             player_info = game.player_data or {}
             
-            # Cache to Redis
+            # Cache to RedisJSON
             redis_client.set_game_state(
                 str(game_id),
                 meta_data,
                 npc_stats,
                 player_info
             )
-            logger.info(f"[GameService] Game state cached in Redis for game_id={game_id}")
+            logger.info(f"[GameService] Game state cached in RedisJSON for game_id={game_id}")
             
         except Exception as e:
-            logger.warning(f"[GameService] Failed to cache game state in Redis: {e}")
+            logger.warning(f"[GameService] Failed to cache game state in RedisJSON: {e}")
 
         # Client Sync Data (for frontend)
         client_sync_data = GameClientSyncSchema(

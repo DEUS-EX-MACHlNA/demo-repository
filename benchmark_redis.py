@@ -46,7 +46,7 @@ def benchmark_redis_performance():
     print("="*60)
 
     db = SessionLocal()
-    game_id = 59  # 요구사항: game_id는 59번으로
+    game_id = 73  # 요구사항: game_id는 59번으로
     iterations = 50
     warmup_iterations = 5
 
@@ -58,9 +58,9 @@ def benchmark_redis_performance():
 
         # 요구사항: input data는 한글로 적당한걸 넣게 만들어줘
         input_data = StepRequestSchema(
-            user_id=game.user_id,
             chat_input="저기요, 오늘 날씨가 참 좋네요! 다들 어떻게 지내시나요?",
-            timestamp="2024-01-01T00:00:00"
+            npc_name="grandmother",
+            item_name="string"
         )
         
         redis_client = get_redis_client()

@@ -36,9 +36,9 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 
 from app.db_models.scenario import Scenario
-from app.database import get_db, SessionLocal
-
+from app.database import SessionLocal
 import yaml
+from app.redis_client import get_redis_client
 
 logger = logging.getLogger(__name__)
 
@@ -412,9 +412,15 @@ def save_assets_to_db(assets: ScenarioAssets):
             db.add(new_scenario)
             logger.info(f"✓ Scenario created: {assets.scenario_id}")
         
-        db.commit()
-        logger.info(f"✓ Database saved: {assets.scenario_id}")
         
+        # ── Global Caching: Save to RedisJSON ──
+        try:
+            redis_client = get_redis_client()
+            redis_client.set_scenario_assets(assets.scenario_id, world_asset_data)
+            logger.info(f"✓ Scenario cached in RedisJSON: {assets.scenario_id}")
+        except Exception as e:
+            logger.error(f"✗ Failed to cache scenario {assets.scenario_id} to Redis: {e}")
+            
     except Exception as e:
         db.rollback()
         logger.error(f"✗ Failed to save scenario {assets.scenario_id}: {str(e)}")

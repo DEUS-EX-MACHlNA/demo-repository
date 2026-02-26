@@ -1,7 +1,0 @@
-============================================================
-Redis Fetch vs DB Fetch Performance Benchmark (Mocked LLM)
-============================================================
-Benchmarking 50 iterations for each mode (Warmup: 5)...
-
-Warming up...
-Error: cannot import name 'EndingResult' from 'app.ending_checker' (/home/ubuntu/demo-repository/app/ending_checker.py)

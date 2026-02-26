@@ -1,5 +1,5 @@
 import time
-import json
+import json # Keeping just in case for edge fallbacks
 import redis
 from typing import Optional, Dict, Any
 from app.config import REDIS_URL
@@ -11,71 +11,65 @@ class RedisClient:
 
     def get_game_state(self, game_id: str) -> Optional[Dict[str, Any]]:
         """
-        Redis에서 게임 상태를 가져옵니다.
-        state, npc, player 키를 가진 딕셔너리를 반환합니다.
+        RedisJSON을 사용해 게임 상태 전체 딕셔너리를 한 번에 가져옵니다.
         """
         key = f"game:{game_id}:data"
-        data = self.client.hgetall(key)
+        # json().get() returns the exact python dictionary structure we saved
+        data = self.client.json().get(key)
         if not data:
             return None
             
-        # last_updated 원래 값이 문자열 'now' 였던 레거시 대응
-        last_updated_raw = data.get("last_updated", 0)
-        try:
-            last_updated = float(last_updated_raw)
-        except ValueError:
-            import time
-            last_updated = time.time()  # 변환 실패 시 현재 시간으로 간주
-
-        # JSON 문자열을 파싱하여 반환
-        return {
-            "meta_data": json.loads(data.get("meta_data", "{}")),
-            "npc_stats": json.loads(data.get("npc_stats", "{}")),
-            "player_info": json.loads(data.get("player_info", "{}")),
-            "last_updated": last_updated
-        }
+        return data
 
     def set_game_state(self, game_id: str, meta_data: dict, npc_stats: dict, player_info: dict):
         """
-        Redis에 게임 상태를 저장합니다.
-        각 필드는 JSON으로 직렬화되어 저장됩니다.
+        RedisJSON을 사용해 문자열로 직렬화(json.dumps)하지 않고 곧바로 트리를 통째로 저장합니다.
         """
         key = f"game:{game_id}:data"
         mapping = {
-            "meta_data": json.dumps(meta_data, ensure_ascii=False),
-            "npc_stats": json.dumps(npc_stats, ensure_ascii=False),
-            "player_info": json.dumps(player_info, ensure_ascii=False),
+            "meta_data": meta_data,
+            "npc_stats": npc_stats,
+            "player_info": player_info,
             "last_updated": time.time()
         }
-        self.client.hset(key, mapping=mapping)
+        
+        # '$' = JSON root path
+        self.client.json().set(key, "$", mapping)
         self.client.expire(key, self.ttl)
 
     def get_player_info(self, game_id: str) -> Optional[Dict[str, Any]]:
-        """Redis에서 player_info만 가져옵니다."""
         key = f"game:{game_id}:data"
-        data = self.client.hget(key, "player_info")
-        if not data:
-            return None
-        return json.loads(data)
+        # JSONPath syntax (.player_info) to retrieve just the nested dict without loading the rest
+        data = self.client.json().get(key, "$.player_info")
+        if data and isinstance(data, list) and len(data) > 0:
+            return data[0]
+        return None
 
     def update_player_info(self, game_id: str, player_info: dict):
-        """Redis에서 player_info만 업데이트합니다."""
         key = f"game:{game_id}:data"
-        # 키 존재 여부 확인 후 업데이트
         if self.client.exists(key):
-            self.client.hset(key, "player_info", json.dumps(player_info, ensure_ascii=False))
+            self.client.json().set(key, "$.player_info", player_info)
             self.client.expire(key, self.ttl)
 
     def delete_game_state(self, game_id: str):
-        """게임 상태를 Redis에서 삭제합니다."""
         key = f"game:{game_id}:data"
         self.client.delete(key)
     
     def get_all_active_games(self) -> list[str]:
-        """활성 게임 ID 목록을 반환합니다 (스캔 방식)"""
-        # 주의: 운영 환경에서는 scan_iter 권장
         keys = self.client.keys("game:*:data")
         return [k.split(":")[1] for k in keys]
+
+    # --- Global Scenario Cache Methods ---
+    def set_scenario_assets(self, scenario_title: str, assets_dict: dict):
+        """서버 구동 시 무거운 시나리오 에셋 YAML 정보 전체를 JSON 트리로 메모리에 영구 등재합니다."""
+        key = f"scenario:{scenario_title}:assets"
+        self.client.json().set(key, "$", assets_dict)
+        # Not setting ttl. Scenarios live forever in cache.
+
+    def get_scenario_assets(self, scenario_title: str) -> Optional[Dict[str, Any]]:
+        """캐시된 시나리오 데이터를 통 단위 dict로 즉시 반환"""
+        key = f"scenario:{scenario_title}:assets"
+        return self.client.json().get(key)
 
 # 싱글톤 인스턴스
 _redis_instance = None
