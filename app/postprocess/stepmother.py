@@ -83,6 +83,10 @@ def quality_gate(text: str) -> Tuple[str, List[str]]:
     issues: List[str] = []
     result = text.strip()
 
+    # LLM LoRA 잔재 단어 제거 (예: 문장 끝에 "대사" 등이 붙는 경우)
+    _LORA_ARTIFACTS = re.compile(r'\s*(대사|발화|나레이션|대화)\s*$')
+    result = _LORA_ARTIFACTS.sub('', result).strip()
+
     # 빈 출력
     if len(result) < 2:
         issues.append("empty")
@@ -177,14 +181,16 @@ MONSTROSITY_CONFIG = {
         "shorten_sentence":     0.10,
     },
     3: {
-        "dramatic_pause":       0.30,
-        "echo_phrase":          0.70,
-        "intensify_punctuation": 0.90,
-        "collapse_grammar":     0.50,
-        "elongate_word":        0.50,
-        "insert_whisper":       0.00,
-        "repeat_keyword":       0.40,
-        "shorten_sentence":     0.50,
+        "dramatic_pause":        0.30,
+        "echo_phrase":           0.00,  # _GUARANTEED_TRANSFORMS에서 이미 적용
+        "intensify_punctuation": 0.00,  # _GUARANTEED_TRANSFORMS에서 이미 적용
+        "collapse_grammar":      0.20,  # fragment 생성 억제를 위해 감소
+        "elongate_word":         0.40,
+        "insert_whisper":        0.00,
+        "repeat_keyword":        0.50,
+        "shorten_sentence":      0.40,
+        "stammer_repeat":        0.70,  # 신규: 주어 말더듬 효과
+        "trailing_ellipsis":     0.60,  # 신규: 중간 문장 흐려짐
     },
 }
 
@@ -296,9 +302,9 @@ def intensify_punctuation(text: str) -> str:
         ending = sent[len(stripped):]
 
         if "?" in ending:
-            new_ending = random.choice(["?!", "?!!", "?!?!"])
+            new_ending = random.choice(["?!", "?!!", "?!"])
         elif "!" in ending:
-            new_ending = random.choice(["!!!", "!!", "!!!"])
+            new_ending = random.choice(["!!", "!", "!!"])
         else:
             new_ending = random.choice(["!", "!!", "!"])
 
@@ -363,22 +369,51 @@ def insert_whisper(text: str) -> str:
 
 
 def repeat_keyword(text: str) -> str:
-    """집착 키워드를 되뇌이듯 반복
+    """집착 키워드를 쉼표 반복으로 인라인 강조
 
-    '엄마가 다 알아서 해.' → '엄마가 다 알아서 해. 엄마... 엄마...'
+    '엄마가 여기 있어!' → '엄마, 엄마가 여기 있어!'
     """
     for keyword in OBSESSIVE_KEYWORDS:
         if keyword not in text:
             continue
-
-        repeat_count = random.randint(2, 3)
-        connector = random.choice([".", ".", "!", "..."])
-        fragments = [keyword + connector for _ in range(repeat_count)]
-
-        text = text.rstrip(".!? ") + ". " + " ".join(fragments)
+        text = text.replace(keyword, f"{keyword}, {keyword}", 1)
         break
-
     return text
+
+
+_STAMMER_SUBJECTS = ["내가", "네가", "나는", "나한테"]
+
+
+def stammer_repeat(text: str) -> str:
+    """주어를 말더듬 스타일로 인라인 반복
+
+    '내가 널 지켜줄게!!' → '내가, 내가! 널 지켜줄게!!'
+    """
+    sentences = split_sentences(text)
+    for i, sent in enumerate(sentences):
+        for subject in _STAMMER_SUBJECTS:
+            idx = sent.find(subject)
+            if idx == -1:
+                continue
+            before = sent[:idx]
+            after = sent[idx + len(subject):]
+            sentences[i] = before + subject + ", " + subject + "!" + after
+            return join_sentences(sentences)
+    return text
+
+
+def trailing_ellipsis(text: str) -> str:
+    """중간 문장 하나를 ...으로 끝내 광기적 흐려짐 효과
+
+    '나한테 의지해야 해!' → '나한테 의지해야 해...'
+    """
+    sentences = split_sentences(text)
+    if len(sentences) < 2:
+        return text
+    target_idx = random.randint(0, len(sentences) - 2)  # 마지막 문장 제외
+    sent = sentences[target_idx]
+    sentences[target_idx] = sent.rstrip(".!? ") + "..."
+    return join_sentences(sentences)
 
 
 # 필수 기법: lv2/3에서 항상 적용 (확률 파이프라인과 독립)
@@ -429,14 +464,16 @@ def postprocess(
     config = MONSTROSITY_CONFIG[monstrosity]
 
     pipeline = [
-        ("shorten_sentence",     shorten_sentence),
-        ("dramatic_pause",       dramatic_pause),
-        ("echo_phrase",          echo_phrase),
-        ("collapse_grammar",     collapse_grammar),
-        ("elongate_word",        elongate_word),
+        ("shorten_sentence",      shorten_sentence),
+        ("dramatic_pause",        dramatic_pause),
+        ("echo_phrase",           echo_phrase),
+        ("collapse_grammar",      collapse_grammar),
+        ("elongate_word",         elongate_word),
         ("intensify_punctuation", intensify_punctuation),
-        ("insert_whisper",       insert_whisper),
-        ("repeat_keyword",       repeat_keyword),
+        ("insert_whisper",        insert_whisper),
+        ("repeat_keyword",        repeat_keyword),
+        ("stammer_repeat",        stammer_repeat),
+        ("trailing_ellipsis",     trailing_ellipsis),
     ]
 
     for name, fn in pipeline:

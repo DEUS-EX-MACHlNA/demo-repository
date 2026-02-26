@@ -32,7 +32,6 @@ import sys
 import time
 from pathlib import Path
 
-import httpx
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -42,7 +41,7 @@ ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT))
 
 # ── 프로젝트 내 재사용 함수 ────────────────────────────────────────────
-from app.llm.config import LORA_BASE_MODEL, LORA_VLLM_BASE_URL
+from app.llm.config import LORA_BASE_MODEL
 from app.llm.engine import UnifiedLLMEngine, _strip_chinese_chars
 from app.agents.dialogue import _build_rich_utterance_prompt, _PHASE_DIRECTIVES
 from app.agents.utils import format_persona, format_emotion
@@ -50,6 +49,7 @@ from app.postprocess import postprocess_npc_dialogue
 
 
 # ── 픽스처: phase C 상황 (탈출 시도 직후, affection 바닥) ───────────────
+
 
 STEPMOTHER_PERSONA = {
     "values":        "아이는 내 것. 통제가 사랑이다. 저택 밖 세계는 위험하다.",
@@ -102,69 +102,15 @@ NPC_PHASES = [
 PHASE_C_DIRECTIVE = _PHASE_DIRECTIVES["stepmother"][3]
 
 
-# ── VLLMClient (eval_stepmother_lora.py 패턴 재사용) ───────────────────
-
-class VLLMClient:
-    """LORA vLLM 서버 /v1/completions 래퍼.
-
-    eval_stepmother_lora.py 의 VLLMClient 와 동일한 패턴.
-    ① Qwen base 호출 전용 (engine은 npc_id=None 시 Kanana로 라우팅하므로 직접 사용).
-    """
-
-    def __init__(self, base_url: str, api_key: str = "EMPTY", timeout: float = 120.0):
-        self.base_url = base_url.rstrip("/")
-        self._client = httpx.Client(
-            timeout=httpx.Timeout(timeout),
-            headers={"Authorization": f"Bearer {api_key}"},
-        )
-
-    def generate(
-        self,
-        prompt: str,
-        model: str,
-        max_tokens: int = 150,
-        temperature: float = 0.7,
-        top_p: float = 0.9,
-    ) -> tuple[str, float]:
-        """텍스트 생성. (생성된 텍스트, 소요 시간(초)) 반환."""
-        t0 = time.perf_counter()
-        resp = self._client.post(
-            f"{self.base_url}/v1/completions",
-            json={
-                "model":       model,
-                "prompt":      prompt,
-                "max_tokens":  max_tokens,
-                "temperature": temperature,
-                "top_p":       top_p,
-            },
-        )
-        resp.raise_for_status()
-        elapsed = time.perf_counter() - t0
-        text = resp.json()["choices"][0]["text"].strip()
-        return text, elapsed
-
-    def health_check(self) -> bool:
-        try:
-            r = self._client.get(f"{self.base_url}/health", timeout=5.0)
-            return r.status_code == 200
-        except Exception:
-            return False
-
-
 # ── 메인 ──────────────────────────────────────────────────────────────
 
 def main() -> None:
     # ── 서버 URL 확인 ──────────────────────────────────────────────────
-    lora_url = LORA_VLLM_BASE_URL
+    engine = UnifiedLLMEngine()
+    lora_url = engine.lora_base_url
     if not lora_url:
         print("[오류] LORA_VLLM_BASE_URL 환경변수가 설정되어 있지 않습니다.")
         print("       .env 파일 또는 환경에 LORA_VLLM_BASE_URL=http://<host>:<port> 를 추가하세요.")
-        sys.exit(1)
-
-    client = VLLMClient(lora_url)
-    if not client.health_check():
-        print(f"[오류] vLLM 서버에 연결할 수 없습니다: {lora_url}")
-        print("       서버가 실행 중인지 확인하세요.")
         sys.exit(1)
 
     # ── 공통 프롬프트 조립 (실제 게임 빌더 그대로) ────────────────────
@@ -217,8 +163,21 @@ def main() -> None:
     print(dash)
     lora_text = ""
     try:
-        base_text, base_elapsed = client.generate(prompt, model=LORA_BASE_MODEL)
-        base_text = _strip_chinese_chars(base_text)
+        t0 = time.perf_counter()
+        resp = engine._client.post(
+            f"{lora_url}/v1/completions",
+            headers={"Authorization": f"Bearer {engine.api_key}"},
+            json={
+                "model":       LORA_BASE_MODEL,
+                "prompt":      prompt,
+                "max_tokens":  150,
+                "temperature": 0.7,
+                "top_p":       0.9,
+            },
+        )
+        resp.raise_for_status()
+        base_elapsed = time.perf_counter() - t0
+        base_text = _strip_chinese_chars(resp.json()["choices"][0]["text"].strip())
         print(base_text)
         print(f"\n  ⏱  {base_elapsed:.2f}s")
     except Exception as e:
@@ -231,7 +190,6 @@ def main() -> None:
     print(f"  서버: {lora_url}  |  engine.generate_vLLM(npc_id=\"stepmother\")")
     print(dash)
     try:
-        engine = UnifiedLLMEngine()
         t0 = time.perf_counter()
         lora_text = engine.generate_vLLM(prompt, npc_id="stepmother", max_tokens=150)
         lora_elapsed = time.perf_counter() - t0
