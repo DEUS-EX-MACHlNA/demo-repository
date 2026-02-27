@@ -187,7 +187,7 @@ DB 비밀번호와 깃허브 토큰 같은 진짜진짜 중요한 비밀 정보�
 3. 키보드로 아래 내용을 붙여넣기 (비밀번호는 본인이 원하는 걸로)
    ```ini
    POSTGRES_USER=maratang_admin
-   POSTGRES_PASSWORD=나만의진짜강력한DB비밀번호
+   POSTGRES_PASSWORD=<YOUR_STRONG_PASSWORD>
    POSTGRES_DB=maratang_prod_db
    TZ=Asia/Seoul
    ```
