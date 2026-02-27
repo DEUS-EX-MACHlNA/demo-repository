@@ -586,18 +586,7 @@ class GameService:
         
         # Redis 캐시 갱신 (항상)
         try:
-            npc_stats = {}
-            if game.npc_data and "npcs" in game.npc_data:
-                for npc in game.npc_data["npcs"]:
-                    if "npc_id" in npc:
-                        npc_stats[npc["npc_id"]] = npc
-            
-            redis_client.set_game_state(
-                str(game_id),
-                game.world_meta_data,
-                npc_stats,
-                game.player_data
-            )
+            redis_client.set_game_state(game)
             logger.debug(f"Updated Redis cache for game_id={game_id}")
         except Exception as e:
             logger.error(f"Failed to update Redis cache: {e}")
@@ -615,26 +604,25 @@ class GameService:
         user_content = input_data.chat_input
         current_turn = world_after.turn
 
-        if load_source == "DB_Fallback":
-            log_db = SessionLocal()
-            try:
-                create_chat_log(
-                    log_db, game_id, LogType.DIALOGUE, "Player", user_content, current_turn
-                )
+        log_db = SessionLocal()
+        try:
+            create_chat_log(
+                log_db, game_id, LogType.DIALOGUE, "Player", user_content, current_turn
+            )
                 
-                # System Narrative Logging
-                create_chat_log(
-                    log_db, game_id, LogType.NARRATIVE, "System", narrative, world_after.turn
-                )
+            # System Narrative Logging
+            create_chat_log(
+                log_db, game_id, LogType.NARRATIVE, "System", narrative, world_after.turn
+            )
                 
-                # Save summary along with the logs using this separate session
-                log_game = log_db.query(Games).filter(Games.id == game_id).first()
-                if log_game:
-                    log_game.summary = game.summary
-                    flag_modified(log_game, "summary")
-                    log_db.commit()
-            finally:
-                log_db.close()
+            # Save summary along with the logs using this separate session
+            log_game = log_db.query(Games).filter(Games.id == game_id).first()
+            if log_game:
+                log_game.summary = game.summary
+                flag_modified(log_game, "summary")
+                log_db.commit()
+        finally:
+            log_db.close()
         if game.status == GameStatus.ENDING.value:
             if game.id is not None and getattr(game, "_sa_instance_state", None) is not None:
                  db.commit()
@@ -642,6 +630,7 @@ class GameService:
             logger.info(f"Game {game_id} ended at turn {world_after.turn}. Synced to DB and removed from Redis.")
         else:
             logger.info(f"Turn {world_after.turn} processed (Source: {load_source}, Redis: Updated)")
+            
 
         # ── Assemble state_result for frontend ──
         _delta = tool_result.state_delta
@@ -1082,18 +1071,7 @@ class GameService:
         
         # Redis 캐시 업데이트 (항상)
         try:
-            npc_stats = {}
-            if game.npc_data and "npcs" in game.npc_data:
-                for npc in game.npc_data["npcs"]:
-                    if "npc_id" in npc:
-                        npc_stats[npc["npc_id"]] = npc
-            
-            redis_client.set_game_state(
-                str(game_id),
-                game.world_meta_data,
-                npc_stats,
-                game.player_data
-            )
+            redis_client.set_game_state(game)
             logger.debug(f"Updated RedisJSON cache for game_id={game_id}")
         except Exception as e:
             logger.error(f"Failed to update RedisJSON cache: {e}")
@@ -1108,16 +1086,15 @@ class GameService:
         log_db = SessionLocal()
         try:
             # DB_Fallback일 때만 DB 쓰기 최적화 (process_turn과 동일 정책)
-            if load_source == "DB_Fallback" or ending_info:
-                create_chat_log(
-                    log_db, game_id, LogType.NIGHT_EVENT, "System", response_data["narrative"], world_after.turn, {"dialogues": dialogues_dict}
-                )
-                
-                log_game = log_db.query(Games).filter(Games.id == game_id).first()
-                if log_game:
-                    log_game.summary = game.summary
-                    flag_modified(log_game, "summary")
-                    log_db.commit()
+            create_chat_log(
+                log_db, game_id, LogType.NIGHT_EVENT, "System", response_data["narrative"], world_after.turn, {"dialogues": dialogues_dict}
+            )
+            
+            log_game = log_db.query(Games).filter(Games.id == game_id).first()
+            if log_game:
+                log_game.summary = game.summary
+                flag_modified(log_game, "summary")
+                log_db.commit()
         except Exception as e:
             logger.error(f"Failed to log night event to DB: {e}")
             log_db.rollback()
