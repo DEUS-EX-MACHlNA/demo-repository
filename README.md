@@ -1,5 +1,10 @@
 # 🎪 Maratang Game Server (마라탕 게임 서버)
 
+
+<p align="center">
+  <video src="https://github.com/user-attachments/assets/da02091e-cb57-443b-a2bd-648a28683a77" style="max-width:100; height:auto;">
+</p>
+
 Maratang은 생존 추리 스릴러 방탈출 게임을 위한 텍스트/LLM 기반 인터랙티브 백엔드 게임 서버입니다. 
 AI(LLM) 기반의 시나리오 진행, NPC 상호작용, 인벤토리 관리 및 조사(추리) 시스템을 제공합니다.
 
