@@ -21,15 +21,27 @@ class RedisClient:
             
         return data
 
-    def set_game_state(self, game_id: str, meta_data: dict, npc_stats: dict, player_info: dict):
+    def set_game_state(self, game: Any):
         """
         RedisJSON을 사용해 문자열로 직렬화(json.dumps)하지 않고 곧바로 트리를 통째로 저장합니다.
+        game: sqlalchemy Games model instance
         """
+        game_id = str(game.id)
         key = f"game:{game_id}:data"
+        
+        # npc_data 구조 변환 (DB의 list -> Redis의 dict)
+        npc_stats_dict = {}
+        if game.npc_data and isinstance(game.npc_data, dict) and "npcs" in game.npc_data:
+            for npc in game.npc_data["npcs"]:
+                if "npc_id" in npc:
+                    npc_stats_dict[npc["npc_id"]] = npc
+        
         mapping = {
-            "meta_data": meta_data,
-            "npc_stats": npc_stats,
-            "player_info": player_info,
+            "meta_data": game.world_meta_data,
+            "npc_stats": npc_stats_dict,
+            "player_info": game.player_data,
+            "summary": game.summary,
+            "status": game.status,
             "last_updated": time.time()
         }
         

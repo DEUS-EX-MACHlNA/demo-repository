@@ -64,6 +64,14 @@ async def sync_game_state_to_db():
                     # 이를 변환해줘야 함
                     npc_dict = cached["npc_stats"]
                     game.npc_data = {"npcs": list(npc_dict.values())}
+                    
+                if "summary" in cached and cached["summary"] is not None:
+                    game.summary = cached["summary"]
+                    from sqlalchemy.orm.attributes import flag_modified
+                    flag_modified(game, "summary")
+                    
+                if "status" in cached and cached["status"] is not None:
+                    game.status = cached["status"]
                 
                 # 변경사항 마킹 (JSON 필드 감지용)
                 from sqlalchemy.orm.attributes import flag_modified
@@ -102,7 +110,7 @@ scheduler = AsyncIOScheduler()
 scheduler.add_job(
     sync_game_state_to_db, 
     'interval', 
-    seconds=60, 
+    seconds=60, #TODO 그래서 최종에는 5분으로 변경합시다
     misfire_grace_time=60,  # 1분(60초)까지 늦게 실행되는 것을 허용
     coalesce=True,          # 지연된 실행이 여러 번 쌓이면 한 번만 실행
     max_instances=1         # 동시에 중복 실행 방지
